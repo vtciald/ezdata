@@ -7,13 +7,13 @@ def test_fix_characters_arg():
     
     dp = DataProcessor()
 
-    bad_string = 'Hello\xa0World–'
-    bad_list = [['“Derp’', 'This\u00A0is\u202fbad'], 'Hello\xa0World–']
-    bad_dict = {'“Derp’': 25, 'Hello\xa0World–': 'Bad\u2014String\u00A0Value'}
+    test_string = 'Hello\xa0World–'
+    test_list = [['“Derp’', 'This\u00A0is\u202fbad'], 'Hello\xa0World–']
+    test_dict = {'“Derp’': 25, 'Hello\xa0World–': 'Bad\u2014String\u00A0Value'}
 
-    str_result = dp.fix_characters_arg(bad_string)
-    list_result = dp.fix_characters_arg(bad_list)
-    dict_result = dp.fix_characters_arg(bad_dict)
+    str_result = dp.fix_characters_arg(test_string)
+    list_result = dp.fix_characters_arg(test_list)
+    dict_result = dp.fix_characters_arg(test_dict)
     
     assert str_result == 'Hello World-'
     assert list_result == [['"Derp\'', 'This is bad'], 'Hello World-']
@@ -62,13 +62,13 @@ def test_remove_cols():
     dp = DataProcessor()
 
     test_df = pd.DataFrame({
-        '“Derp’': ['Bad\u2014String\u00A0Value', 'Hello\xa0World–'],
+        'Col1': [10, 20],
         'Col2': [25, 50],
         'test_Other_0': ['a string would', 'likely appear here']
     })
 
     expected_df = pd.DataFrame({
-        '“Derp’': ['Bad\u2014String\u00A0Value', 'Hello\xa0World–'],
+        'Col1': [10, 20],
         'Col2': [25, 50]
     })
 
@@ -81,19 +81,19 @@ def test_remove_cols_cols():
     dp = DataProcessor()
 
     test_df = pd.DataFrame({
-        '“Derp’': ['Bad\u2014String\u00A0Value', 'Hello\xa0World–'],
+        'Col1': [10, 20],
         'Col2': [25, 50],
         'test_Other_0': ['a string would', 'likely appear here'],
-        'test2_Other_0': ['a string would', 'likely appear here']
+        'test2_Other_0': ['a string would', 'likely appear here too']
     })
 
     expected_df = pd.DataFrame({
-        '“Derp’': ['Bad\u2014String\u00A0Value', 'Hello\xa0World–'],
+        'Col1': [10, 20],
         'Col2': [25, 50],
-        'test2_Other_0': ['a string would', 'likely appear here']
+        'test2_Other_0': ['a string would', 'likely appear here too']
     })
 
-    result_df = dp.remove_cols(test_df, dp.PATTERN_ALIDA_OTHER_OE, cols = ['“Derp’', 'Col2', 'test_Other_0'])
+    result_df = dp.remove_cols(test_df, dp.PATTERN_ALIDA_OTHER_OE, cols = ['Col1', 'Col2', 'test_Other_0'])
 
     pd.testing.assert_frame_equal(result_df, expected_df)
 
@@ -379,11 +379,11 @@ test_fix_characters_df_cols()
 test_remove_cols()
 test_remove_cols_cols()
 
-# Removing verbal anchors from values and coercing to Int64
+# Removing verbal anchors from values
 test_remove_str_anchors()
 test_remove_str_anchors_cols()
 
-# Replacing straightliners' values with NaN
+# Filtering straightliners
 test_filter_straightliners()
 test_filter_straightliners_min_unique()
 test_filter_straightliners_cols()

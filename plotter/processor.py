@@ -66,7 +66,7 @@ class DataProcessor:
                 If None, operates on all columns. Defaults to None.
 
         Returns:
-            pd.DataFrame: The DataFrame with open-ended columns removed.
+            pd.DataFrame: The DataFrame with columns removed.
         """
         
         df, cols = self._prep_args(df, cols)
@@ -346,12 +346,3 @@ class DataProcessor:
         df[cols] = df[cols].where((df[cols] <= maxes) & (df[cols] >= mins))
 
         return df
-
-
-
-            
-
-
-
-
-
