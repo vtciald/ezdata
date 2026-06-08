@@ -74,7 +74,7 @@ def test_fix_characters_df_cols_regex():
         'Col2': [25, 50]
     })
 
-    result_df = dp.fix_characters_df(test_df, cols = re.compile(r'e'))
+    result_df = dp.fix_characters_df(test_df, pattern = r'e')
 
     pd.testing.assert_frame_equal(result_df, expected_df)
 
@@ -93,28 +93,7 @@ def test_remove_cols():
         'Col2': [25, 50]
     })
 
-    result_df = dp.remove_cols(test_df, dp.PATTERN_ALIDA_OTHER_OE)
-
-    pd.testing.assert_frame_equal(result_df, expected_df)
-
-def test_remove_cols_cols():
-
-    dp = DataProcessor()
-
-    test_df = pd.DataFrame({
-        'Col1': [10, 20],
-        'Col2': [25, 50],
-        'test_Other_0': ['a string would', 'likely appear here'],
-        'test2_Other_0': ['a string would', 'likely appear here too']
-    })
-
-    expected_df = pd.DataFrame({
-        'Col1': [10, 20],
-        'Col2': [25, 50],
-        'test2_Other_0': ['a string would', 'likely appear here too']
-    })
-
-    result_df = dp.remove_cols(test_df, dp.PATTERN_ALIDA_OTHER_OE, cols = ['Col1', 'Col2', 'test_Other_0'])
+    result_df = dp.remove_cols(test_df, pattern = dp.PATTERN_ALIDA_OTHER_OE)
 
     pd.testing.assert_frame_equal(result_df, expected_df)
 
@@ -281,24 +260,6 @@ def test_bin_list():
     
     pd.testing.assert_frame_equal(result_df, expected_df)
 
-def test_bin_cols():
-
-    dp = DataProcessor()
-
-    test_df = pd.DataFrame({
-        'Col1': [1, 3, 3, 6, 6, 6, 9, 9],
-        'Col2': [1, 16, 25, 33, 41, 50, 51, 52]
-    })
-
-    expected_df = pd.DataFrame({
-        'Col1': ['(0, 30]', '(0, 30]', '(0, 30]', '(0, 30]', '(0, 30]', '(0, 30]', '(0, 30]', '(0, 30]'],
-        'Col2': [1, 16, 25, 33, 41, 50, 51, 52]
-    })
-
-    result_df = dp.bin(test_df, [0, 30, 60], cols = ['Col1'])
-    
-    pd.testing.assert_frame_equal(result_df, expected_df)
-
 def test_filter_by_bounds():
 
     dp = DataProcessor()
@@ -317,24 +278,6 @@ def test_filter_by_bounds():
     
     pd.testing.assert_frame_equal(result_df, expected_df)
 
-def test_filter_by_bounds_cols():
-
-    dp = DataProcessor()
-
-    test_df = pd.DataFrame({
-        'Col1': [1, 3, 3, 6, 6, 6, 9, 9],
-        'Col2': [1, 16, 25, 33, 41, 50, 51, 52]
-    })
-
-    expected_df = pd.DataFrame({
-        'Col1': [np.nan, np.nan, np.nan, 6, 6, 6, 9, 9],
-        'Col2': [1, 16, 25, 33, 41, 50, 51, 52]
-    })
-
-    result_df = dp.filter_by_bounds(test_df, min_val = 5, max_val = 50, cols = ['Col1'])
-    
-    pd.testing.assert_frame_equal(result_df, expected_df)
-
 def test_filter_by_iqr():
 
     dp = DataProcessor()
@@ -350,24 +293,6 @@ def test_filter_by_iqr():
     })
 
     result_df = dp.filter_by_iqr(test_df)
-    
-    pd.testing.assert_frame_equal(result_df, expected_df)
-
-def test_filter_by_iqr_cols():
-
-    dp = DataProcessor()
-
-    test_df = pd.DataFrame({
-        'Col1': [-6, 1, 3, 3, 6, 6, 6, 9, 9, 9],
-        'Col2': [1, 1, 16, 25, 33, 41, 50, 51, 52, 100]
-    })
-
-    expected_df = pd.DataFrame({
-        'Col1': [np.nan, 1, 3, 3, 6, 6, 6, 9, 9, 9],
-        'Col2': [1, 1, 16, 25, 33, 41, 50, 51, 52, 100]
-    })
-
-    result_df = dp.filter_by_iqr(test_df, cols = ['Col1'])
     
     pd.testing.assert_frame_equal(result_df, expected_df)
 
@@ -422,7 +347,7 @@ def test_get_cols_prefix():
     })
 
     expected_cols = ['Test_col_one', 'Test_col2']
-    result_cols = dp.get_cols(test_df, prefix = 'Test')
+    result_cols = dp._get_cols(test_df, prefix = 'Test')
 
     assert expected_cols == result_cols
 
@@ -440,7 +365,7 @@ def test_get_cols_suffix():
     })
 
     expected_cols = ['Col4_test', 'Col5_test']
-    result_cols = dp.get_cols(test_df, suffix = 'test')
+    result_cols = dp._get_cols(test_df, suffix = 'test')
 
     assert expected_cols == result_cols
 
@@ -461,11 +386,11 @@ def test_get_cols_pattern_regex():
 
     pattern = re.compile(r'col\d', re.IGNORECASE)
 
-    result_cols = dp.get_cols(test_df, pattern = pattern)
+    result_cols = dp._get_cols(test_df, pattern = pattern)
 
     assert expected_cols == result_cols
 
-def test_get_cols_pattern_str():
+def test_get_cols_multi():
 
     dp = DataProcessor()
 
@@ -475,12 +400,16 @@ def test_get_cols_pattern_str():
         'test_col3': [7, 8, 9],
         'Col4_test': [10, 11, 12],
         'Col5_test': [13, 14, 15],
-        'Col6': [16, 17, 18],
+        'Col6_nope': [16, 17, 18],
+        'Some_Col7_test': [16, 17, 18],
+        'Col8_testing': [16, 17, 18],
     })
 
-    expected_cols = ['Test_col2', 'test_col3']
+    expected_cols = ['Col4_test', 'Col5_test']
 
-    result_cols = dp.get_cols(test_df, pattern = r'col\d')
+    pattern = re.compile(r'\d_')
+
+    result_cols = dp._get_cols(test_df, prefix = 'Col', pattern = pattern, suffix = 'test')
 
     assert expected_cols == result_cols
 
@@ -542,7 +471,7 @@ def test_rename_cols_regex_arg():
         'Col6': [16, 17, 18],
     })
 
-    result_df = dp.rename_cols(test_df, mapper, regex = True)
+    result_df = dp.rename_cols(test_df, mapper, regex_keys = True)
 
     pd.testing.assert_frame_equal(result_df, expected_df)
 
@@ -692,27 +621,6 @@ def test_agg_cols_prod():
     })
 
     result_df = dp.agg_cols(test_df, 'prod', 'NewCol4')
-
-    pd.testing.assert_frame_equal(result_df, expected_df)
-
-def test_agg_cols_prod_cols():
-
-    dp = DataProcessor()
-
-    test_df = pd.DataFrame({
-        'Col1': [1, 1, 1, 1, 0, 0, 0, 0],
-        'Col2': [1, 0, 1, 0, 1, 0, 1, 0],
-        'Col3': [7, 2, 1, 1, 1, 1, 1, 1],
-    })
-
-    expected_df = pd.DataFrame({
-        'Col1': [1, 1, 1, 1, 0, 0, 0, 0],
-        'Col2': [1, 0, 1, 0, 1, 0, 1, 0],
-        'Col3': [7, 2, 1, 1, 1, 1, 1, 1],
-        'NewCol4': [7, 2, 1, 1, 0, 0, 0, 0],
-    })
-
-    result_df = dp.agg_cols(test_df, 'prod', 'NewCol4', cols = ['Col1', 'Col3'])
 
     pd.testing.assert_frame_equal(result_df, expected_df)
 
@@ -924,7 +832,6 @@ test_fix_characters_df_cols_regex()
 
 # Removing columns from dfs
 test_remove_cols()
-test_remove_cols_cols()
 
 # Removing verbal anchors from values
 test_remove_verbal_anchors()
@@ -939,15 +846,12 @@ test_filter_straightliners_cols()
 test_bin_i()
 test_bin_q()
 test_bin_list()
-test_bin_cols()
 
 # Filtering by bounds
 test_filter_by_bounds()
-test_filter_by_bounds_cols()
 
 # Filtering by IQR
 test_filter_by_iqr()
-test_filter_by_iqr_cols()
 test_filter_by_iqr_factor()
 
 # Test one-arg validation
@@ -958,7 +862,7 @@ test_validate_one_arg_used_warn()
 test_get_cols_prefix()
 test_get_cols_suffix()
 test_get_cols_pattern_regex()
-test_get_cols_pattern_str()
+test_get_cols_multi()
 
 # Test renaming columns
 test_rename_cols()
@@ -971,7 +875,6 @@ test_agg_cols_mean()
 test_agg_cols_std()
 test_agg_cols_var()
 test_agg_cols_prod()
-test_agg_cols_prod_cols()
 test_agg_cols_nunique()
 test_agg_cols_count()
 test_agg_cols_sum()

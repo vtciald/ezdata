@@ -29,7 +29,10 @@ class DataProcessor:
     def _prep_args(
         self, 
         df: pd.DataFrame, 
-        cols: list[str] | str | re.Pattern | None = None,
+        cols: list[str] | set[str] | str | None = None,
+        prefix: str | None = None,
+        suffix: str | None = None,
+        pattern: str | re.Pattern | None = None,
     ) -> tuple[pd.DataFrame, list]:
         """Prepare df and cols arguments.
 
@@ -37,7 +40,11 @@ class DataProcessor:
 
         Args:
             df (pd.DataFrame): The DataFrame.
-            cols (list[str] | str | re.Pattern | None): A list of strings column names or a single string column name.
+            cols (list[str] | str | None, optional): Column name(s).
+                If None, includes all columns. Defaults to None.
+            prefix (str | None, optional): A column-name prefix. Defaults to None.
+            suffix (str | None, optional): A column-name suffix. Defaults to None.
+            pattern (str | re.Pattern | None, optional): A column-name regex pattern. Defaults to None.
 
         Returns:
             tuple[pd.DataFrame, list[str]]: A tuple containing a copy of the DataFrame and the list of column names.
@@ -45,52 +52,59 @@ class DataProcessor:
         
         df = df.copy()
 
-        if cols is None:
-            cols = df.columns.tolist()
+        if cols is None and prefix is None and suffix is None and pattern is None:
+            return df, df.columns.tolist()
 
-        elif isinstance(cols, str):
+        if isinstance(cols, str):
             cols = [cols]
 
-        elif isinstance(cols, re.Pattern):
-            pattern = cols
-            cols = []
+        if isinstance(pattern, str):
+            pattern = re.compile(pattern)
 
-            for col in df.columns.tolist():
-                if re.search(pattern, col):
-                    cols.append(col)
+        matched_cols = self._get_cols(df, cols = cols, prefix = prefix, suffix = suffix, pattern = pattern)
 
-        return df, cols
+        return df, matched_cols
     
     def remove_cols(
         self, 
         df: pd.DataFrame, 
-        pattern: re.Pattern, 
-        cols: list[str] | str | re.Pattern | None = None,
+        cols: list[str] | str | None = None,
+        prefix: str | None = None,
+        suffix: str | None = None,
+        pattern: str | re.Pattern | None = None,
     ) -> pd.DataFrame:
         """Remove columns whose labels match the given regex pattern.
 
         Args:
             df (pd.DataFrame): The DataFrame.
-            pattern (re.Pattern): A compiled regex pattern.
-            cols (list[str] | str | re.Pattern | None, optional): A column name or column names on which to operate. 
-                If None, operates on all columns. Defaults to None.
+            cols (list[str] | str | None, optional): Column(s) to remove.
+                If None, includes all columns. Defaults to None.
+            prefix (str | None, optional): The prefix of columns to remove. Defaults to None.
+            suffix (str | None, optional): The suffix of columns to remove. Defaults to None.
+            pattern (str | re.Pattern | None, optional): A regex pattern describing columns to remove. Defaults to None.
+
+        Note:
+            Selection parameters (e.g., 'cols', 'prefix', etc.) are used in conjunction with one another, 
+            taking the intersection of matching columns. In other words, only columns matching all selection
+            criteria will be selected.
 
         Returns:
             pd.DataFrame: The DataFrame with columns removed.
         """
         
-        df, cols = self._prep_args(df, cols)
-        
-        remove_cols = [col for col in cols if re.search(pattern, col)]
+        df, cols = self._prep_args(df, cols, prefix, suffix, pattern)
 
-        df = df.drop(columns = remove_cols)
+        df = df.drop(columns = cols)
 
         return df
     
     def fix_characters_df(
         self,
         df: pd.DataFrame,
-        cols: list[str] | str | re.Pattern | None = None,
+        cols: list[str] | str | None = None,
+        prefix: str | None = None,
+        suffix: str | None = None,
+        pattern: str | re.Pattern | None = None,
     ) -> pd.DataFrame:
         """Standardize characters and strip strings in DataFrame.
 
@@ -98,14 +112,22 @@ class DataProcessor:
 
         Args:
             df (pd.DataFrame): The DataFrame.
-            cols (list[str] | str | re.Pattern | None, optional): A column name or column names on which to operate. 
-                If None, operates on all columns. Defaults to None.
+            cols (list[str] | str | None, optional): Column(s) to clean.
+                If None, cleans all columns. Defaults to None.
+            prefix (str | None, optional): The prefix of columns to clean. Defaults to None.
+            suffix (str | None, optional): The suffix of columns to clean. Defaults to None.
+            pattern (str | re.Pattern | None, optional): A regex pattern describing columns to clean. Defaults to None.
+
+        Note:
+            Selection parameters (e.g., 'cols', 'prefix', etc.) are used in conjunction with one another, 
+            taking the intersection of matching columns. In other words, only columns matching all selection
+            criteria will be selected.
 
         Returns:
             pd.DataFrame: The DataFrame with standardized characters.
         """
 
-        df, cols = self._prep_args(df, cols)
+        df, cols = self._prep_args(df, cols, prefix, suffix, pattern)
 
         rename_dict = {col: str(col).translate(self.FIX_CHAR_MAP).strip() for col in cols}
         df = df.rename(columns = rename_dict)
@@ -145,7 +167,10 @@ class DataProcessor:
     def remove_verbal_anchors(
         self,
         df: pd.DataFrame,
-        cols: list[str] | str | re.Pattern | None = None,
+        cols: list[str] | str | None = None,
+        prefix: str | None = None,
+        suffix: str | None = None,
+        pattern: str | re.Pattern | None = None,
     ) -> pd.DataFrame:
         """Extract leading digits from string values in a DataFrame.
 
@@ -153,14 +178,22 @@ class DataProcessor:
 
         Args:
             df (pd.DataFrame): The DataFrame.
-            cols (list[str] | str | re.Pattern | None, optional): A column name or column names on which to operate. 
-                If None, operates on all columns. Defaults to None.
+            cols (list[str] | str | None, optional): Column(s) on which to operate.
+                If None, includes all columns. Defaults to None.
+            prefix (str | None, optional): The prefix of columns on which to operate. Defaults to None.
+            suffix (str | None, optional): The suffix of columns on which to operate. Defaults to None.
+            pattern (str | re.Pattern | None, optional): A regex pattern describing columns on which to operate. Defaults to None.
+
+        Note:
+            Selection parameters (e.g., 'cols', 'prefix', etc.) are used in conjunction with one another, 
+            taking the intersection of matching columns. In other words, only columns matching all selection
+            criteria will be selected.
 
         Returns:
             pd.DataFrame: The updated DataFrame.
         """
 
-        df, cols = self._prep_args(df, cols)
+        df, cols = self._prep_args(df, cols, prefix, suffix, pattern)
 
         str_cols = df[cols].select_dtypes(include=['object', 'string']).columns
 
@@ -174,7 +207,10 @@ class DataProcessor:
         self,
         df: pd.DataFrame,
         min_unique: int = 2,
-        cols: list[str] | str | re.Pattern | None = None,
+        cols: list[str] | str | None = None,
+        prefix: str | None = None,
+        suffix: str | None = None,
+        pattern: str | re.Pattern | None = None,
     ) -> pd.DataFrame:
         """Replace straightliners' values with NaN.
 
@@ -182,14 +218,22 @@ class DataProcessor:
             df (pd.DataFrame): The DataFrame.
             min_unique (int, optional): The minimum number of unique values desired in a row. 
                 If below this number, values will be replaced with NaN. Defaults to 2.
-            cols (list[str] | str | re.Pattern | None, optional): A column name or column names on which to operate. 
-                If None, operates on all columns. Defaults to None.
+            cols (list[str] | str | None, optional): Column(s) on which to operate.
+                If None, includes all columns. Defaults to None.
+            prefix (str | None, optional): The prefix of columns on which to operate. Defaults to None.
+            suffix (str | None, optional): The suffix of columns on which to operate. Defaults to None.
+            pattern (str | re.Pattern | None, optional): A regex pattern describing columns on which to operate. Defaults to None.
+
+        Note:
+            Selection parameters (e.g., 'cols', 'prefix', etc.) are used in conjunction with one another, 
+            taking the intersection of matching columns. In other words, only columns matching all selection
+            criteria will be selected.
 
         Returns:
             pd.DataFrame: The DataFrame with straightliners' values replaced.
         """
 
-        df, cols = self._prep_args(df, cols)
+        df, cols = self._prep_args(df, cols, prefix, suffix, pattern)
 
         df[cols] = df[cols].where(df[cols].nunique(axis = 1) >= min_unique)
 
@@ -199,7 +243,10 @@ class DataProcessor:
         self,
         df: pd.DataFrame, 
         how: str | list,
-        cols: list[str] | str | re.Pattern | None = None,
+        cols: list[str] | str | None = None,
+        prefix: str | None = None,
+        suffix: str | None = None,
+        pattern: str | re.Pattern | None = None,
     ) -> pd.DataFrame:
         """Bin DataFrame values.
 
@@ -211,14 +258,22 @@ class DataProcessor:
                 - A string of the form 'q#': Quantile binning (e.g., 'q4' and 'q2' bins on the basis of quartiles or a median split, respectively).
                 - A string of the form 'i#': Interval binning (e.g., 'i5' will create 5 equal-width intervals that capture the range of values).
                 - A list of numbers: Explicitly defined bin edges.
-            cols (list[str] | str | re.Pattern | None, optional): A column name or column names on which to operate. 
-                If None, operates on all columns. Defaults to None.
+            cols (list[str] | str | None, optional): Column(s) on which to operate.
+                If None, includes all columns. Defaults to None.
+            prefix (str | None, optional): The prefix of columns on which to operate. Defaults to None.
+            suffix (str | None, optional): The suffix of columns on which to operate. Defaults to None.
+            pattern (str | re.Pattern | None, optional): A regex pattern describing columns on which to operate. Defaults to None.
+
+        Note:
+            Selection parameters (e.g., 'cols', 'prefix', etc.) are used in conjunction with one another, 
+            taking the intersection of matching columns. In other words, only columns matching all selection
+            criteria will be selected.
 
         Returns:
             pd.DataFrame: The binned DataFrame.
         """
 
-        df, cols = self._prep_args(df, cols)
+        df, cols = self._prep_args(df, cols, prefix, suffix, pattern)
 
         if isinstance(how, str):
             df = self._bin_by_string(df, how, cols = cols)
@@ -304,7 +359,10 @@ class DataProcessor:
         df: pd.DataFrame,
         min_val: int | None = None,
         max_val: int | None = None,
-        cols: list[str] | str | re.Pattern | None = None,
+        cols: list[str] | str | None = None,
+        prefix: str | None = None,
+        suffix: str | None = None,
+        pattern: str | re.Pattern | None = None,
     ) -> pd.DataFrame:
         """Filter DataFrame values based on the given minimum and maximum.
 
@@ -312,14 +370,22 @@ class DataProcessor:
             df (pd.DataFrame): The DataFrame.
             min (int, optional): The minimum value to keep. Defaults to None.
             max (int, optional): The maximum value to keep. Defaults to None.
-            cols (list[str] | str | re.Pattern | None, optional): A column name or column names on which to operate. 
-                If None, operates on all columns. Defaults to None.
+            cols (list[str] | str | None, optional): Column(s) on which to operate.
+                If None, includes all columns. Defaults to None.
+            prefix (str | None, optional): The prefix of columns on which to operate. Defaults to None.
+            suffix (str | None, optional): The suffix of columns on which to operate. Defaults to None.
+            pattern (str | re.Pattern | None, optional): A regex pattern describing columns on which to operate. Defaults to None.
+
+        Note:
+            Selection parameters (e.g., 'cols', 'prefix', etc.) are used in conjunction with one another, 
+            taking the intersection of matching columns. In other words, only columns matching all selection
+            criteria will be selected.
 
         Returns:
             pd.DataFrame: The filtered DataFrame.
         """
 
-        df, cols = self._prep_args(df, cols)
+        df, cols = self._prep_args(df, cols, prefix, suffix, pattern)
 
         if min_val is not None:
             df[cols] = df[cols].where(df[cols] >= min_val)
@@ -333,7 +399,10 @@ class DataProcessor:
         self,
         df: pd.DataFrame,
         factor: float | int = 1.5,
-        cols: list[str] | str | re.Pattern | None = None,
+        cols: list[str] | str | None = None,
+        prefix: str | None = None,
+        suffix: str | None = None,
+        pattern: str | re.Pattern | None = None,
     ) -> pd.DataFrame:
         """Filter DataFrame values based on the IQR method.
 
@@ -344,14 +413,22 @@ class DataProcessor:
             df (pd.DataFrame): The DataFrame.
             factor (float | int, optional): The factor by which to multiply the IQR to determine 
                 min and max values. Defaults to 1.5.
-            cols (list[str] | str | re.Pattern | None, optional): A column name or column names on which to operate. 
-                If None, operates on all columns. Defaults to None.
+            cols (list[str] | str | None, optional): Column(s) on which to operate.
+                If None, includes all columns. Defaults to None.
+            prefix (str | None, optional): The prefix of columns on which to operate. Defaults to None.
+            suffix (str | None, optional): The suffix of columns on which to operate. Defaults to None.
+            pattern (str | re.Pattern | None, optional): A regex pattern describing columns on which to operate. Defaults to None.
+
+        Note:
+            Selection parameters (e.g., 'cols', 'prefix', etc.) are used in conjunction with one another, 
+            taking the intersection of matching columns. In other words, only columns matching all selection
+            criteria will be selected.
 
         Returns:
             pd.DataFrame: The filtered DataFrame.
         """
 
-        df, cols = self._prep_args(df, cols)
+        df, cols = self._prep_args(df, cols, prefix, suffix, pattern)
 
         qs = df[cols].quantile([0.25, 0.75], axis = 0)
         iqrs = qs.iloc[1] - qs.iloc[0]
@@ -393,55 +470,66 @@ class DataProcessor:
 
         return None
     
-    def get_cols(
+    def _get_cols(
         self,
         df: pd.DataFrame,
+        cols: list[str] | set[str] | None = None,
         prefix: str | None = None,
         suffix: str | None = None,
-        pattern: re.Pattern | str | None = None,
+        pattern: re.Pattern | None = None,
     ) -> list[str]:
         """Get a list of column names from the DataFrame.
 
         Args:
             df (pd.DataFrame): The DataFrame.
+            cols (list[str] | set[str] | None, optional): Desired column name(s).
+                If None, includes all columns. Defaults to None.
             prefix (str | None, optional): The prefix of desired column names. Defaults to None.
             suffix (str | None, optional): The suffix of desired column names. Defaults to None.
-            pattern (re.Pattern | str | None, optional): A regex pattern describing the desired column names. Defaults to None.
+            pattern (re.Pattern | None, optional): A regex pattern describing desired column names. Defaults to None.
+
+        Note:
+            Selection parameters (e.g., 'cols', 'prefix', etc.) are used in conjunction with one another, 
+            taking the intersection of matching columns. In other words, only columns matching all selection
+            criteria will be selected.
 
         Returns:
             list[str]: The list of desired column names.
         """
-        
-        self._validate_one_arg_used(prefix = prefix, suffix = suffix, pattern = pattern)
-        
-        cols = df.columns.tolist()
+                
+        all_cols = df.columns.tolist()
 
-        if prefix is not None:
-            return [col for col in cols if col.startswith(prefix)]
-        
-        elif suffix is not None:
-            return [col for col in cols if col.endswith(suffix)]
-        
-        elif pattern is not None:
-            if isinstance(pattern, str):
-                pattern = re.compile(pattern)
+        if cols is None and prefix is None and suffix is None and pattern is None:
+            return all_cols
 
-            return [col for col in cols if re.search(pattern, col)]
+        if cols is None:
+            cols = set(all_cols)
+
+        elif isinstance(cols, list):
+            cols = set(cols)        
+
+        matched_cols = [
+            col for col in all_cols
+            if (cols is None or col in cols)
+            and (prefix is None or col.startswith(prefix))
+            and (suffix is None or col.endswith(suffix))
+            and (pattern is None or re.search(pattern, col))
+        ]
         
-        return cols
+        return matched_cols
     
     def _stringify_mapper(
         self,
         mapper: dict[str | re.Pattern, str],
-        regex: bool,
+        regex_keys: bool,
         cols: list[str],
     ) -> dict[str, str]:
         """Standardize mapper argument to a dictionary of strings.
 
         Args:
             mapper (dict[str | re.Pattern, str]): A dictionary mapping strings and/or regex patterns to strings.
-            regex (bool): Whether to treat string keys of mapper as regex patterns.
-            cols (list[str]): A list of strings column names on which to operate.
+            regex_keys (bool): Whether to treat string keys of mapper as regex patterns.
+            cols (list[str]): A list of column names on which to operate.
 
         Returns:
             dict[str, str]: The updated mapper.
@@ -451,7 +539,7 @@ class DataProcessor:
         
         for k, v in mapper.items():
 
-            if isinstance(k, re.Pattern) or regex == True:
+            if isinstance(k, re.Pattern) or regex_keys == True:
                 if isinstance(k, str):
                     k = re.compile(k)
 
@@ -468,8 +556,11 @@ class DataProcessor:
         self,
         df: pd.DataFrame,
         mapper: dict,
-        regex: bool = False,
-        cols: list[str] | str | re.Pattern | None = None,
+        regex_keys: bool = False,
+        cols: list[str] | str | None = None,
+        prefix: str | None = None,
+        suffix: str | None = None,
+        pattern: str | re.Pattern | None = None,
     ) -> pd.DataFrame:
         """Rename DataFrame columns according to the given mapper.
 
@@ -477,16 +568,24 @@ class DataProcessor:
             df (pd.DataFrame): The DataFrame.
             mapper (dict[str | re.Pattern, str]): A dictionary mapping existing column names to desired column names.
                 Existing column names can take the form of strings and/or compiled regex patterns.
-            regex (bool, optional): Whether to treat string keys of mapper as regex patterns. Defaults to False.
-            cols (list[str] | str | re.Pattern | None, optional): A column name or column names on which to operate. 
-                If None, operates on all columns. Defaults to None.
+            regex_keys (bool, optional): Whether to treat string keys of mapper as regex patterns. Defaults to False.
+            cols (list[str] | str | None, optional): Column(s) on which to operate.
+                If None, includes all columns. Defaults to None.
+            prefix (str | None, optional): The prefix of columns on which to operate. Defaults to None.
+            suffix (str | None, optional): The suffix of columns on which to operate. Defaults to None.
+            pattern (str | re.Pattern | None, optional): A regex pattern describing columns on which to operate. Defaults to None.
+
+        Note:
+            Selection parameters (e.g., 'cols', 'prefix', etc.) are used in conjunction with one another, 
+            taking the intersection of matching columns. In other words, only columns matching all selection
+            criteria will be selected.
 
         Returns:
             pd.DataFrame: The DataFrame with renamed columns.
         """
         
-        df, cols = self._prep_args(df, cols)
-        mapper = self._stringify_mapper(mapper, regex, cols)
+        df, cols = self._prep_args(df, cols, prefix, suffix, pattern)
+        mapper = self._stringify_mapper(mapper, regex_keys, cols)
 
         df = df.rename(columns = mapper)
         
@@ -498,7 +597,10 @@ class DataProcessor:
         how: str,
         target_col: str,
         drop_inputs: bool = False,
-        cols: list[str] | str | re.Pattern | None = None,
+        cols: list[str] | str | None = None,
+        prefix: str | None = None,
+        suffix: str | None = None,
+        pattern: str | re.Pattern | None = None,
     ) -> pd.DataFrame:
         """Aggregate across columns to create a new column.
 
@@ -509,8 +611,16 @@ class DataProcessor:
             how (str): The aggregation strategy. Supported choices: min, max, sum, mean, median, count, std, var, prod.
             target_col (str): The target column name in which to store the aggregated values.
             drop_inputs (bool): If true, drops the columns used in aggregation (i.e., those indicated by 'cols'). Defaults to False.
-            cols (list[str] | str | re.Pattern | None, optional): A column name or column names on which to operate. 
-                If None, operates on all columns. Defaults to None.
+            cols (list[str] | str | None, optional): Column(s) to aggregate.
+                If None, includes all columns. Defaults to None.
+            prefix (str | None, optional): The prefix of columns to aggregate. Defaults to None.
+            suffix (str | None, optional): The suffix of columns to aggregate. Defaults to None.
+            pattern (str | re.Pattern | None, optional): A regex pattern describing columns to aggregate. Defaults to None.
+
+        Note:
+            Selection parameters (e.g., 'cols', 'prefix', etc.) are used in conjunction with one another, 
+            taking the intersection of matching columns. In other words, only columns matching all selection
+            criteria will be selected.
 
         Raises:
             ValueError: If the aggregation strategy specified in 'how' isn't recognized.
@@ -519,7 +629,7 @@ class DataProcessor:
             pd.DataFrame: The DataFrame with the aggregated values stored in the target column.
         """
         
-        df, cols = self._prep_args(df, cols)
+        df, cols = self._prep_args(df, cols, prefix, suffix, pattern)
 
         if how in {'min', 'max', 'sum', 'mean', 'median', 'count', 'nunique', 'std', 'var', 'prod'}:
             df[target_col] = df[cols].agg(how, axis = 1)
@@ -539,7 +649,6 @@ class DataProcessor:
         
         return df
 
-    # TODO: Add optional 'prefix' and 'suffix' parameters to methods.
     # TODO: Add methods for getting basic stats (e.g., mean, MOE, n), including other CI-calcualtion methods beyong the standard
     # TODO: Start a new file/class with methods relating to handling graph labels (e.g., wrapping, trimming, etc.)
     # TODO: Start a new file/class with methods relating to creating the graphs (include sorting, pinning, and adding "missing" columns - leaning on categorical dtype?)
