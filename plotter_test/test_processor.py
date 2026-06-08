@@ -29,14 +29,14 @@ def test_fix_characters_df():
         'Col2': [25, 50]
     })
 
-    expected_df = pd.DataFrame({
+    expected = pd.DataFrame({
         '"Derp\'': ['Bad-String Value', 'Hello World-'],
         'Col2': [25, 50]
     })
 
-    result_df = dp.fix_characters_df(test_df)
+    result = dp.fix_characters_df(test_df)
 
-    pd.testing.assert_frame_equal(result_df, expected_df)
+    pd.testing.assert_frame_equal(result, expected)
 
 def test_fix_characters_df_cols():
 
@@ -48,15 +48,15 @@ def test_fix_characters_df_cols():
         'Col2': [25, 50]
     })
 
-    expected_df = pd.DataFrame({
+    expected = pd.DataFrame({
         '"Derp\'': ['Bad-String Value', 'Hello World-'],
         '“Test’': ['Bad\u2014String\u00A0Value', 'Hello\xa0World–'],
         'Col2': [25, 50]
     })
 
-    result_df = dp.fix_characters_df(test_df, cols = ['“Derp’', 'Col2'])
+    result = dp.fix_characters_df(test_df, cols = ['“Derp’', 'Col2'])
 
-    pd.testing.assert_frame_equal(result_df, expected_df)
+    pd.testing.assert_frame_equal(result, expected)
 
 def test_fix_characters_df_cols_regex():
 
@@ -68,15 +68,15 @@ def test_fix_characters_df_cols_regex():
         'Col2': [25, 50]
     })
 
-    expected_df = pd.DataFrame({
+    expected = pd.DataFrame({
         '"Derp\'': ['Bad-String Value', 'Hello World-'],
         '"Test\'': ['Bad-String Value', 'Hello World-'],
         'Col2': [25, 50]
     })
 
-    result_df = dp.fix_characters_df(test_df, pattern = r'e')
+    result = dp.fix_characters_df(test_df, pattern = r'e')
 
-    pd.testing.assert_frame_equal(result_df, expected_df)
+    pd.testing.assert_frame_equal(result, expected)
 
 def test_remove_cols():
 
@@ -88,14 +88,14 @@ def test_remove_cols():
         'test_Other_0': ['a string would', 'likely appear here']
     })
 
-    expected_df = pd.DataFrame({
+    expected = pd.DataFrame({
         'Col1': [10, 20],
         'Col2': [25, 50]
     })
 
-    result_df = dp.remove_cols(test_df, pattern = dp.PATTERN_ALIDA_OTHER_OE)
+    result = dp.remove_cols(test_df, pattern = dp.PATTERN_ALIDA_OTHER_OE)
 
-    pd.testing.assert_frame_equal(result_df, expected_df)
+    pd.testing.assert_frame_equal(result, expected)
 
 def test_remove_verbal_anchors():
 
@@ -107,7 +107,7 @@ def test_remove_verbal_anchors():
         'Col3': ['1 (Something else low)', 2, 3, 4, '5 (Something else high'],
     })
 
-    expected_df = pd.DataFrame({
+    expected = pd.DataFrame({
         'Col1': [1, 2, 3, 4, 5],
         'Col2': [1, 2, 3, 4, 10],
         'Col3': [1, 2, 3, 4, 5],
@@ -117,9 +117,9 @@ def test_remove_verbal_anchors():
         'Col3': 'Int64'
     })
 
-    result_df = dp.remove_verbal_anchors(test_df)
+    result = dp.remove_verbal_anchors(test_df)
 
-    pd.testing.assert_frame_equal(result_df, expected_df)
+    pd.testing.assert_frame_equal(result, expected)
 
 def test_remove_verbal_anchors_cols():
 
@@ -131,7 +131,7 @@ def test_remove_verbal_anchors_cols():
         'Col3': ['1 (Something else low)', 2, 3, 4, '5 (Something else high'],
     })
 
-    expected_df = pd.DataFrame({
+    expected = pd.DataFrame({
         'Col1': [1, 2, 3, 4, 5],
         'Col2': [1, 2, 3, 4, 10],
         'Col3': ['1 (Something else low)', 2, 3, 4, '5 (Something else high'],
@@ -140,9 +140,9 @@ def test_remove_verbal_anchors_cols():
         'Col2': 'Int64'
     })
 
-    result_df = dp.remove_verbal_anchors(test_df, cols = ['Col1', 'Col2'])
+    result = dp.remove_verbal_anchors(test_df, cols = ['Col1', 'Col2'])
 
-    pd.testing.assert_frame_equal(result_df, expected_df)
+    pd.testing.assert_frame_equal(result, expected)
 
 def test_filter_straightliners():
 
@@ -154,15 +154,15 @@ def test_filter_straightliners():
         'Col3': [1, 2, 6, 6, 6]
     })
 
-    expected_df = pd.DataFrame({
+    expected = pd.DataFrame({
         'Col1': [np.nan, np.nan, 3, 4, 5],
         'Col2': [np.nan, np.nan, 3, 7, 7],
         'Col3': [np.nan, np.nan, 6, 6, 6]
     })
 
-    result_df = dp.filter_straightliners(test_df)
+    result = dp.filter_straightliners(test_df)
 
-    pd.testing.assert_frame_equal(result_df, expected_df)
+    pd.testing.assert_frame_equal(result, expected)
 
 def test_filter_straightliners_min_unique():
 
@@ -174,15 +174,15 @@ def test_filter_straightliners_min_unique():
         'Col3': [1, 2, 6, 6, 6]
     })
 
-    expected_df = pd.DataFrame({
+    expected = pd.DataFrame({
         'Col1': [np.nan, np.nan, np.nan, 4, 5],
         'Col2': [np.nan, np.nan, np.nan, 7, 7],
         'Col3': [np.nan, np.nan, np.nan, 6, 6]
     })
 
-    result_df = dp.filter_straightliners(test_df, min_unique = 3)
+    result = dp.filter_straightliners(test_df, min_unique = 3)
 
-    pd.testing.assert_frame_equal(result_df, expected_df)
+    pd.testing.assert_frame_equal(result, expected)
 
 def test_filter_straightliners_cols():
 
@@ -195,16 +195,16 @@ def test_filter_straightliners_cols():
         'Col4': [1, 1, 1, 1, 1]
     })
 
-    expected_df = pd.DataFrame({
+    expected = pd.DataFrame({
         'Col1': [np.nan, np.nan, 3, 4, 5],
         'Col2': [np.nan, np.nan, 3, 7, 7],
         'Col3': [np.nan, np.nan, 6, 6, 6],
         'Col4': [1, 1, 1, 1, 1]
     })
 
-    result_df = dp.filter_straightliners(test_df, cols = ['Col1', 'Col2', 'Col3'])
+    result = dp.filter_straightliners(test_df, cols = ['Col1', 'Col2', 'Col3'])
 
-    pd.testing.assert_frame_equal(result_df, expected_df)
+    pd.testing.assert_frame_equal(result, expected)
 
 def test_bin_i():
 
@@ -215,14 +215,14 @@ def test_bin_i():
         'Col2': [1, 16, 25, 33, 41, 50, 51, 52]
     })
 
-    expected_df = pd.DataFrame({
+    expected = pd.DataFrame({
         'Col1': ['(0.992, 3.0]', '(0.992, 3.0]', '(0.992, 3.0]', '(5.0, 7.0]', '(5.0, 7.0]', '(5.0, 7.0]', '(7.0, 9.0]', '(7.0, 9.0]'],
         'Col2': ['(0.949, 13.75]', '(13.75, 26.5]', '(13.75, 26.5]', '(26.5, 39.25]', '(39.25, 52.0]', '(39.25, 52.0]', '(39.25, 52.0]', '(39.25, 52.0]']
     })
 
-    result_df = dp.bin(test_df, 'i4')
+    result = dp.bin(test_df, 'i4')
 
-    pd.testing.assert_frame_equal(result_df, expected_df)
+    pd.testing.assert_frame_equal(result, expected)
 
 def test_bin_q():
 
@@ -233,14 +233,14 @@ def test_bin_q():
         'Col2': [1, 16, 25, 33, 41, 50, 51, 52]
     })
 
-    expected_df = pd.DataFrame({
+    expected = pd.DataFrame({
         'Col1': ['(0.999, 3.0]', '(0.999, 3.0]', '(0.999, 3.0]', '(3.0, 6.0]', '(3.0, 6.0]', '(3.0, 6.0]', '(6.75, 9.0]', '(6.75, 9.0]'],
         'Col2': ['(0.999, 22.75]', '(0.999, 22.75]', '(22.75, 37.0]', '(22.75, 37.0]', '(37.0, 50.25]', '(37.0, 50.25]', '(50.25, 52.0]', '(50.25, 52.0]']
     })
 
-    result_df = dp.bin(test_df, 'q4')
+    result = dp.bin(test_df, 'q4')
 
-    pd.testing.assert_frame_equal(result_df, expected_df)
+    pd.testing.assert_frame_equal(result, expected)
 
 def test_bin_list():
 
@@ -251,14 +251,14 @@ def test_bin_list():
         'Col2': [1, 16, 25, 33, 41, 50, 51, 52]
     })
 
-    expected_df = pd.DataFrame({
+    expected = pd.DataFrame({
         'Col1': ['(0, 30]', '(0, 30]', '(0, 30]', '(0, 30]', '(0, 30]', '(0, 30]', '(0, 30]', '(0, 30]'],
         'Col2': ['(0, 30]', '(0, 30]', '(0, 30]', '(30, 60]', '(30, 60]', '(30, 60]', '(30, 60]', '(30, 60]']
     })
 
-    result_df = dp.bin(test_df, [0, 30, 60])
+    result = dp.bin(test_df, [0, 30, 60])
     
-    pd.testing.assert_frame_equal(result_df, expected_df)
+    pd.testing.assert_frame_equal(result, expected)
 
 def test_filter_by_bounds():
 
@@ -269,14 +269,14 @@ def test_filter_by_bounds():
         'Col2': [1, 16, 25, 33, 41, 50, 51, 52]
     })
 
-    expected_df = pd.DataFrame({
+    expected = pd.DataFrame({
         'Col1': [np.nan, np.nan, np.nan, 6, 6, 6, 9, 9],
         'Col2': [np.nan, 16, 25, 33, 41, 50, np.nan, np.nan]
     })
 
-    result_df = dp.filter_by_bounds(test_df, min_val = 5, max_val = 50)
+    result = dp.filter_by_bounds(test_df, min_val = 5, max_val = 50)
     
-    pd.testing.assert_frame_equal(result_df, expected_df)
+    pd.testing.assert_frame_equal(result, expected)
 
 def test_filter_by_iqr():
 
@@ -287,14 +287,14 @@ def test_filter_by_iqr():
         'Col2': [1, 1, 16, 25, 33, 41, 50, 51, 52, 100]
     })
 
-    expected_df = pd.DataFrame({
+    expected = pd.DataFrame({
         'Col1': [np.nan, 1, 3, 3, 6, 6, 6, 9, 9, 9],
         'Col2': [1, 1, 16, 25, 33, 41, 50, 51, 52, np.nan]
     })
 
-    result_df = dp.filter_by_iqr(test_df)
+    result = dp.filter_by_iqr(test_df)
     
-    pd.testing.assert_frame_equal(result_df, expected_df)
+    pd.testing.assert_frame_equal(result, expected)
 
 def test_filter_by_iqr_factor():
 
@@ -305,14 +305,14 @@ def test_filter_by_iqr_factor():
         'Col2': [1, 1, 16, 25, 33, 41, 50, 51, 52, 100]
     })
 
-    expected_df = pd.DataFrame({
+    expected = pd.DataFrame({
         'Col1': [np.nan, 1, 3, 3, 6, 6, 6, 9, 9, 9],
         'Col2': [1, 1, 16, 25, 33, 41, 50, 51, 52, 100]
     })
 
-    result_df = dp.filter_by_iqr(test_df, factor = 1.6)
+    result = dp.filter_by_iqr(test_df, factor = 1.6)
     
-    pd.testing.assert_frame_equal(result_df, expected_df)
+    pd.testing.assert_frame_equal(result, expected)
 
 def test_validate_one_arg_used_error():
 
@@ -431,7 +431,7 @@ def test_rename_cols():
         '4_t': 'New label 2'
     }
 
-    expected_df = pd.DataFrame({
+    expected = pd.DataFrame({
         'New label 1': [1, 2, 3],
         'Test_col2': [4, 5, 6],
         'test_col3': [7, 8, 9],
@@ -440,9 +440,9 @@ def test_rename_cols():
         'Col6': [16, 17, 18],
     })
 
-    result_df = dp.rename_cols(test_df, mapper)
+    result = dp.rename_cols(test_df, mapper)
 
-    pd.testing.assert_frame_equal(result_df, expected_df)
+    pd.testing.assert_frame_equal(result, expected)
 
 def test_rename_cols_regex_arg():
 
@@ -462,7 +462,7 @@ def test_rename_cols_regex_arg():
         '4_t': 'New label 2'
     }
 
-    expected_df = pd.DataFrame({
+    expected = pd.DataFrame({
         'New label 1': [1, 2, 3],
         'Test_col2': [4, 5, 6],
         'test_col3': [7, 8, 9],
@@ -471,9 +471,9 @@ def test_rename_cols_regex_arg():
         'Col6': [16, 17, 18],
     })
 
-    result_df = dp.rename_cols(test_df, mapper, regex_keys = True)
+    result = dp.rename_cols(test_df, mapper, regex_keys = True)
 
-    pd.testing.assert_frame_equal(result_df, expected_df)
+    pd.testing.assert_frame_equal(result, expected)
 
 def test_rename_cols_regex_pattern():
 
@@ -493,7 +493,7 @@ def test_rename_cols_regex_pattern():
         re.compile('4_t'): 'New label 2'
     }
 
-    expected_df = pd.DataFrame({
+    expected = pd.DataFrame({
         'New label 1': [1, 2, 3],
         'Test_col2': [4, 5, 6],
         'test_col3': [7, 8, 9],
@@ -502,9 +502,9 @@ def test_rename_cols_regex_pattern():
         'Col6': [16, 17, 18],
     })
 
-    result_df = dp.rename_cols(test_df, mapper)
+    result = dp.rename_cols(test_df, mapper)
 
-    pd.testing.assert_frame_equal(result_df, expected_df)
+    pd.testing.assert_frame_equal(result, expected)
 
 def test_rename_cols_duplicate():
 
@@ -533,14 +533,14 @@ def test_rename_cols_duplicate():
         'New label 1', 'New label 2', 'New label 2', 'New label 2', 'New label 2', 'New label 2',
     ]
 
-    expected_df = pd.DataFrame(
+    expected = pd.DataFrame(
         data_rows,
         columns = columns
     )
 
-    result_df = dp.rename_cols(test_df, mapper)
+    result = dp.rename_cols(test_df, mapper)
 
-    pd.testing.assert_frame_equal(result_df, expected_df)
+    pd.testing.assert_frame_equal(result, expected)
 
 def test_agg_cols_mean():
 
@@ -552,16 +552,16 @@ def test_agg_cols_mean():
         'Col3': [7, 2, 1, 1, 1, 1, 1, 1],
     })
 
-    expected_df = pd.DataFrame({
+    expected = pd.DataFrame({
         'Col1': [1, 1, 1, 1, 0, 0, 0, 0],
         'Col2': [1, 0, 1, 0, 1, 0, 1, 0],
         'Col3': [7, 2, 1, 1, 1, 1, 1, 1],
         'NewCol4': [3, 1, 1, 2/3, 2/3, 1/3, 2/3, 1/3],
     })
 
-    result_df = dp.agg_cols(test_df, 'mean', 'NewCol4')
+    result = dp.agg_cols(test_df, 'mean', 'NewCol4')
 
-    pd.testing.assert_frame_equal(result_df, expected_df)
+    pd.testing.assert_frame_equal(result, expected)
 
 def test_agg_cols_std():
 
@@ -574,15 +574,15 @@ def test_agg_cols_std():
         'Col2': [1 * sqrt2, 3 * sqrt2,  5 * sqrt2,  7 * sqrt2, 4 * sqrt2,  9 * sqrt2, 11 * sqrt2, 20 * sqrt2],
     })
 
-    expected_df = pd.DataFrame({
+    expected = pd.DataFrame({
         'Col1': [0 * sqrt2, 1 * sqrt2,  2 * sqrt2,  3 * sqrt2, 0 * sqrt2,  4 * sqrt2,  5 * sqrt2, 10 * sqrt2],
         'Col2': [1 * sqrt2, 3 * sqrt2,  5 * sqrt2,  7 * sqrt2, 4 * sqrt2,  9 * sqrt2, 11 * sqrt2, 20 * sqrt2],
         'NewCol3': [1.0, 2.0, 3.0, 4.0, 4.0, 5.0, 6.0, 10.0],
     })
 
-    result_df = dp.agg_cols(test_df, 'std', 'NewCol3')
+    result = dp.agg_cols(test_df, 'std', 'NewCol3')
 
-    pd.testing.assert_frame_equal(result_df, expected_df)
+    pd.testing.assert_frame_equal(result, expected)
 
 def test_agg_cols_var():
 
@@ -593,15 +593,15 @@ def test_agg_cols_var():
         'Col2': [3, 4, 6, 12, 11,  1, 10, 14],
     })
 
-    expected_df = pd.DataFrame({
+    expected = pd.DataFrame({
         'Col1': [1, 2, 1, 10,  5,  0, 20,  4],
         'Col2': [3, 4, 6, 12, 11,  1, 10, 14],
         'NewCol3': [2.0, 2.0, 12.5, 2.0, 18.0, 0.5, 50.0, 50.0],
     })
 
-    result_df = dp.agg_cols(test_df, 'var', 'NewCol3')
+    result = dp.agg_cols(test_df, 'var', 'NewCol3')
 
-    pd.testing.assert_frame_equal(result_df, expected_df)
+    pd.testing.assert_frame_equal(result, expected)
 
 def test_agg_cols_prod():
 
@@ -613,16 +613,16 @@ def test_agg_cols_prod():
         'Col3': [7, 2, 1, 1, 1, 1, 1, 1],
     })
 
-    expected_df = pd.DataFrame({
+    expected = pd.DataFrame({
         'Col1': [1, 1, 1, 1, 0, 0, 0, 0],
         'Col2': [1, 0, 1, 0, 1, 0, 1, 0],
         'Col3': [7, 2, 1, 1, 1, 1, 1, 1],
         'NewCol4': [7, 0, 1, 0, 0, 0, 0, 0],
     })
 
-    result_df = dp.agg_cols(test_df, 'prod', 'NewCol4')
+    result = dp.agg_cols(test_df, 'prod', 'NewCol4')
 
-    pd.testing.assert_frame_equal(result_df, expected_df)
+    pd.testing.assert_frame_equal(result, expected)
 
 def test_agg_cols_nunique():
 
@@ -634,16 +634,16 @@ def test_agg_cols_nunique():
         'Col3': [7, 2, 1, 1, 1, 1, 1, 1],
     })
 
-    expected_df = pd.DataFrame({
+    expected = pd.DataFrame({
         'Col1': [1, 1, 1, 1, 0, 0, 0, 0],
         'Col2': [1, 0, 1, 0, 1, 0, 1, 0],
         'Col3': [7, 2, 1, 1, 1, 1, 1, 1],
         'NewCol4': [2, 3, 1, 2, 2, 2, 2, 2],
     })
 
-    result_df = dp.agg_cols(test_df, 'nunique', 'NewCol4')
+    result = dp.agg_cols(test_df, 'nunique', 'NewCol4')
 
-    pd.testing.assert_frame_equal(result_df, expected_df)
+    pd.testing.assert_frame_equal(result, expected)
 
 def test_agg_cols_count():
 
@@ -655,16 +655,16 @@ def test_agg_cols_count():
         'Col3': [7, 2, 1, 1, 1, 1, 1, 1],
     })
 
-    expected_df = pd.DataFrame({
+    expected = pd.DataFrame({
         'Col1': [np.nan, np.nan, 1, 1, 0, 0, 0, 0],
         'Col2': [np.nan, 0, 1, 0, 1, 0, 1, 0],
         'Col3': [7, 2, 1, 1, 1, 1, 1, 1],
         'NewCol4': [1, 2, 3, 3, 3, 3, 3, 3],
     })
 
-    result_df = dp.agg_cols(test_df, 'count', 'NewCol4')
+    result = dp.agg_cols(test_df, 'count', 'NewCol4')
 
-    pd.testing.assert_frame_equal(result_df, expected_df)
+    pd.testing.assert_frame_equal(result, expected)
 
 def test_agg_cols_sum():
 
@@ -676,16 +676,16 @@ def test_agg_cols_sum():
         'Col3': [7, 2, 1, 1, 1, 1, 1, 1],
     })
 
-    expected_df = pd.DataFrame({
+    expected = pd.DataFrame({
         'Col1': [np.nan, np.nan, 1, 1, 0, 0, 0, 0],
         'Col2': [np.nan, 0, 1, 0, 1, 0, 1, 0],
         'Col3': [7, 2, 1, 1, 1, 1, 1, 1],
         'NewCol4': [7.0, 2.0, 3.0, 2.0, 2.0, 1.0, 2.0, 1.0],
     })
 
-    result_df = dp.agg_cols(test_df, 'sum', 'NewCol4')
+    result = dp.agg_cols(test_df, 'sum', 'NewCol4')
 
-    pd.testing.assert_frame_equal(result_df, expected_df)
+    pd.testing.assert_frame_equal(result, expected)
 
 def test_agg_cols_median():
 
@@ -698,7 +698,7 @@ def test_agg_cols_median():
         'Col4': [3, 3, 1, 1, 1, 1, 1, 1],
     })
 
-    expected_df = pd.DataFrame({
+    expected = pd.DataFrame({
         'Col1': [1, 1, 1, 1, 0, 0, 0, 0],
         'Col2': [1, 0, 1, 0, 1, 0, 1, 0],
         'Col3': [7, 2, 1, 1, 1, 1, 1, 1],
@@ -706,9 +706,9 @@ def test_agg_cols_median():
         'NewCol5': [2.0, 1.5, 1.0, 1.0, 1.0, 0.5, 1.0, 0.5],
     })
 
-    result_df = dp.agg_cols(test_df, 'median', 'NewCol5')
+    result = dp.agg_cols(test_df, 'median', 'NewCol5')
 
-    pd.testing.assert_frame_equal(result_df, expected_df)
+    pd.testing.assert_frame_equal(result, expected)
 
 def test_agg_cols_min():
 
@@ -721,7 +721,7 @@ def test_agg_cols_min():
         'Col4': [3, 3, 1, 1, 1, 1, 1, 1],
     })
 
-    expected_df = pd.DataFrame({
+    expected = pd.DataFrame({
         'Col1': [1, 1, 1, 1, 0, 0, 0, 0],
         'Col2': [1, 0, 1, 0, 1, 0, 1, 0],
         'Col3': [7, 2, 1, 1, 1, 1, 1, 1],
@@ -729,9 +729,9 @@ def test_agg_cols_min():
         'NewCol5': [1, 0, 1, 0, 0, 0, 0, 0],
     })
 
-    result_df = dp.agg_cols(test_df, 'min', 'NewCol5')
+    result = dp.agg_cols(test_df, 'min', 'NewCol5')
 
-    pd.testing.assert_frame_equal(result_df, expected_df)
+    pd.testing.assert_frame_equal(result, expected)
 
 def test_agg_cols_max():
 
@@ -744,7 +744,7 @@ def test_agg_cols_max():
         'Col4': [3, 3, 1, 1, 1, 1, 1, 1],
     })
 
-    expected_df = pd.DataFrame({
+    expected = pd.DataFrame({
         'Col1': [1, 1, 1, 1, 0, 0, 0, 0],
         'Col2': [1, 0, 1, 0, 1, 0, 1, 0],
         'Col3': [7, 2, 1, 1, 1, 1, 1, 1],
@@ -752,9 +752,9 @@ def test_agg_cols_max():
         'NewCol5': [7, 3, 1, 1, 1, 1, 1, 1],
     })
 
-    result_df = dp.agg_cols(test_df, 'max', 'NewCol5')
+    result = dp.agg_cols(test_df, 'max', 'NewCol5')
 
-    pd.testing.assert_frame_equal(result_df, expected_df)
+    pd.testing.assert_frame_equal(result, expected)
 
 def test_agg_cols_and():
 
@@ -767,7 +767,7 @@ def test_agg_cols_and():
         'Col4': [3, 3, 1, 1, 1, 1, 1, 1],
     })
 
-    expected_df = pd.DataFrame({
+    expected = pd.DataFrame({
         'Col1': [1, 1, 1, 1, 0, 0, 0, 0],
         'Col2': [1, 0, 1, 0, 1, 0, 1, 0],
         'Col3': [7, 2, 1, 1, 1, 1, 1, 1],
@@ -775,9 +775,9 @@ def test_agg_cols_and():
         'NewCol5': [1, 0, 1, 0, 0, 0, 0, 0],
     })
 
-    result_df = dp.agg_cols(test_df, 'and', 'NewCol5')
+    result = dp.agg_cols(test_df, 'and', 'NewCol5')
 
-    pd.testing.assert_frame_equal(result_df, expected_df)
+    pd.testing.assert_frame_equal(result, expected)
 
 def test_agg_cols_or():
 
@@ -790,7 +790,7 @@ def test_agg_cols_or():
         'Col4': [3, 3, 1, 1, 1, 1, 1, 0],
     })
 
-    expected_df = pd.DataFrame({
+    expected = pd.DataFrame({
         'Col1': [1, 1, 1, 1, 0, 0, 0, 0],
         'Col2': [1, 0, 1, 0, 1, 0, 1, 0],
         'Col3': [7, 2, 1, 1, 1, 1, 1, 0],
@@ -798,9 +798,9 @@ def test_agg_cols_or():
         'NewCol5': [1, 1, 1, 1, 1, 1, 1, 0],
     })
 
-    result_df = dp.agg_cols(test_df, 'or', 'NewCol5')
+    result = dp.agg_cols(test_df, 'or', 'NewCol5')
 
-    pd.testing.assert_frame_equal(result_df, expected_df)
+    pd.testing.assert_frame_equal(result, expected)
 
 def test_agg_cols_or_drop_inputs():
 
@@ -813,13 +813,56 @@ def test_agg_cols_or_drop_inputs():
         'Col4': [3, 3, 1, 1, 1, 1, 1, 0],
     })
 
-    expected_df = pd.DataFrame({
+    expected = pd.DataFrame({
         'NewCol5': [1, 1, 1, 1, 1, 1, 1, 0],
     })
 
-    result_df = dp.agg_cols(test_df, 'or', 'NewCol5', drop_inputs = True)
+    result = dp.agg_cols(test_df, 'or', 'NewCol5', drop_inputs = True)
 
-    pd.testing.assert_frame_equal(result_df, expected_df)
+    pd.testing.assert_frame_equal(result, expected)
+
+def test_agg_rows_list():
+
+    dp = DataProcessor()
+
+    test_df = pd.DataFrame({
+        'Col1': [1, 1, 1, 1, 0, 0, 0, 0],
+        'Col2': [1, 0, 1, 0, 1, 0, 1, 0],
+        'Col3': [7, 2, 1, 1, 1, 1, 1, 1],
+    })
+
+    expected = pd.DataFrame({
+        'Col1': [0.5, 0.534522, 8.0],
+        'Col2': [0.5, 0.534522, 8.0],
+        'Col3': [1.875, 2.10017, 8.0],
+    }, index = ['mean', 'std', 'count'])
+
+    result = dp.agg_rows(test_df, ['mean', 'std', 'count'])
+
+    assert isinstance(result, pd.DataFrame)
+
+    pd.testing.assert_frame_equal(result, expected)
+
+def test_agg_rows_str():
+
+    dp = DataProcessor()
+
+    test_df = pd.DataFrame({
+        'Col1': [1, 1, 1, 1, 0, 0, 0, 0],
+        'Col2': [1, 0, 1, 0, 1, 0, 1, 0],
+        'Col3': [7, 2, 1, 1, 1, 1, 1, 1],
+    })
+
+    expected = pd.Series(
+        [0.5, 0.5, 1.875],
+        index = ['Col1', 'Col2', 'Col3']
+    )
+
+    result = dp.agg_rows(test_df, 'mean')
+
+    assert isinstance(result, pd.Series)
+
+    pd.testing.assert_series_equal(result, expected)
 
 
 # Standardizing characters in arguments
@@ -884,3 +927,7 @@ test_agg_cols_max()
 test_agg_cols_and()
 test_agg_cols_or()
 test_agg_cols_or_drop_inputs()
+
+# Test row aggregation
+test_agg_rows_list()
+test_agg_rows_str()

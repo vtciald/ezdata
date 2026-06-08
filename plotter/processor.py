@@ -73,7 +73,7 @@ class DataProcessor:
         suffix: str | None = None,
         pattern: str | re.Pattern | None = None,
     ) -> pd.DataFrame:
-        """Remove columns whose labels match the given regex pattern.
+        """Remove columns whose labels match the given criteria.
 
         Args:
             df (pd.DataFrame): The DataFrame.
@@ -212,7 +212,9 @@ class DataProcessor:
         suffix: str | None = None,
         pattern: str | re.Pattern | None = None,
     ) -> pd.DataFrame:
-        """Replace straightliners' values with NaN.
+        """Filter DataFrame values based on the required minimum number of unique values in a row.
+
+        Replaces all values in a row that fails to meet the requirement with NaN.
 
         Args:
             df (pd.DataFrame): The DataFrame.
@@ -366,6 +368,8 @@ class DataProcessor:
     ) -> pd.DataFrame:
         """Filter DataFrame values based on the given minimum and maximum.
 
+        Replaces values that exceed the bounds with NaN.
+
         Args:
             df (pd.DataFrame): The DataFrame.
             min (int, optional): The minimum value to keep. Defaults to None.
@@ -406,8 +410,10 @@ class DataProcessor:
     ) -> pd.DataFrame:
         """Filter DataFrame values based on the IQR method.
 
+        Replaces values that exceed the calculated bounds with NaN.
+        
         Defines a maximum value as Q3 + factor * IQR and a minimum value as Q1 - factor * IQR 
-        where IQR = Q3 - Q1
+        where IQR = Q3 - Q1.
 
         Args:
             df (pd.DataFrame): The DataFrame.
@@ -431,10 +437,10 @@ class DataProcessor:
         df, cols = self._prep_args(df, cols, prefix, suffix, pattern)
 
         qs = df[cols].quantile([0.25, 0.75], axis = 0)
-        iqrs = qs.iloc[1] - qs.iloc[0]
+        iqrs = qs.loc[0.75] - qs.loc[0.25]
 
-        mins = qs.iloc[0] - iqrs * factor
-        maxes = qs.iloc[1] + iqrs * factor
+        mins = qs.loc[0.25] - iqrs * factor
+        maxes = qs.loc[0.75] + iqrs * factor
 
         df[cols] = df[cols].where((df[cols] <= maxes) & (df[cols] >= mins))
 
@@ -446,8 +452,11 @@ class DataProcessor:
     ) -> None:
         """Validate that only a single argument is not None.
 
+        Raises:
+            ValueError: If all are None.
+
         Returns:
-            None: None. Raises a ValueError if all are None. Raises a warning if multiple arguments were not None.
+            None: None.
         """
 
         class_name = self.__class__.__name__
@@ -608,7 +617,8 @@ class DataProcessor:
 
         Args:
             df (pd.DataFrame): The DataFrame.
-            how (str): The aggregation strategy. Supported choices: min, max, sum, mean, median, count, std, var, prod.
+            how (str): The aggregation strategy. Supported choices: 'min', 'max', 'sum', 'mean', 'median',
+                'count', 'std', 'var', 'prod', 'or', 'and'.
             target_col (str): The target column name in which to store the aggregated values.
             drop_inputs (bool): If true, drops the columns used in aggregation (i.e., those indicated by 'cols'). Defaults to False.
             cols (list[str] | str | None, optional): Column(s) to aggregate.
@@ -617,13 +627,13 @@ class DataProcessor:
             suffix (str | None, optional): The suffix of columns to aggregate. Defaults to None.
             pattern (str | re.Pattern | None, optional): A regex pattern describing columns to aggregate. Defaults to None.
 
+        Raises:
+            ValueError: If the aggregation strategy specified in 'how' isn't recognized.
+
         Note:
             Selection parameters (e.g., 'cols', 'prefix', etc.) are used in conjunction with one another, 
             taking the intersection of matching columns. In other words, only columns matching all selection
             criteria will be selected.
-
-        Raises:
-            ValueError: If the aggregation strategy specified in 'how' isn't recognized.
 
         Returns:
             pd.DataFrame: The DataFrame with the aggregated values stored in the target column.
@@ -631,7 +641,10 @@ class DataProcessor:
         
         df, cols = self._prep_args(df, cols, prefix, suffix, pattern)
 
-        if how in {'min', 'max', 'sum', 'mean', 'median', 'count', 'nunique', 'std', 'var', 'prod'}:
+        valid_hows = {'min', 'max', 'sum', 'mean', 'median', 'count', 'nunique', 'std', 'var', 'prod', 'or', 'and'}
+        pd_hows = {'min', 'max', 'sum', 'mean', 'median', 'count', 'nunique', 'std', 'var', 'prod'}
+
+        if how in pd_hows:
             df[target_col] = df[cols].agg(how, axis = 1)
 
         elif how == 'or':
@@ -641,14 +654,68 @@ class DataProcessor:
             df[target_col] = df[cols].astype(bool).all(axis = 1).astype(int)
 
         else:
-            raise ValueError(f'Unrecognized aggregation strategy \'{how}\'. Supported choices: min, max, sum, mean, median, count, std, var, prod.')
+            raise ValueError(f'Unrecognized aggregation strategy \'{how}\'. Supported choices: {valid_hows}')
 
         if drop_inputs:
             cols_to_drop = [col for col in cols if col != target_col]
             df = df.drop(columns = cols_to_drop)
         
         return df
+    
+    def agg_rows(
+        self,
+        df: pd.DataFrame,
+        how: str | list[str],
+        cols: list[str] | str | None = None,
+        prefix: str | None = None,
+        suffix: str | None = None,
+        pattern: str | re.Pattern | None = None,
+    ) -> pd.DataFrame | pd.Series:
+        """Aggregate across rows of the given DataFrame to create a new DataFrame or Series.
 
-    # TODO: Add methods for getting basic stats (e.g., mean, MOE, n), including other CI-calcualtion methods beyong the standard
+        Applies aggregation function(s) given by 'how' across rows (i.e., axis = 0). 
+
+        Args:
+            df (pd.DataFrame): The DataFrame.
+            how (str | list[str]): The aggregation strategy. Supported choices: 'min', 'max', 'sum', 'mean', 'median',
+                'count', 'std', 'var', 'prod'.
+            cols (list[str] | str | None, optional): Column(s) to aggregate.
+                If None, includes all columns. Defaults to None.
+            prefix (str | None, optional): The prefix of columns to aggregate. Defaults to None.
+            suffix (str | None, optional): The suffix of columns to aggregate. Defaults to None.
+            pattern (str | re.Pattern | None, optional): A regex pattern describing columns to aggregate. Defaults to None.
+
+        Raises:
+            ValueError: If a given aggregation strategy is unrecognized.
+
+        Note:
+            Selection parameters (e.g., 'cols', 'prefix', etc.) are used in conjunction with one another, 
+            taking the intersection of matching columns. In other words, only columns matching all selection
+            criteria will be selected.
+
+        Returns:
+            pd.DataFrame | pd.Series: The resulting DataFrame or Series.
+        """
+        
+        df, cols = self._prep_args(df, cols, prefix, suffix, pattern)
+
+        valid_hows = {'min', 'max', 'sum', 'mean', 'median', 'count', 'nunique', 'std', 'var', 'prod'}
+        how_map = {}
+
+        if isinstance(how, list):
+            for val in how:
+                if val not in valid_hows:
+                    raise ValueError(f'Unrecognized aggregation strategy \'{how}\'. Supported choices: {valid_hows}')
+                
+        elif isinstance(how, str):
+            if how not in valid_hows:
+                raise ValueError(f'Unrecognized aggregation strategy \'{how}\'. Supported choices: {valid_hows}')
+            
+        for col in cols:
+            how_map[col] = how     
+
+        return df[cols].agg(how_map, axis = 0)        
+
+    # TODO: Add methods for getting basic stats (e.g., mean, MOE, n), including other CI-calcualtion methods beyond the standard
     # TODO: Start a new file/class with methods relating to handling graph labels (e.g., wrapping, trimming, etc.)
     # TODO: Start a new file/class with methods relating to creating the graphs (include sorting, pinning, and adding "missing" columns - leaning on categorical dtype?)
