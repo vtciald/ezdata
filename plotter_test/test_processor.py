@@ -613,6 +613,306 @@ def test_rename_cols_duplicate():
 
     pd.testing.assert_frame_equal(result_df, expected_df)
 
+def test_agg_cols_mean():
+
+    dp = DataProcessor()
+
+    test_df = pd.DataFrame({
+        'Col1': [1, 1, 1, 1, 0, 0, 0, 0],
+        'Col2': [1, 0, 1, 0, 1, 0, 1, 0],
+        'Col3': [7, 2, 1, 1, 1, 1, 1, 1],
+    })
+
+    expected_df = pd.DataFrame({
+        'Col1': [1, 1, 1, 1, 0, 0, 0, 0],
+        'Col2': [1, 0, 1, 0, 1, 0, 1, 0],
+        'Col3': [7, 2, 1, 1, 1, 1, 1, 1],
+        'NewCol4': [3, 1, 1, 2/3, 2/3, 1/3, 2/3, 1/3],
+    })
+
+    result_df = dp.agg_cols(test_df, 'mean', 'NewCol4')
+
+    pd.testing.assert_frame_equal(result_df, expected_df)
+
+def test_agg_cols_std():
+
+    dp = DataProcessor()
+
+    sqrt2 = np.sqrt(2)
+
+    test_df = pd.DataFrame({
+        'Col1': [0 * sqrt2, 1 * sqrt2,  2 * sqrt2,  3 * sqrt2, 0 * sqrt2,  4 * sqrt2,  5 * sqrt2, 10 * sqrt2],
+        'Col2': [1 * sqrt2, 3 * sqrt2,  5 * sqrt2,  7 * sqrt2, 4 * sqrt2,  9 * sqrt2, 11 * sqrt2, 20 * sqrt2],
+    })
+
+    expected_df = pd.DataFrame({
+        'Col1': [0 * sqrt2, 1 * sqrt2,  2 * sqrt2,  3 * sqrt2, 0 * sqrt2,  4 * sqrt2,  5 * sqrt2, 10 * sqrt2],
+        'Col2': [1 * sqrt2, 3 * sqrt2,  5 * sqrt2,  7 * sqrt2, 4 * sqrt2,  9 * sqrt2, 11 * sqrt2, 20 * sqrt2],
+        'NewCol3': [1.0, 2.0, 3.0, 4.0, 4.0, 5.0, 6.0, 10.0],
+    })
+
+    result_df = dp.agg_cols(test_df, 'std', 'NewCol3')
+
+    pd.testing.assert_frame_equal(result_df, expected_df)
+
+def test_agg_cols_var():
+
+    dp = DataProcessor()
+
+    test_df = pd.DataFrame({
+        'Col1': [1, 2, 1, 10,  5,  0, 20,  4],
+        'Col2': [3, 4, 6, 12, 11,  1, 10, 14],
+    })
+
+    expected_df = pd.DataFrame({
+        'Col1': [1, 2, 1, 10,  5,  0, 20,  4],
+        'Col2': [3, 4, 6, 12, 11,  1, 10, 14],
+        'NewCol3': [2.0, 2.0, 12.5, 2.0, 18.0, 0.5, 50.0, 50.0],
+    })
+
+    result_df = dp.agg_cols(test_df, 'var', 'NewCol3')
+
+    pd.testing.assert_frame_equal(result_df, expected_df)
+
+def test_agg_cols_prod():
+
+    dp = DataProcessor()
+
+    test_df = pd.DataFrame({
+        'Col1': [1, 1, 1, 1, 0, 0, 0, 0],
+        'Col2': [1, 0, 1, 0, 1, 0, 1, 0],
+        'Col3': [7, 2, 1, 1, 1, 1, 1, 1],
+    })
+
+    expected_df = pd.DataFrame({
+        'Col1': [1, 1, 1, 1, 0, 0, 0, 0],
+        'Col2': [1, 0, 1, 0, 1, 0, 1, 0],
+        'Col3': [7, 2, 1, 1, 1, 1, 1, 1],
+        'NewCol4': [7, 0, 1, 0, 0, 0, 0, 0],
+    })
+
+    result_df = dp.agg_cols(test_df, 'prod', 'NewCol4')
+
+    pd.testing.assert_frame_equal(result_df, expected_df)
+
+def test_agg_cols_prod_cols():
+
+    dp = DataProcessor()
+
+    test_df = pd.DataFrame({
+        'Col1': [1, 1, 1, 1, 0, 0, 0, 0],
+        'Col2': [1, 0, 1, 0, 1, 0, 1, 0],
+        'Col3': [7, 2, 1, 1, 1, 1, 1, 1],
+    })
+
+    expected_df = pd.DataFrame({
+        'Col1': [1, 1, 1, 1, 0, 0, 0, 0],
+        'Col2': [1, 0, 1, 0, 1, 0, 1, 0],
+        'Col3': [7, 2, 1, 1, 1, 1, 1, 1],
+        'NewCol4': [7, 2, 1, 1, 0, 0, 0, 0],
+    })
+
+    result_df = dp.agg_cols(test_df, 'prod', 'NewCol4', cols = ['Col1', 'Col3'])
+
+    pd.testing.assert_frame_equal(result_df, expected_df)
+
+def test_agg_cols_nunique():
+
+    dp = DataProcessor()
+
+    test_df = pd.DataFrame({
+        'Col1': [1, 1, 1, 1, 0, 0, 0, 0],
+        'Col2': [1, 0, 1, 0, 1, 0, 1, 0],
+        'Col3': [7, 2, 1, 1, 1, 1, 1, 1],
+    })
+
+    expected_df = pd.DataFrame({
+        'Col1': [1, 1, 1, 1, 0, 0, 0, 0],
+        'Col2': [1, 0, 1, 0, 1, 0, 1, 0],
+        'Col3': [7, 2, 1, 1, 1, 1, 1, 1],
+        'NewCol4': [2, 3, 1, 2, 2, 2, 2, 2],
+    })
+
+    result_df = dp.agg_cols(test_df, 'nunique', 'NewCol4')
+
+    pd.testing.assert_frame_equal(result_df, expected_df)
+
+def test_agg_cols_count():
+
+    dp = DataProcessor()
+
+    test_df = pd.DataFrame({
+        'Col1': [np.nan, np.nan, 1, 1, 0, 0, 0, 0],
+        'Col2': [np.nan, 0, 1, 0, 1, 0, 1, 0],
+        'Col3': [7, 2, 1, 1, 1, 1, 1, 1],
+    })
+
+    expected_df = pd.DataFrame({
+        'Col1': [np.nan, np.nan, 1, 1, 0, 0, 0, 0],
+        'Col2': [np.nan, 0, 1, 0, 1, 0, 1, 0],
+        'Col3': [7, 2, 1, 1, 1, 1, 1, 1],
+        'NewCol4': [1, 2, 3, 3, 3, 3, 3, 3],
+    })
+
+    result_df = dp.agg_cols(test_df, 'count', 'NewCol4')
+
+    pd.testing.assert_frame_equal(result_df, expected_df)
+
+def test_agg_cols_sum():
+
+    dp = DataProcessor()
+
+    test_df = pd.DataFrame({
+        'Col1': [np.nan, np.nan, 1, 1, 0, 0, 0, 0],
+        'Col2': [np.nan, 0, 1, 0, 1, 0, 1, 0],
+        'Col3': [7, 2, 1, 1, 1, 1, 1, 1],
+    })
+
+    expected_df = pd.DataFrame({
+        'Col1': [np.nan, np.nan, 1, 1, 0, 0, 0, 0],
+        'Col2': [np.nan, 0, 1, 0, 1, 0, 1, 0],
+        'Col3': [7, 2, 1, 1, 1, 1, 1, 1],
+        'NewCol4': [7.0, 2.0, 3.0, 2.0, 2.0, 1.0, 2.0, 1.0],
+    })
+
+    result_df = dp.agg_cols(test_df, 'sum', 'NewCol4')
+
+    pd.testing.assert_frame_equal(result_df, expected_df)
+
+def test_agg_cols_median():
+
+    dp = DataProcessor()
+
+    test_df = pd.DataFrame({
+        'Col1': [1, 1, 1, 1, 0, 0, 0, 0],
+        'Col2': [1, 0, 1, 0, 1, 0, 1, 0],
+        'Col3': [7, 2, 1, 1, 1, 1, 1, 1],
+        'Col4': [3, 3, 1, 1, 1, 1, 1, 1],
+    })
+
+    expected_df = pd.DataFrame({
+        'Col1': [1, 1, 1, 1, 0, 0, 0, 0],
+        'Col2': [1, 0, 1, 0, 1, 0, 1, 0],
+        'Col3': [7, 2, 1, 1, 1, 1, 1, 1],
+        'Col4': [3, 3, 1, 1, 1, 1, 1, 1],
+        'NewCol5': [2.0, 1.5, 1.0, 1.0, 1.0, 0.5, 1.0, 0.5],
+    })
+
+    result_df = dp.agg_cols(test_df, 'median', 'NewCol5')
+
+    pd.testing.assert_frame_equal(result_df, expected_df)
+
+def test_agg_cols_min():
+
+    dp = DataProcessor()
+
+    test_df = pd.DataFrame({
+        'Col1': [1, 1, 1, 1, 0, 0, 0, 0],
+        'Col2': [1, 0, 1, 0, 1, 0, 1, 0],
+        'Col3': [7, 2, 1, 1, 1, 1, 1, 1],
+        'Col4': [3, 3, 1, 1, 1, 1, 1, 1],
+    })
+
+    expected_df = pd.DataFrame({
+        'Col1': [1, 1, 1, 1, 0, 0, 0, 0],
+        'Col2': [1, 0, 1, 0, 1, 0, 1, 0],
+        'Col3': [7, 2, 1, 1, 1, 1, 1, 1],
+        'Col4': [3, 3, 1, 1, 1, 1, 1, 1],
+        'NewCol5': [1, 0, 1, 0, 0, 0, 0, 0],
+    })
+
+    result_df = dp.agg_cols(test_df, 'min', 'NewCol5')
+
+    pd.testing.assert_frame_equal(result_df, expected_df)
+
+def test_agg_cols_max():
+
+    dp = DataProcessor()
+
+    test_df = pd.DataFrame({
+        'Col1': [1, 1, 1, 1, 0, 0, 0, 0],
+        'Col2': [1, 0, 1, 0, 1, 0, 1, 0],
+        'Col3': [7, 2, 1, 1, 1, 1, 1, 1],
+        'Col4': [3, 3, 1, 1, 1, 1, 1, 1],
+    })
+
+    expected_df = pd.DataFrame({
+        'Col1': [1, 1, 1, 1, 0, 0, 0, 0],
+        'Col2': [1, 0, 1, 0, 1, 0, 1, 0],
+        'Col3': [7, 2, 1, 1, 1, 1, 1, 1],
+        'Col4': [3, 3, 1, 1, 1, 1, 1, 1],
+        'NewCol5': [7, 3, 1, 1, 1, 1, 1, 1],
+    })
+
+    result_df = dp.agg_cols(test_df, 'max', 'NewCol5')
+
+    pd.testing.assert_frame_equal(result_df, expected_df)
+
+def test_agg_cols_and():
+
+    dp = DataProcessor()
+
+    test_df = pd.DataFrame({
+        'Col1': [1, 1, 1, 1, 0, 0, 0, 0],
+        'Col2': [1, 0, 1, 0, 1, 0, 1, 0],
+        'Col3': [7, 2, 1, 1, 1, 1, 1, 1],
+        'Col4': [3, 3, 1, 1, 1, 1, 1, 1],
+    })
+
+    expected_df = pd.DataFrame({
+        'Col1': [1, 1, 1, 1, 0, 0, 0, 0],
+        'Col2': [1, 0, 1, 0, 1, 0, 1, 0],
+        'Col3': [7, 2, 1, 1, 1, 1, 1, 1],
+        'Col4': [3, 3, 1, 1, 1, 1, 1, 1],
+        'NewCol5': [1, 0, 1, 0, 0, 0, 0, 0],
+    })
+
+    result_df = dp.agg_cols(test_df, 'and', 'NewCol5')
+
+    pd.testing.assert_frame_equal(result_df, expected_df)
+
+def test_agg_cols_or():
+
+    dp = DataProcessor()
+
+    test_df = pd.DataFrame({
+        'Col1': [1, 1, 1, 1, 0, 0, 0, 0],
+        'Col2': [1, 0, 1, 0, 1, 0, 1, 0],
+        'Col3': [7, 2, 1, 1, 1, 1, 1, 0],
+        'Col4': [3, 3, 1, 1, 1, 1, 1, 0],
+    })
+
+    expected_df = pd.DataFrame({
+        'Col1': [1, 1, 1, 1, 0, 0, 0, 0],
+        'Col2': [1, 0, 1, 0, 1, 0, 1, 0],
+        'Col3': [7, 2, 1, 1, 1, 1, 1, 0],
+        'Col4': [3, 3, 1, 1, 1, 1, 1, 0],
+        'NewCol5': [1, 1, 1, 1, 1, 1, 1, 0],
+    })
+
+    result_df = dp.agg_cols(test_df, 'or', 'NewCol5')
+
+    pd.testing.assert_frame_equal(result_df, expected_df)
+
+def test_agg_cols_or_drop_inputs():
+
+    dp = DataProcessor()
+
+    test_df = pd.DataFrame({
+        'Col1': [1, 1, 1, 1, 0, 0, 0, 0],
+        'Col2': [1, 0, 1, 0, 1, 0, 1, 0],
+        'Col3': [7, 2, 1, 1, 1, 1, 1, 0],
+        'Col4': [3, 3, 1, 1, 1, 1, 1, 0],
+    })
+
+    expected_df = pd.DataFrame({
+        'NewCol5': [1, 1, 1, 1, 1, 1, 1, 0],
+    })
+
+    result_df = dp.agg_cols(test_df, 'or', 'NewCol5', drop_inputs = True)
+
+    pd.testing.assert_frame_equal(result_df, expected_df)
+
 
 # Standardizing characters in arguments
 test_fix_characters_arg()
@@ -665,3 +965,19 @@ test_rename_cols()
 test_rename_cols_regex_arg()
 test_rename_cols_regex_pattern()
 test_rename_cols_duplicate()
+
+# Test column aggregation
+test_agg_cols_mean()
+test_agg_cols_std()
+test_agg_cols_var()
+test_agg_cols_prod()
+test_agg_cols_prod_cols()
+test_agg_cols_nunique()
+test_agg_cols_count()
+test_agg_cols_sum()
+test_agg_cols_median()
+test_agg_cols_min()
+test_agg_cols_max()
+test_agg_cols_and()
+test_agg_cols_or()
+test_agg_cols_or_drop_inputs()

@@ -243,6 +243,9 @@ class DataProcessor:
             how (str): String representing the desired binning method, of the form 'q#' or 'i#'.
             cols (list[str]): A list of columns on which to operate. 
 
+        Raises:
+            ValueError: If string argument for 'how' doesn't follow the expected pattern.
+
         Returns:
             pd.DataFrame: The binned DataFrame.
         """
@@ -489,8 +492,54 @@ class DataProcessor:
         
         return df
     
-    # TODO: Add a column-aggregator method, with how options: min, max, mean, median, sum, or, and, etc.?
-    # TODO: Add methods for sorting, pinning, and adding "missing" columns
+    def agg_cols(
+        self,
+        df: pd.DataFrame,
+        how: str,
+        target_col: str,
+        drop_inputs: bool = False,
+        cols: list[str] | str | re.Pattern | None = None,
+    ) -> pd.DataFrame:
+        """Aggregate across columns to create a new column.
+
+        Applies an aggregation function given by 'how' across columns (i.e., axis = 1). 
+
+        Args:
+            df (pd.DataFrame): The DataFrame.
+            how (str): The aggregation strategy. Supported choices: min, max, sum, mean, median, count, std, var, prod.
+            target_col (str): The target column name in which to store the aggregated values.
+            drop_inputs (bool): If true, drops the columns used in aggregation (i.e., those indicated by 'cols'). Defaults to False.
+            cols (list[str] | str | re.Pattern | None, optional): A column name or column names on which to operate. 
+                If None, operates on all columns. Defaults to None.
+
+        Raises:
+            ValueError: If the aggregation strategy specified in 'how' isn't recognized.
+
+        Returns:
+            pd.DataFrame: The DataFrame with the aggregated values stored in the target column.
+        """
+        
+        df, cols = self._prep_args(df, cols)
+
+        if how in {'min', 'max', 'sum', 'mean', 'median', 'count', 'nunique', 'std', 'var', 'prod'}:
+            df[target_col] = df[cols].agg(how, axis = 1)
+
+        elif how == 'or':
+            df[target_col] = df[cols].astype(bool).any(axis = 1).astype(int)
+
+        elif how == 'and':
+            df[target_col] = df[cols].astype(bool).all(axis = 1).astype(int)
+
+        else:
+            raise ValueError(f'Unrecognized aggregation strategy \'{how}\'. Supported choices: min, max, sum, mean, median, count, std, var, prod.')
+
+        if drop_inputs:
+            cols_to_drop = [col for col in cols if col != target_col]
+            df = df.drop(columns = cols_to_drop)
+        
+        return df
+
+    # TODO: Add optional 'prefix' and 'suffix' parameters to methods.
     # TODO: Add methods for getting basic stats (e.g., mean, MOE, n), including other CI-calcualtion methods beyong the standard
     # TODO: Start a new file/class with methods relating to handling graph labels (e.g., wrapping, trimming, etc.)
-    # TODO: Start a new file/class with methods relating to creating the graphs
+    # TODO: Start a new file/class with methods relating to creating the graphs (include sorting, pinning, and adding "missing" columns - leaning on categorical dtype?)
