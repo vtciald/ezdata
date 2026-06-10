@@ -26,7 +26,7 @@ class DataProcessor:
 
     PATTERN_ALIDA_OTHER_OE = re.compile(r'other.*_0$', re.IGNORECASE)
     PATTERN_LEADING_INT = re.compile(r'^(\d+)', re.IGNORECASE)
-    PATTERN_HOW_BIN = re.compile(r'(?P<kind>i|q)(?P<number>\d+\.?\d*)', re.IGNORECASE)
+    PATTERN_BIN_METHOD = re.compile(r'(?P<kind>i|q)(?P<number>\d+\.?\d*)', re.IGNORECASE)
 
     def _prep_args(
         self, 
@@ -252,7 +252,7 @@ class DataProcessor:
     def bin(
         self,
         df: pd.DataFrame, 
-        how: str | list,
+        method: str | list,
         cols: list[str] | str | None = None,
         prefix: str | None = None,
         suffix: str | None = None,
@@ -264,7 +264,7 @@ class DataProcessor:
 
         Args:
             df (pd.DataFrame): The DataFrame.
-            how (str | list): The binning method to apply. Options include:
+            method (str | list): The binning method to apply. Options include:
                 * A string of the form 'q#': Quantile binning (e.g., 'q4' and 'q2' bins on the basis of 
                 quartiles or a median split, respectively).
                 * A string of the form 'i#': Interval binning (e.g., 'i5' will create 5 equal-width 
@@ -288,79 +288,79 @@ class DataProcessor:
 
         df, cols = self._prep_args(df, cols, prefix, suffix, pattern)
 
-        if isinstance(how, str):
-            df = self._bin_by_string(df, how, cols = cols)
+        if isinstance(method, str):
+            df = self._bin_by_string(df, method, cols = cols)
             
-        elif isinstance(how, list):
-            df = self._bin_by_edges(df, how , cols = cols)
+        elif isinstance(method, list):
+            df = self._bin_by_edges(df, method , cols = cols)
 
         return df
     
     def _bin_by_string(
         self,
         df: pd.DataFrame,
-        how: str,
+        method: str,
         cols: list[str],
     ) -> pd.DataFrame:
         """Bin DataFrame values based on the given string.
 
-        Helper method to handle str input for 'how' arg of bin().
+        Helper method to handle str input for 'method' arg of bin().
 
         Args:
             df (pd.DataFrame): The DataFrame.
-            how (str): String representing the desired binning method, of the form 'q#' or 'i#'.
+            method (str): String representing the desired binning method, of the form 'q#' or 'i#'.
             cols (list[str]): A list of columns on which to operate. 
 
         Raises:
-            ValueError: If string argument for 'how' doesn't follow the expected pattern.
+            ValueError: If string argument for 'method' doesn't follow the expected pattern.
 
         Returns:
             pd.DataFrame: The binned DataFrame.
         """
 
-        how_match = re.match(self.PATTERN_HOW_BIN, how)
+        method_match = re.match(self.PATTERN_BIN_METHOD, method)
 
-        if not how_match: 
+        if not method_match: 
             raise ValueError(
-                f'String argument \'{how}\' for parameter \'how\' doesn\'t follow '
+                f'String argument \'{method}\' for parameter \'method\' doesn\'t follow '
                 'the expected pattern: \'q#\' or \'i#\'.'
             )
         
-        how_kind = how_match.group('kind')
-        how_number = float(how_match.group('number'))
+        method_kind = method_match.group('kind')
+        method_number = float(method_match.group('number'))
 
-        if how_number.is_integer():
-            how_number = int(how_number)
+        if method_number.is_integer():
+            method_number = int(method_number)
 
-        elif isinstance(how_number, float):
-            how_number = int(how_number)
+        elif isinstance(method_number, float):
+            method_number = int(method_number)
             warnings.warn(
-                f'String argument for parameter \'how\' included a float. \'{how}\' '
-                'was converted to \'{how_kind}{how_number}\''
+                f'String argument for parameter \'method\' included a float. \'{method}\' '
+                'was converted to \'{method_kind}{method_number}\''
             )
         
         for col in cols:
-            if how_kind == 'q':
-                df[col] = pd.qcut(df[col], how_number).astype(str)
+            if method_kind == 'q':
+                df[col] = pd.qcut(df[col], method_number).astype(str)
 
-            elif how_kind == 'i':
-                df[col] = pd.cut(df[col], how_number).astype(str)
+            elif method_kind == 'i':
+                df[col] = pd.cut(df[col], method_number).astype(str)
 
         return df
 
     def _bin_by_edges(
         self,
         df: pd.DataFrame,
-        how: list[int | float],
+        method: list[int | float],
         cols: list[str],
     ) -> pd.DataFrame:
         """Bin DataFrame values based on the given edges.
 
-        Helper method to handle list input for 'how' arg of bin().
+        Helper method to handle list input for 'method' arg of bin().
 
         Args:
             df (pd.DataFrame): The DataFrame.
-            how (list[int | float]): List of bin edges.
+            method (list[int | float]): List of bin edges.
             cols (list[str]): A list of columns on which to operate. 
 
         Returns:
@@ -368,7 +368,7 @@ class DataProcessor:
         """
 
         for col in cols:
-            df[col] = pd.cut(df[col], how).astype(str)
+            df[col] = pd.cut(df[col], method).astype(str)
 
         return df
 
@@ -633,7 +633,7 @@ class DataProcessor:
     def agg_cols(
         self,
         df: pd.DataFrame,
-        how: str,
+        method: str,
         target_col: str,
         drop_inputs: bool = False,
         cols: list[str] | str | None = None,
@@ -643,11 +643,11 @@ class DataProcessor:
     ) -> pd.DataFrame:
         """Aggregate across columns to create a new column.
 
-        Applies an aggregation function given by 'how' across columns (i.e., axis = 1). 
+        Applies an aggregation function given by 'method' across columns (i.e., axis = 1). 
 
         Args:
             df (pd.DataFrame): The DataFrame.
-            how (str): The aggregation strategy. Supported choices: 'min', 'max', 'sum', 'mean', 'median',
+            method (str): The aggregation method. Supported choices: 'min', 'max', 'sum', 'mean', 'median',
                 'count', 'std', 'var', 'prod', 'or', 'and'.
             target_col (str): The target column name in which to store the aggregated values.
             drop_inputs (bool): If true, drops the columns used in aggregation (i.e., those indicated 
@@ -660,7 +660,7 @@ class DataProcessor:
                 to aggregate. Defaults to None.
 
         Raises:
-            ValueError: If the aggregation strategy specified in 'how' isn't recognized.
+            ValueError: If the aggregation method specified in 'method' isn't recognized.
 
         Note:
             Selection parameters (e.g., 'cols', 'prefix', etc.) are used in conjunction with one another, 
@@ -673,20 +673,20 @@ class DataProcessor:
         
         df, cols = self._prep_args(df, cols, prefix, suffix, pattern)
 
-        valid_hows = {'min', 'max', 'sum', 'mean', 'median', 'count', 'nunique', 'std', 'var', 'prod', 'or', 'and'}
-        pd_hows = {'min', 'max', 'sum', 'mean', 'median', 'count', 'nunique', 'std', 'var', 'prod'}
+        valid_methods = {'min', 'max', 'sum', 'mean', 'median', 'count', 'nunique', 'std', 'var', 'prod', 'or', 'and'}
+        pd_methods = {'min', 'max', 'sum', 'mean', 'median', 'count', 'nunique', 'std', 'var', 'prod'}
 
-        if how in pd_hows:
-            df[target_col] = df[cols].agg(how, axis = 1)
+        if method in pd_methods:
+            df[target_col] = df[cols].agg(method, axis = 1)
 
-        elif how == 'or':
+        elif method == 'or':
             df[target_col] = df[cols].astype(bool).any(axis = 1).astype(int)
 
-        elif how == 'and':
+        elif method == 'and':
             df[target_col] = df[cols].astype(bool).all(axis = 1).astype(int)
 
         else:
-            raise ValueError(f'Unrecognized aggregation strategy \'{how}\'. Supported choices: {valid_hows}')
+            raise ValueError(f'Unrecognized aggregation method \'{method}\'. Supported choices: {valid_methods}')
 
         if drop_inputs:
             cols_to_drop = [col for col in cols if col != target_col]
@@ -697,7 +697,7 @@ class DataProcessor:
     def agg_rows(
         self,
         df: pd.DataFrame,
-        how: str | list[str],
+        method: str | list[str],
         cols: list[str] | str | None = None,
         prefix: str | None = None,
         suffix: str | None = None,
@@ -705,11 +705,11 @@ class DataProcessor:
     ) -> pd.DataFrame | pd.Series:
         """Aggregate across rows of the given DataFrame to create a new DataFrame or Series.
 
-        Applies aggregation function(s) given by 'how' across rows (i.e., axis = 0). 
+        Applies aggregation function(s) given by 'method' across rows (i.e., axis = 0). 
 
         Args:
             df (pd.DataFrame): The DataFrame.
-            how (str | list[str]): The aggregation strategy. Supported choices: 'min', 'max', 
+            method (str | list[str]): The aggregation method. Supported choices: 'min', 'max', 
                 'sum', 'mean', 'median', 'count', 'std', 'var', 'prod'.
             cols (list[str] | str | None, optional): Column(s) to aggregate.
                 If None, includes all columns. Defaults to None.
@@ -719,7 +719,7 @@ class DataProcessor:
                 to aggregate. Defaults to None.
 
         Raises:
-            ValueError: If a given aggregation strategy is unrecognized.
+            ValueError: If a given aggregation method is unrecognized.
 
         Note:
             Selection parameters (e.g., 'cols', 'prefix', etc.) are used in conjunction with one another, 
@@ -732,26 +732,26 @@ class DataProcessor:
         
         df, cols = self._prep_args(df, cols, prefix, suffix, pattern)
 
-        valid_hows = {'min', 'max', 'sum', 'mean', 'median', 'count', 'nunique', 'std', 'var', 'prod'}
-        how_map = {}
+        valid_methods = {'min', 'max', 'sum', 'mean', 'median', 'count', 'nunique', 'std', 'var', 'prod'}
+        method_map = {}
 
-        if isinstance(how, list):
-            for val in how:
-                if val not in valid_hows:
+        if isinstance(method, list):
+            for val in method:
+                if val not in valid_methods:
                     raise ValueError(
-                        f'Unrecognized aggregation strategy \'{how}\'. Supported choices: {valid_hows}'
+                        f'Unrecognized aggregation method \'{method}\'. Supported choices: {valid_methods}.'
                     )
                 
-        elif isinstance(how, str):
-            if how not in valid_hows:
+        elif isinstance(method, str):
+            if method not in valid_methods:
                 raise ValueError(
-                    f'Unrecognized aggregation strategy \'{how}\'. Supported choices: {valid_hows}'
+                    f'Unrecognized aggregation method \'{method}\'. Supported choices: {valid_methods}.'
                 )
             
         for col in cols:
-            how_map[col] = how     
+            method_map[col] = method     
 
-        return df[cols].agg(how_map, axis = 0)    
+        return df[cols].agg(method_map, axis = 0)    
 
     def _validate_ci_args(
         self,
@@ -761,36 +761,30 @@ class DataProcessor:
     ) -> tuple[str, float]:
         """Validate the arguments given to compute_ci().
 
-        Additionally converts the string argument to 'how' to lowercase before validating.
+        Additionally converts the string argument to 'method' to lowercase before validating.
 
         Args:
-            method (str): The desired CI-calculation strategy.
+            method (str): The desired CI-calculation method.
             alpha (float): The desired alpha.
             valid_methods (set[str]): A set of valid methods.
 
         Raises:
-            ValueError: If string argument for 'how' isn't recognized.
+            ValueError: If string argument for 'method' isn't recognized.
             ValueError: If float argument for 'alpha' isn't between 0 and 1 exclusive.
 
         Returns:
-            tuple[str, float]: A tuple 'how' (lowercase) and 'alpha'.
+            tuple[str, float]: A tuple 'method' (lowercase) and 'alpha'.
         """
 
         method = method.lower()
 
         if method not in valid_methods:
-            raise ValueError(f'Unrecognized argument for how: \'{method}\'. Supported choices: {valid_methods}')
+            raise ValueError(f'Unrecognized argument for method: \'{method}\'. Supported choices: {valid_methods}.')
         
         if not (0 < alpha < 1):
             raise ValueError(
                 f'Invalid argument for alpha: \'{alpha}\'. Values should be greater than 0 '
                 'and less than 1. Typical values might be in the range of 0.01 to 0.1.'
-            )
-        
-        elif alpha < 0.01 or alpha > 0.1:
-            warnings.warn(
-                f'Argument for alpha is outside of the typical range: \'{alpha}\'. '
-                'Typical values might be in the range of 0.01 to 0.2'
             )
 
         return method, alpha
@@ -847,7 +841,7 @@ class DataProcessor:
             df (pd.DataFrame): The DataFrame.
             cols (list[str]): Columns on which to operate.
             alpha (float): The desired alpha.
-            distribution (str): The distribution to use. Supported choices: 'z', 't'
+            distribution (str): The distribution to use. Supported choices: 'z', 't'.
 
         Returns:
             pd.DataFrame: A DataFrame with columns matching those specified in 'cols' and indices 
@@ -858,12 +852,6 @@ class DataProcessor:
         standard_error = stats.loc['std'] / np.sqrt(stats.loc['count'])
 
         if distribution == 'z':
-            if np.any(stats.loc['count'] <= 30):
-                warnings.warn(
-                    f'The sample size for at least one column was <= 30. '
-                    'You may consider using the t distribution for CI-calculation instead.'
-                )
-
             lower, upper = scipy.stats.norm.interval(
                 confidence = 1 - alpha,
                 loc = stats.loc['mean'],
@@ -900,8 +888,8 @@ class DataProcessor:
             df (pd.DataFrame): The DataFrame.
             cols (list[str]): Columns on which to operate.
             alpha (float): The desired alpha.
-            method (str): The CI-calculation strategy. Supported choices: 'wald', 
-                'wilson', 'agresti_coull', 'clopper_pearson' (or 'beta'), 'jeffreys'
+            method (str): The CI-calculation method. Supported choices: 'wald', 
+                'wilson', 'agresti_coull', 'clopper_pearson' (or 'beta'), 'jeffreys'.
 
         Returns:
             pd.DataFrame: A DataFrame with columns matching those specified in 'cols' and 
@@ -933,31 +921,98 @@ class DataProcessor:
             upper, # type: ignore
             stats.loc['count'].values, # type: ignore
         )
+    
+    def _calc_ci_bootstrap(
+        self,
+        df: pd.DataFrame,
+        cols: list[str],
+        alpha: float,
+        method: str,
+        metric: str = 'mean',
+    ) -> pd.DataFrame:
+        """Calculate bootstrap confidence intervals.
+
+        Args:
+            df (pd.DataFrame): The DataFrame.
+            cols (list[str]): Columns on which to operate.
+            alpha (float): The desired alpha.
+            method (str): The CI-calculation method. Supported choices: 'bootstrap_bca', 
+                'bootstrap_percentile', 'bootstrap_basic'.
+            metric (str): The measure of central tendency to craft the interval around.
+                Supported choices: 'mean', 'median'. Defaults to 'mean'.
+
+        Returns:
+            pd.DataFrame: A DataFrame with columns matching those specified in 'cols' and 
+                indices 'point_estimate', 'lower', 'upper', 'count'.
+        """
+
+        sp_mapping = {
+            'bootstrap_percentile': 'percentile',
+            'bootstrap_basic': 'basic',
+            'bootstrap_bca': 'BCa',
+        }
+
+        point_estimates = []
+        lowers = []
+        uppers = []
+        counts = []
+
+        stats = df[cols].agg([f'{metric}', 'count', 'sum'], axis = 0)
+        metric_func = np.mean
+        if metric == 'median':
+            metric_func = np.median
+        
+        for col in cols:
+            data = df[col].dropna().values
+            point_estimates.append(stats[col].loc[f'{metric}'])
+            counts.append(stats[col].loc['count'])
+
+            if len(data) < 5:
+                lowers.append(np.nan)
+                uppers.append(np.nan)
+                continue
+                
+            result = scipy.stats.bootstrap(
+                data = (data, ),
+                statistic = metric_func,
+                confidence_level = 1 - alpha,
+                method = sp_mapping[method],
+                n_resamples = 2000,
+                rng = 0,
+            )
+
+            lowers.append(result.confidence_interval.low)
+            uppers.append(result.confidence_interval.high)
+
+        return self._create_ci_frame(
+            cols,
+            stats.loc['mean'].values, # type: ignore
+            np.array(lowers), # type: ignore
+            np.array(uppers), # type: ignore
+            stats.loc['count'].values, # type: ignore
+        )
 
     def calc_ci(
         self,
         df: pd.DataFrame,
         method: str,
         alpha: float = 0.05,
-        bonferroni: bool = False,
         cols: list[str] | str | None = None,
         prefix: str | None = None,
         suffix: str | None = None,
         pattern: str | re.Pattern | None = None,       
     ) -> pd.DataFrame:
-        """Calculate confidence intervals according to the given strategy.
+        """Calculate confidence intervals according to the given method.
         
         Also includes associated statistics used in the calcualtion.
 
         Args:
             df (pd.DataFrame): The DataFrame.
-            method (str, optional): The CI-calculation strategy. Supported choices: 
+            method (str, optional): The CI-calculation method. Supported choices: 
                 * Parametric: 'z', 't'
                 * Proportion: 'wald', 'wilson', 'agresti_coull', 'clopper_pearson' (or 'beta'), 'jeffreys'
-                * Bootstrap: 'bootstrap-bca', 'bootstrap-percentile', 'bootstrap-basic'
+                * Bootstrap: 'bootstrap_bca', 'bootstrap_percentile', 'bootstrap_basic'
             alpha (float, optional): The desired alpha. Defaults to 0.05.
-            bonferroni (bool, optional): If true, applies a Bonferroni correction based on the 
-                number of columns. Defaults to False.
             cols (list[str] | str | None, optional): Column(s) on which to operate.
                 If None, includes all columns. Defaults to None.
             prefix (str | None, optional): The prefix of columns on which to operate. Defaults to None.
@@ -966,7 +1021,7 @@ class DataProcessor:
                 to operate. Defaults to None.
 
         Raises:
-            NotImplementedError: If the CI-calcualtion strategy is not yet implemented.
+            NotImplementedError: If the CI-calcualtion method is not yet implemented.
 
         Note:
             Selection parameters (e.g., 'cols', 'prefix', etc.) are used in conjunction with one another, 
@@ -983,12 +1038,9 @@ class DataProcessor:
 
         parametric_methods = {'z', 't'}
         proportion_methods = {'wald', 'wilson', 'agresti_coull', 'clopper_pearson', 'beta', 'jeffreys'}
-        bootstrap_methods = {'bootstrap-bca', 'bootstrap-percentile', 'bootstrap-basic'}
+        bootstrap_methods = {'bootstrap_bca', 'bootstrap_percentile', 'bootstrap_basic'}
 
         method, alpha = self._validate_ci_args(method, alpha, parametric_methods | proportion_methods | bootstrap_methods)
-
-        if bonferroni:
-            alpha = alpha / len(cols)
 
         if method in parametric_methods:
             result = self._calc_ci_parametric(df, cols, alpha, method)
@@ -997,12 +1049,10 @@ class DataProcessor:
             result = self._calc_ci_proportion(df, cols, alpha, method)
 
         elif method in bootstrap_methods:
-            raise NotImplementedError(f'CI-calcualtion strategy \'{method}\' is not yet implemented.')
-            #result = self._ci_bootstrap(df, cols, alpha)
-            # TODO: Implement bootstrap strategy using scipy.stats.bootstrap
+            result = self._calc_ci_bootstrap(df, cols, alpha, method)
 
         else:
-            raise ValueError(f'CI-calcualtion strategy \'{method}\' is not recognized.')
+            raise ValueError(f'CI-calcualtion method \'{method}\' is not recognized.')
 
         return result  
 
@@ -1021,7 +1071,7 @@ class DataProcessor:
     #     correction = correction.lower()
 
     #     if correction not in valid_corrections:
-    #         raise ValueError(f'Unrecognized argument for correction: \'{correction}\'. Supported choices: {valid_corrections}')
+    #         raise ValueError(f'Unrecognized argument for correction: \'{correction}\'. Supported choices: {valid_corrections}.')
         
     #     if 'p_value' not in df.columns:
     #         raise ValueError(f'DataFrame to _apply_correction must have a column \'p_value\' containing p values.')
@@ -1031,11 +1081,11 @@ class DataProcessor:
     #         # TODO: Test this correction method.
 
     #     elif correction == 'holm-bonferroni':
-    #         raise NotImplementedError(f'Correction strategy \'{correction}\' is not yet implemented.')
+    #         raise NotImplementedError(f'Correction method \'{correction}\' is not yet implemented.')
     #         # TODO: Implement correction method
 
     #     elif correction == 'benjamini-hochberg':
-    #         raise NotImplementedError(f'Correction strategy \'{correction}\' is not yet implemented.')
+    #         raise NotImplementedError(f'Correction method \'{correction}\' is not yet implemented.')
     #         # TODO: Implement correction method
 
     #     return df  

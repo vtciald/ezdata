@@ -1003,6 +1003,69 @@ def test_compute_ci_jeffreys():
 
     pd.testing.assert_frame_equal(result, expected)
 
+def test_compute_ci_bootstrap_bca():
+
+    dp = DataProcessor()
+
+    test_df = pd.DataFrame({
+        'Col1': [5, 13, 73, 84, 65, 83, 85, 12, 32, 53, 85, 45, 47, 23, 57, 59, 60, 23],
+        'Col2': [7, 3, 7, 9, 3, 1, 74, 62, 76, 6, 34, 68, 96, 34, 86, 90, 52, 745],
+    })
+
+    expected = pd.DataFrame({
+        'Col1': [50.2222, 37.6752, 61.5, 18],
+        'Col2': [80.7222, 35.6667, 207.4474, 18],
+        },
+        index = ['point_estimate', 'lower', 'upper', 'count']
+    )
+
+    result = dp.calc_ci(test_df, method = 'bootstrap_bca')
+    result = result.round(4)
+
+    pd.testing.assert_frame_equal(result, expected)
+
+def test_compute_ci_bootstrap_basic():
+
+    dp = DataProcessor()
+
+    test_df = pd.DataFrame({
+        'Col1': [5, 13, 73, 84, 65, 83, 85, 12, 32, 53, 85, 45, 47, 23, 57, 59, 60, 23],
+        'Col2': [7, 3, 7, 9, 3, 1, 74, 62, 76, 6, 34, 68, 96, 34, 86, 90, 52, 745],
+    })
+
+    expected = pd.DataFrame({
+        'Col1': [50.2222, 38.7208, 62.5569, 18],
+        'Col2': [80.7222, -3.6736, 133.0014, 18],
+        },
+        index = ['point_estimate', 'lower', 'upper', 'count']
+    )
+
+    result = dp.calc_ci(test_df, method = 'bootstrap_basic')
+    result = result.round(4)
+
+    pd.testing.assert_frame_equal(result, expected)
+
+def test_compute_ci_bootstrap_percentile():
+
+    dp = DataProcessor()
+
+    test_df = pd.DataFrame({
+        'Col1': [5, 13, 73, 84, 65, 83, 85, 12, 32, 53, 85, 45, 47, 23, 57, 59, 60, 23],
+        'Col2': [7, 3, 7, 9, 3, 1, 74, 62, 76, 6, 34, 68, 96, 34, 86, 90, 52, 745],
+    })
+
+    expected = pd.DataFrame({
+        'Col1': [50.2222, 37.8875, 61.7236, 18],
+        'Col2': [80.7222, 28.4431, 165.1181, 18],
+        },
+        index = ['point_estimate', 'lower', 'upper', 'count']
+    )
+
+    result = dp.calc_ci(test_df, method = 'bootstrap_percentile')
+    result = result.round(4)
+
+    pd.testing.assert_frame_equal(result, expected)
+
 
 # Standardizing characters in arguments
 test_fix_characters_arg()
@@ -1079,3 +1142,6 @@ test_compute_ci_wilson()
 test_compute_ci_ac()
 test_compute_ci_cp()
 test_compute_ci_jeffreys()
+test_compute_ci_bootstrap_bca()
+test_compute_ci_bootstrap_basic()
+test_compute_ci_bootstrap_percentile()
