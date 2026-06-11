@@ -1,0 +1,424 @@
+import pandas as pd
+import numpy as np
+import scipy.stats
+from statsmodels.stats.proportion import proportion_confint
+import re
+from . import prep
+
+def agg_cols(
+    df: pd.DataFrame,
+    method: str,
+    target_col: str,
+    drop_inputs: bool = False,
+    cols: list[str] | set[str] | str | None = None,
+    prefix: str | None = None,
+    suffix: str | None = None,
+    pattern: str | re.Pattern | None = None,
+) -> pd.DataFrame:
+    """Aggregate across columns to create a new column.
+
+    Applies an aggregation function given by 'method' across columns (i.e., axis = 1). 
+
+    Args:
+        df (pd.DataFrame): The DataFrame.
+        method (str): The aggregation method. Supported choices: 'min', 'max', 'sum', 'mean', 'median',
+            'count', 'std', 'var', 'prod', 'or', 'and'.
+        target_col (str): The target column name in which to store the aggregated values.
+        drop_inputs (bool): If true, drops the columns used in aggregation (i.e., those indicated 
+            by 'cols'). Defaults to False.
+        cols (list[str] | set[str] | str | None, optional): Column(s) to aggregate.
+            If None, includes all columns. Defaults to None.
+        prefix (str | None, optional): The prefix of columns to aggregate. Defaults to None.
+        suffix (str | None, optional): The suffix of columns to aggregate. Defaults to None.
+        pattern (str | re.Pattern | None, optional): A regex pattern describing columns 
+            to aggregate. Defaults to None.
+
+    Raises:
+        ValueError: If the aggregation method specified in 'method' isn't recognized.
+
+    Note:
+        Selection parameters (e.g., 'cols', 'prefix', etc.) are used in conjunction with one another, 
+        taking the intersection of matching columns. In other words, only columns matching all selection
+        criteria will be selected.
+
+    Returns:
+        pd.DataFrame: The DataFrame with the aggregated values stored in the target column.
+    """
+    
+    df, cols = prep._prep_args(df, cols, prefix, suffix, pattern)
+
+    valid_methods = {'min', 'max', 'sum', 'mean', 'median', 'count', 'nunique', 'std', 'var', 'prod', 'or', 'and'}
+    pd_methods = {'min', 'max', 'sum', 'mean', 'median', 'count', 'nunique', 'std', 'var', 'prod'}
+
+    if method in pd_methods:
+        df[target_col] = df[cols].agg(method, axis = 1)
+
+    elif method == 'or':
+        df[target_col] = df[cols].astype(bool).any(axis = 1).astype(int)
+
+    elif method == 'and':
+        df[target_col] = df[cols].astype(bool).all(axis = 1).astype(int)
+
+    else:
+        raise ValueError(f'Unrecognized aggregation method \'{method}\'. Supported choices: {valid_methods}')
+
+    if drop_inputs:
+        cols_to_drop = [col for col in cols if col != target_col]
+        df = df.drop(columns = cols_to_drop)
+    
+    return df
+
+def agg_rows(
+    df: pd.DataFrame,
+    method: str | list[str],
+    cols: list[str] | set[str] | str | None = None,
+    prefix: str | None = None,
+    suffix: str | None = None,
+    pattern: str | re.Pattern | None = None,
+) -> pd.DataFrame | pd.Series:
+    """Aggregate across rows of the given DataFrame to create a new DataFrame or Series.
+
+    Applies aggregation function(s) given by 'method' across rows (i.e., axis = 0). 
+
+    Args:
+        df (pd.DataFrame): The DataFrame.
+        method (str | list[str]): The aggregation method. Supported choices: 'min', 'max', 
+            'sum', 'mean', 'median', 'count', 'std', 'var', 'prod'.
+        cols (list[str] | set[str] | str | None, optional): Column(s) to aggregate.
+            If None, includes all columns. Defaults to None.
+        prefix (str | None, optional): The prefix of columns to aggregate. Defaults to None.
+        suffix (str | None, optional): The suffix of columns to aggregate. Defaults to None.
+        pattern (str | re.Pattern | None, optional): A regex pattern describing columns 
+            to aggregate. Defaults to None.
+
+    Raises:
+        ValueError: If a given aggregation method is unrecognized.
+
+    Note:
+        Selection parameters (e.g., 'cols', 'prefix', etc.) are used in conjunction with one another, 
+        taking the intersection of matching columns. In other words, only columns matching all selection
+        criteria will be selected.
+
+    Returns:
+        pd.DataFrame | pd.Series: The resulting DataFrame or Series.
+    """
+    
+    df, cols = prep._prep_args(df, cols, prefix, suffix, pattern)
+
+    valid_methods = {'min', 'max', 'sum', 'mean', 'median', 'count', 'nunique', 'std', 'var', 'prod'}
+    method_map = {}
+
+    if isinstance(method, list):
+        for val in method:
+            if val not in valid_methods:
+                raise ValueError(
+                    f'Unrecognized aggregation method \'{method}\'. Supported choices: {valid_methods}.'
+                )
+            
+    elif isinstance(method, str):
+        if method not in valid_methods:
+            raise ValueError(
+                f'Unrecognized aggregation method \'{method}\'. Supported choices: {valid_methods}.'
+            )
+        
+    for col in cols:
+        method_map[col] = method     
+
+    return df[cols].agg(method_map, axis = 0)    
+
+def calc_ci(
+    df: pd.DataFrame,
+    method: str,
+    alpha: float = 0.05,
+    cols: list[str] | set[str] | str | None = None,
+    prefix: str | None = None,
+    suffix: str | None = None,
+    pattern: str | re.Pattern | None = None,       
+) -> pd.DataFrame:
+    """Calculate confidence intervals according to the given method.
+    
+    Also includes associated statistics used in the calcualtion.
+
+    Args:
+        df (pd.DataFrame): The DataFrame.
+        method (str, optional): The CI-calculation method. Supported choices: 
+            * Parametric: 'z', 't'
+            * Proportion: 'wald', 'wilson', 'agresti_coull', 'clopper_pearson' (or 'beta'), 'jeffreys'
+            * Bootstrap: 'bootstrap_bca', 'bootstrap_percentile', 'bootstrap_basic'
+        alpha (float, optional): The desired alpha. Defaults to 0.05.
+        cols (list[str] | set[str] | str | None, optional): Column(s) on which to operate.
+            If None, includes all columns. Defaults to None.
+        prefix (str | None, optional): The prefix of columns on which to operate. Defaults to None.
+        suffix (str | None, optional): The suffix of columns on which to operate. Defaults to None.
+        pattern (str | re.Pattern | None, optional): A regex pattern describing columns on which
+            to operate. Defaults to None.
+
+    Note:
+        Selection parameters (e.g., 'cols', 'prefix', etc.) are used in conjunction with one another, 
+        taking the intersection of matching columns. In other words, only columns matching all selection
+        criteria will be selected.
+
+
+    Returns:
+        pd.DataFrame: A DataFrame with columns matching those specified in the column-selection parameters 
+            and indices 'point_estimate', 'lower', 'upper', 'count'.
+    """
+    
+    df, cols = prep._prep_args(df, cols, prefix, suffix, pattern)
+
+    parametric_methods = {'z', 't'}
+    proportion_methods = {'wald', 'wilson', 'agresti_coull', 'clopper_pearson', 'beta', 'jeffreys'}
+    bootstrap_methods = {'bootstrap_bca', 'bootstrap_percentile', 'bootstrap_basic'}
+
+    method, alpha = _validate_ci_args(
+        method,
+        alpha, 
+        parametric_methods | proportion_methods | bootstrap_methods
+    )
+
+    if method in parametric_methods:
+        result = _calc_ci_parametric(df, cols, alpha, method)
+
+    elif method in proportion_methods:
+        result = _calc_ci_proportion(df, cols, alpha, method)
+
+    elif method in bootstrap_methods:
+        result = _calc_ci_bootstrap(df, cols, alpha, method)
+
+    else:
+        raise ValueError(f'CI-calcualtion method \'{method}\' is not recognized.')
+
+    return result
+
+def _validate_ci_args(
+    method: str,
+    alpha: float,
+    valid_methods: set[str],
+) -> tuple[str, float]:
+    """Validate the arguments given to compute_ci().
+
+    Additionally converts the string argument to 'method' to lowercase before validating.
+
+    Args:
+        method (str): The desired CI-calculation method.
+        alpha (float): The desired alpha.
+        valid_methods (set[str]): A set of valid methods.
+
+    Raises:
+        ValueError: If string argument for 'method' isn't recognized.
+        ValueError: If float argument for 'alpha' isn't between 0 and 1 exclusive.
+
+    Returns:
+        tuple[str, float]: A tuple 'method' (lowercase) and 'alpha'.
+    """
+
+    method = method.lower()
+
+    if method not in valid_methods:
+        raise ValueError(f'Unrecognized argument for method: \'{method}\'. Supported choices: {valid_methods}.')
+    
+    if not (0 < alpha < 1):
+        raise ValueError(
+            f'Invalid argument for alpha: \'{alpha}\'. Values should be greater than 0 '
+            'and less than 1. Typical values might be in the range of 0.01 to 0.1.'
+        )
+
+    return method, alpha
+
+def _create_ci_frame(
+    cols: list[str],
+    point_estimates: np.ndarray,
+    lower_bounds: np.ndarray,
+    upper_bounds: np.ndarray,
+    counts: np.ndarray,
+) -> pd.DataFrame:
+    """Package CI-calculation results into a DataFrame.
+
+    Args:
+        cols (list[str]): The labels associated with each column.
+        point_estimates (np.ndarray): The array of point estimates.
+        lower_bounds (np.ndarray): The array of lower bounds.
+        upper_bounds (np.ndarray): The array of upper bounds.
+        counts (np.ndarray): The array of column non-nan counts.
+
+    Returns:
+        pd.DataFrame: A DataFrame with columns matching those in 'cols' 
+            and indices 'point_estimate', 'lower', 'upper', 'count'.
+    """
+    
+    result_matrix = np.vstack([
+        point_estimates,
+        lower_bounds,
+        upper_bounds,
+        counts,
+    ]) 
+
+    result = pd.DataFrame(
+        data = result_matrix,
+        columns = cols,
+        index = ['point_estimate', 'lower', 'upper', 'count'],
+        dtype = float,
+    )
+
+    return result    
+
+def _calc_ci_parametric(
+    df: pd.DataFrame,
+    cols: list[str],
+    alpha: float,
+    distribution: str,
+) -> pd.DataFrame:
+    """Calculate parametric confidence intervals.
+
+    Args:
+        df (pd.DataFrame): The DataFrame.
+        cols (list[str]): Columns on which to operate.
+        alpha (float): The desired alpha.
+        distribution (str): The distribution to use. Supported choices: 'z', 't'.
+
+    Returns:
+        pd.DataFrame: A DataFrame with columns matching those specified in 'cols' and indices 
+            'point_estimate', 'lower', 'upper', 'count'.
+    """
+
+    stats = df[cols].agg(['mean', 'std', 'count'], axis = 0)
+    standard_error = stats.loc['std'] / np.sqrt(stats.loc['count'])
+
+    if distribution == 'z':
+        lower, upper = scipy.stats.norm.interval(
+            confidence = 1 - alpha,
+            loc = stats.loc['mean'],
+            scale = standard_error,
+        )
+
+    elif distribution == 't':
+        lower, upper = scipy.stats.t.interval(
+            confidence = 1 - alpha,
+            df = stats.loc['count'] - 1, 
+            loc = stats.loc['mean'],
+            scale = standard_error,
+        )
+
+
+    return _create_ci_frame(
+        cols, 
+        stats.loc['mean'].values, # type: ignore
+        lower, # type: ignore
+        upper, # type: ignore
+        stats.loc['count'].values, # type: ignore
+    )
+
+def _calc_ci_proportion(
+    df: pd.DataFrame,
+    cols: list[str],
+    alpha: float,
+    method: str,
+) -> pd.DataFrame:
+    """Calculate proportion confidence intervals.
+
+    Args:
+        df (pd.DataFrame): The DataFrame.
+        cols (list[str]): Columns on which to operate.
+        alpha (float): The desired alpha.
+        method (str): The CI-calculation method. Supported choices: 'wald', 
+            'wilson', 'agresti_coull', 'clopper_pearson' (or 'beta'), 'jeffreys'.
+
+    Returns:
+        pd.DataFrame: A DataFrame with columns matching those specified in 'cols' and 
+            indices 'point_estimate', 'lower', 'upper', 'count'.
+    """
+
+    sm_mapping = {
+        'wald': 'normal',
+        'wilson': 'wilson',
+        'agresti_coull': 'agresti_coull',
+        'clopper_pearson': 'beta',
+        'beta': 'beta',
+        'jeffreys': 'jeffreys'
+    }
+    
+    stats = df[cols].agg(['mean', 'count', 'sum'], axis = 0)
+    
+    lower, upper = proportion_confint(
+        count = stats.loc['sum'].values,
+        nobs = stats.loc['count'].values,
+        alpha = alpha,
+        method = sm_mapping[method],    
+    )
+
+    return _create_ci_frame(
+        cols,
+        stats.loc['mean'].values, # type: ignore
+        lower, # type: ignore
+        upper, # type: ignore
+        stats.loc['count'].values, # type: ignore
+    )
+
+def _calc_ci_bootstrap(
+    df: pd.DataFrame,
+    cols: list[str],
+    alpha: float,
+    method: str,
+    metric: str = 'mean',
+) -> pd.DataFrame:
+    """Calculate bootstrap confidence intervals.
+
+    Args:
+        df (pd.DataFrame): The DataFrame.
+        cols (list[str]): Columns on which to operate.
+        alpha (float): The desired alpha.
+        method (str): The CI-calculation method. Supported choices: 'bootstrap_bca', 
+            'bootstrap_percentile', 'bootstrap_basic'.
+        metric (str): The measure of central tendency to craft the interval around.
+            Supported choices: 'mean', 'median'. Defaults to 'mean'.
+
+    Returns:
+        pd.DataFrame: A DataFrame with columns matching those specified in 'cols' and 
+            indices 'point_estimate', 'lower', 'upper', 'count'.
+    """
+
+    sp_mapping = {
+        'bootstrap_percentile': 'percentile',
+        'bootstrap_basic': 'basic',
+        'bootstrap_bca': 'BCa',
+    }
+
+    point_estimates = []
+    lowers = []
+    uppers = []
+    counts = []
+
+    stats = df[cols].agg([f'{metric}', 'count', 'sum'], axis = 0)
+    metric_func = np.mean
+    if metric == 'median':
+        metric_func = np.median
+    
+    for col in cols:
+        data = df[col].dropna().values
+        point_estimates.append(stats[col].loc[f'{metric}'])
+        counts.append(stats[col].loc['count'])
+
+        if len(data) < 5:
+            lowers.append(np.nan)
+            uppers.append(np.nan)
+            continue
+            
+        result = scipy.stats.bootstrap(
+            data = (data, ),
+            statistic = metric_func,
+            confidence_level = 1 - alpha,
+            method = sp_mapping[method],
+            n_resamples = 2000,
+            rng = 0,
+        )
+
+        lowers.append(result.confidence_interval.low)
+        uppers.append(result.confidence_interval.high)
+
+    return _create_ci_frame(
+        cols,
+        stats.loc['mean'].values, # type: ignore
+        np.array(lowers), # type: ignore
+        np.array(uppers), # type: ignore
+        stats.loc['count'].values, # type: ignore
+    )
