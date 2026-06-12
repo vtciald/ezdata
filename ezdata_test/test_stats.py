@@ -501,8 +501,8 @@ def test_compute_ci_bootstrap_bca():
     expected = pd.DataFrame(
         {
             'point_estimate': [50.222, 80.7222],
-            'lower': [37.6752, 35.6667],
-            'upper': [61.5, 207.4474],
+            'lower': [37.7763, 34.9577],
+            'upper': [61.1667, 235.8823],
             'count': [18, 18],
         },
         index = ['Col1', 'Col2'],
@@ -525,8 +525,8 @@ def test_compute_ci_bootstrap_basic():
     expected = pd.DataFrame(
         {
             'point_estimate': [50.222, 80.7222],
-            'lower': [38.7208, -3.6736],
-            'upper': [62.5569, 133.0014],
+            'lower': [38.0542, -5.3375],
+            'upper': [61.6111, 132.2222],
             'count': [18, 18],
         },
         index = ['Col1', 'Col2'],
@@ -549,8 +549,8 @@ def test_compute_ci_bootstrap_percentile():
     expected = pd.DataFrame(
         {
             'point_estimate': [50.222, 80.7222],
-            'lower': [37.8875, 28.4431],
-            'upper': [61.7236, 165.1181],
+            'lower': [38.8333, 29.2222],
+            'upper': [62.3903, 166.7819],
             'count': [18, 18],
         },
         index = ['Col1', 'Col2'],

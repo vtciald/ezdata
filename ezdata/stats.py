@@ -122,6 +122,8 @@ def calc_ci(
     method: str,
     *,
     alpha: float = 0.05,
+    random_state: int = 0,
+    metric: str = 'mean',
     cols: list[str] | set[str] | str | None = None,
     prefix: str | None = None,
     suffix: str | None = None,
@@ -138,6 +140,8 @@ def calc_ci(
             * Proportion: 'wald', 'wilson', 'agresti_coull', 'clopper_pearson' (or 'beta'), 'jeffreys'
             * Bootstrap: 'bootstrap_bca', 'bootstrap_percentile', 'bootstrap_basic'
         alpha (float, optional): The desired alpha. Defaults to 0.05.
+        random_state (int, optional): A random-number-generator seed, relevant for bootstrapping. Defaults to 0.
+        metric (str, optional): The measure of central tendency to craft the interval around, relevant for bootstrapping. Supported choices: 'mean', 'median'. Defaults to 'mean'.
         cols (list[str] | set[str] | str | None, optional): Column(s) on which to operate. If None, includes all columns. Defaults to None.
         prefix (str | None, optional): The prefix of columns on which to operate. Defaults to None.
         suffix (str | None, optional): The suffix of columns on which to operate. Defaults to None.
@@ -169,7 +173,7 @@ def calc_ci(
         result = _calc_ci_proportion(df, cols, alpha, method)
 
     elif method in bootstrap_methods:
-        result = _calc_ci_bootstrap(df, cols, alpha, method)
+        result = _calc_ci_bootstrap(df, cols, alpha, method, random_state, metric)
 
     return result
 
@@ -336,7 +340,8 @@ def _calc_ci_bootstrap(
     cols: list[str],
     alpha: float,
     method: str,
-    metric: str = 'mean',
+    random_state: int,
+    metric: str,
 ) -> pd.DataFrame:
     """Calculate bootstrap confidence intervals.
 
@@ -345,8 +350,9 @@ def _calc_ci_bootstrap(
         cols (list[str]): The columns on which to operate.
         alpha (float): The desired alpha.
         method (str): The CI-calculation method. Supported choices: 'bootstrap_bca', 'bootstrap_percentile', 'bootstrap_basic'.
-        metric (str): The measure of central tendency to craft the interval around. Supported choices: 'mean', 'median'. Defaults to 'mean'.
-
+        random_state (int): A random-number-generator seed.
+        metric (str): The measure of central tendency to craft the interval around. Supported choices: 'mean', 'median'.
+        
     Returns:
         pd.DataFrame: A DataFrame with indices matching the labels in `cols` and columns 'point_estimate', 'lower', 'upper', 'count'.
     """
@@ -383,7 +389,7 @@ def _calc_ci_bootstrap(
             confidence_level = 1 - alpha,
             method = sp_mapping[method],
             n_resamples = 2000,
-            rng = 0,
+            random_state = random_state, # type: ignore
         )
 
         lowers.append(result.confidence_interval.low)
