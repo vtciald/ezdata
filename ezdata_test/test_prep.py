@@ -1,5 +1,6 @@
 import pandas as pd
 import numpy as np
+import pytest
 from ezdata.processor import DataProcessor
 from ezdata import prep
 import re
@@ -384,7 +385,54 @@ def test_filter_by_iqr_factor():
     
     pd.testing.assert_frame_equal(result, expected)
 
-def test_get_cols_prefix():
+def test_resolve_selection():
+    
+    dp = DataProcessor()
+
+    select_params = [
+        {'labels': ['Age', 'Gender', 'Another_1_Column', 'Another_2_Column', 'Another_Test', 'InviteSegment_Group1']},
+        {'prefix': 'Another'},
+        {'suffix': 'Column'},
+        {'pattern': r'\d'},
+        {'pattern': re.compile(r'group', re.IGNORECASE)},
+        {
+            'labels': ['Age', 'Gender', 'Another_1_Column', 'Another_2_Column', 'Another_Test', 'InviteSegment_Group1'],
+            'prefix': 'Another',
+            'suffix': 'Column',
+            'pattern': r'\d',
+        },
+    ]
+
+    select_results = [
+        ['Age', 'Gender', 'Another_1_Column', 'Another_2_Column', 'Another_Test', 'InviteSegment_Group1'],
+        ['Another_1_Column', 'Another_2_Column', 'Another_3_Column', 'Another_4_Column', 'Another_5_Column', 'Another_Test_Column', 'Another_Test'],
+        ['Group_Column', 'Another_1_Column', 'Another_2_Column', 'Another_3_Column', 'Another_4_Column', 'Another_5_Column', 'Another_Test_Column'],
+        ['InviteSegment_Group1', 'InviteSegment_Group2', 'Another_1_Column', 'Another_2_Column', 'Another_3_Column', 'Another_4_Column', 'Another_5_Column'],
+        ['InviteSegment_Group1', 'InviteSegment_Group2', 'Group_Column'],
+        ['Another_1_Column', 'Another_2_Column'],
+    ]
+
+    test_df = pd.DataFrame({
+        'Age': [1, 2, 3],
+        'Gender': [4, 5, 6],
+        'InviteSegment_Group1': [7, 8, 9],
+        'InviteSegment_Group2': [10, 11, 12],
+        'Group_Column': [13, 14, 15],
+        'Another_1_Column': [16, 17, 18],
+        'Another_2_Column': [19, 20, 21],
+        'Another_3_Column': [22, 23, 24],
+        'Another_4_Column': [25, 26, 27],
+        'Another_5_Column': [28, 29, 30],
+        'Another_Test_Column': [31, 32, 33],
+        'Another_Test': [34, 35, 36],
+    })
+
+    for params, expected_cols in zip(select_params, select_results):
+        result_cols = prep._resolve_selection(test_df, dp.select(**params))
+
+        assert sorted(expected_cols) == sorted(result_cols) 
+
+def test_resolve_selection_no_params():
 
     dp = DataProcessor()
 
@@ -397,12 +445,12 @@ def test_get_cols_prefix():
         'Col6': [16, 17, 18],
     })
 
-    expected_cols = ['Test_col_one', 'Test_col2']
-    result_cols = prep._resolve_selection(test_df, dp.select(prefix = 'Test'))
+    expected_cols = test_df.columns.tolist()
+    result_cols = prep._resolve_selection(test_df, dp.select())
 
     assert expected_cols == result_cols
 
-def test_get_cols_suffix():
+def test_resolve_selection_no_match():
 
     dp = DataProcessor()
 
@@ -415,12 +463,12 @@ def test_get_cols_suffix():
         'Col6': [16, 17, 18],
     })
 
-    expected_cols = ['Col4_test', 'Col5_test']
-    result_cols = prep._resolve_selection(test_df, dp.select(suffix = 'test'))
+    expected_cols = []
+    result_cols = prep._resolve_selection(test_df, dp.select(labels = ' '))
 
     assert expected_cols == result_cols
 
-def test_get_cols_pattern_regex():
+def test_resolve_selection_empty_string():
 
     dp = DataProcessor()
 
@@ -433,34 +481,8 @@ def test_get_cols_pattern_regex():
         'Col6': [16, 17, 18],
     })
 
-    expected_cols = ['Test_col2', 'test_col3', 'Col4_test', 'Col5_test', 'Col6']
-
-    pattern = re.compile(r'col\d', re.IGNORECASE)
-
-    result_cols = prep._resolve_selection(test_df, dp.select(pattern = pattern))
-
-    assert expected_cols == result_cols
-
-def test_get_cols_multi():
-
-    dp = DataProcessor()
-
-    test_df = pd.DataFrame({
-        'Test_col_one': [1, 2, 3],
-        'Test_col2': [4, 5, 6],
-        'test_col3': [7, 8, 9],
-        'Col4_test': [10, 11, 12],
-        'Col5_test': [13, 14, 15],
-        'Col6_nope': [16, 17, 18],
-        'Some_Col7_test': [16, 17, 18],
-        'Col8_testing': [16, 17, 18],
-    })
-
-    expected_cols = ['Col4_test', 'Col5_test']
-
-    pattern = re.compile(r'\d_')
-
-    result_cols = prep._resolve_selection(test_df, dp.select(prefix = 'Col', pattern = pattern, suffix = 'test'))
+    expected_cols = []
+    result_cols = prep._resolve_selection(test_df, dp.select(labels = ''))
 
     assert expected_cols == result_cols
 
@@ -612,51 +634,51 @@ def test_rename_cols_extract():
 
     pd.testing.assert_frame_equal(result, expected)
 
-# # Standardizing characters in arguments
-# test_clean_arg()
+# Standardizing characters in arguments
+test_clean_arg()
 
-# # Standardizing characters in dfs
-# test_clean_df()
-# test_clean_df_cols()
-# test_clean_df_cols_regex()
+# Standardizing characters in dfs
+test_clean_df()
+test_clean_df_cols()
+test_clean_df_cols_regex()
 
-# # Removing columns from dfs
-# test_remove_cols()
+# Removing columns from dfs
+test_remove_cols()
 
-# # Removing verbal anchors from values
-# test_remove_verbal_anchors()
-# test_remove_verbal_anchors_cols()
+# Removing verbal anchors from values
+test_remove_verbal_anchors()
+test_remove_verbal_anchors_cols()
 
-# # Filtering straightliners
-# test_filter_straightliners()
-# test_filter_straightliners_min_unique()
-# test_filter_straightliners_cols()
+# Filtering straightliners
+test_filter_straightliners()
+test_filter_straightliners_min_unique()
+test_filter_straightliners_cols()
 
-# # Binning values
-# test_bin_i()
-# test_bin_q()
-# test_bin_list()
+# Binning values
+test_bin_i()
+test_bin_q()
+test_bin_list()
 
-# # Filtering by bounds
-# test_filter_by_bounds()
+# Filtering by bounds
+test_filter_by_bounds()
 
-# # Filtering by IQR
-# test_filter_by_iqr()
-# test_filter_by_iqr_factor()
+# Filtering by IQR
+test_filter_by_iqr()
+test_filter_by_iqr_factor()
 
 # Test getting column names
-test_get_cols_prefix()
-test_get_cols_suffix()
-test_get_cols_pattern_regex()
-test_get_cols_multi()
+test_resolve_selection()
+test_resolve_selection_no_params()
+test_resolve_selection_no_match()
+test_resolve_selection_empty_string()
 
-# # Test renaming columns
-# test_rename_cols()
-# test_rename_cols_regex_arg()
-# test_rename_cols_regex_pattern()
-# test_rename_cols_duplicate()
-# test_rename_cols_extract()
+# Test renaming columns
+test_rename_cols()
+test_rename_cols_regex_arg()
+test_rename_cols_regex_pattern()
+test_rename_cols_duplicate()
+test_rename_cols_extract()
 
-# # Test recoding values
-# test_recode_values()
-# test_recode_values_new_col()
+# Test recoding values
+test_recode_values()
+test_recode_values_new_col()
