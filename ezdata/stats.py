@@ -23,7 +23,7 @@ def agg_cols(
         df (pd.DataFrame): The DataFrame.
         method (str): The aggregation method. Supported choices: 'min', 'max', 'sum', 'mean', 'median', 'count', 'std', 'var', 'prod', 'or', 'and'.
         target_col (str): The target column name in which to store the aggregated values.
-        drop_inputs (bool): If true, drops the columns used in aggregation (i.e., those indicated the column-selection parameters). Defaults to False.
+        drop_inputs (bool): If true, drops the columns used in aggregation (i.e., those indicated in `cols`). Defaults to False.
         cols (list[str] | set[str] | str | Selector | None, optional): Column(s) to include. If None, includes all columns. Defaults to None.
 
     Raises:

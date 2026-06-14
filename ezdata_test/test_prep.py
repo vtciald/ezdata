@@ -235,6 +235,26 @@ def test_filter_straightliners():
 
     pd.testing.assert_frame_equal(result, expected)
 
+def test_filter_straightliners_nan():
+
+    dp = DataProcessor()
+
+    test_df = pd.DataFrame({
+        'Col1': [np.nan, 2, 3, 4, 5],
+        'Col2': [1, 2, 3, 7, 7],
+        'Col3': [1, 2, 6, 6, 6]
+    })
+
+    expected = pd.DataFrame({
+        'Col1': [np.nan, np.nan, 3, 4, 5],
+        'Col2': [np.nan, np.nan, 3, 7, 7],
+        'Col3': [np.nan, np.nan, 6, 6, 6]
+    })
+
+    result = dp.filter_straightliners(test_df)
+
+    pd.testing.assert_frame_equal(result, expected)
+
 def test_filter_straightliners_min_unique():
 
     dp = DataProcessor()
@@ -331,6 +351,24 @@ def test_bin_list():
     
     pd.testing.assert_frame_equal(result, expected)
 
+def test_bin_list_nan():
+
+    dp = DataProcessor()
+
+    test_df = pd.DataFrame({
+        'Col1': [np.nan, 3, 3, 6, 6, 6, 9, 9],
+        'Col2': [1, 16, 25, 33, 41, 50, 51, 52]
+    })
+
+    expected = pd.DataFrame({
+        'Col1': [np.nan, '(0, 30]', '(0, 30]', '(0, 30]', '(0, 30]', '(0, 30]', '(0, 30]', '(0, 30]'],
+        'Col2': ['(0, 30]', '(0, 30]', '(0, 30]', '(30, 60]', '(30, 60]', '(30, 60]', '(30, 60]', '(30, 60]']
+    })
+
+    result = dp.bin(test_df, [0, 30, 60])
+    
+    pd.testing.assert_frame_equal(result, expected)
+
 def test_filter_by_bounds():
 
     dp = DataProcessor()
@@ -360,6 +398,24 @@ def test_filter_by_iqr():
 
     expected = pd.DataFrame({
         'Col1': [np.nan, 1, 3, 3, 6, 6, 6, 9, 9, 9],
+        'Col2': [1, 1, 16, 25, 33, 41, 50, 51, 52, np.nan]
+    })
+
+    result = dp.filter_by_iqr(test_df)
+    
+    pd.testing.assert_frame_equal(result, expected)
+
+def test_filter_by_iqr_nan():
+
+    dp = DataProcessor()
+
+    test_df = pd.DataFrame({
+        'Col1': [-6, np.nan, 3, 3, 6, 6, 6, 9, 9, 9],
+        'Col2': [1, 1, 16, 25, 33, 41, 50, 51, 52, 100]
+    })
+
+    expected = pd.DataFrame({
+        'Col1': [-6, np.nan, 3, 3, 6, 6, 6, 9, 9, 9],
         'Col2': [1, 1, 16, 25, 33, 41, 50, 51, 52, np.nan]
     })
 
@@ -485,6 +541,60 @@ def test_resolve_selection_empty_string():
     result_cols = prep._resolve_selection(test_df, dp.select(labels = ''))
 
     assert expected_cols == result_cols
+
+def test_resolve_selection_str():
+
+    dp = DataProcessor()
+
+    test_df = pd.DataFrame({
+        'Test_col_one': [1, 2, 3],
+        'Test_col2': [4, 5, 6],
+        'test_col3': [7, 8, 9],
+        'Col4_test': [10, 11, 12],
+        'Col5_test': [13, 14, 15],
+        'Col6': [16, 17, 18],
+    })
+
+    expected_cols = ['Test_col_one']
+    result_cols = prep._resolve_selection(test_df, 'Test_col_one')
+
+    assert sorted(expected_cols) == sorted(result_cols)
+
+def test_resolve_selection_list():
+
+    dp = DataProcessor()
+
+    test_df = pd.DataFrame({
+        'Test_col_one': [1, 2, 3],
+        'Test_col2': [4, 5, 6],
+        'test_col3': [7, 8, 9],
+        'Col4_test': [10, 11, 12],
+        'Col5_test': [13, 14, 15],
+        'Col6': [16, 17, 18],
+    })
+
+    expected_cols = ['Test_col_one', 'test_col3']
+    result_cols = prep._resolve_selection(test_df, ['Test_col_one', 'test_col3'])
+
+    assert sorted(expected_cols) == sorted(result_cols)
+
+def test_resolve_selection_set():
+
+    dp = DataProcessor()
+
+    test_df = pd.DataFrame({
+        'Test_col_one': [1, 2, 3],
+        'Test_col2': [4, 5, 6],
+        'test_col3': [7, 8, 9],
+        'Col4_test': [10, 11, 12],
+        'Col5_test': [13, 14, 15],
+        'Col6': [16, 17, 18],
+    })
+
+    expected_cols = ['Test_col_one', 'test_col3']
+    result_cols = prep._resolve_selection(test_df, set(['Test_col_one', 'test_col3']))
+
+    assert sorted(expected_cols) == sorted(result_cols)
 
 def test_rename_cols():
 
@@ -653,11 +763,13 @@ test_remove_verbal_anchors_cols()
 test_filter_straightliners()
 test_filter_straightliners_min_unique()
 test_filter_straightliners_cols()
+test_filter_straightliners_nan()
 
 # Binning values
 test_bin_i()
 test_bin_q()
 test_bin_list()
+test_bin_list_nan()
 
 # Filtering by bounds
 test_filter_by_bounds()
@@ -665,12 +777,16 @@ test_filter_by_bounds()
 # Filtering by IQR
 test_filter_by_iqr()
 test_filter_by_iqr_factor()
+test_filter_by_iqr_nan()
 
 # Test getting column names
 test_resolve_selection()
 test_resolve_selection_no_params()
 test_resolve_selection_no_match()
 test_resolve_selection_empty_string()
+test_resolve_selection_str()
+test_resolve_selection_list()
+test_resolve_selection_set()
 
 # Test renaming columns
 test_rename_cols()

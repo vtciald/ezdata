@@ -27,10 +27,25 @@ class Selector:
             If all selection arguments are None, all columns will be selected.
         """
 
-        self.labels = set(labels) if isinstance(labels, (list, set)) else set([labels]) if isinstance(labels, str) else None
         self.prefix = prefix
         self.suffix = suffix
-        self.pattern = re.compile(pattern) if isinstance(pattern, str) else pattern
+        
+        # Set self.labels
+        if isinstance(labels, (list, set)):
+            self.labels = set(labels)
+
+        elif isinstance(labels, str):
+            self.labels = set([labels])
+
+        else:
+            self.labels = labels
+
+        # Set self.pattern
+        if isinstance(pattern, str):
+            self.pattern = re.compile(pattern)
+
+        else:
+            self.pattern = pattern
     
     def __call__(
         self,

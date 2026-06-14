@@ -1,4 +1,5 @@
 import pandas as pd
+import numpy as np
 from .selector import Selector
 import warnings
 import re
@@ -362,10 +363,12 @@ def _bin_by_string(
     
     for col in cols:
         if method_kind == 'q':
-            df[col] = pd.qcut(df[col], method_number).astype(str)
+            binned_vals = pd.qcut(df.loc[df[col].notna(), col], method_number).astype(str)
 
         elif method_kind == 'i':
-            df[col] = pd.cut(df[col], method_number).astype(str)
+            binned_vals = pd.cut(df.loc[df[col].notna(), col], method_number).astype(str)
+
+        df[col] = binned_vals.where(df[col].notna(), np.nan)
 
     return df
 
@@ -386,7 +389,8 @@ def _bin_by_edges(
     """
 
     for col in cols:
-        df[col] = pd.cut(df[col], method).astype(str)
+        binned_vals = pd.cut(df.loc[df[col].notna(), col], method).astype('str')
+        df[col] = binned_vals.where(df[col].notna(), np.nan)
 
     return df
 
