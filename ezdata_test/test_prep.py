@@ -2,7 +2,7 @@ import pandas as pd
 import numpy as np
 import pytest
 from ezdata.processor import DataProcessor
-from ezdata import prep
+from ezdata.selector import Selector
 import re
 
 def test_clean_arg():
@@ -484,7 +484,7 @@ def test_resolve_selection():
     })
 
     for params, expected_cols in zip(select_params, select_results):
-        result_cols = prep._resolve_selection(test_df, dp.select(**params))
+        result_cols = Selector.resolve_selection(test_df, dp.select(**params))
 
         assert sorted(expected_cols) == sorted(result_cols) 
 
@@ -502,7 +502,7 @@ def test_resolve_selection_no_params():
     })
 
     expected_cols = test_df.columns.tolist()
-    result_cols = prep._resolve_selection(test_df, dp.select())
+    result_cols = Selector.resolve_selection(test_df, dp.select())
 
     assert expected_cols == result_cols
 
@@ -520,7 +520,7 @@ def test_resolve_selection_no_match():
     })
 
     expected_cols = []
-    result_cols = prep._resolve_selection(test_df, dp.select(labels = ' '))
+    result_cols = Selector.resolve_selection(test_df, dp.select(labels = ' '))
 
     assert expected_cols == result_cols
 
@@ -538,7 +538,7 @@ def test_resolve_selection_empty_string():
     })
 
     expected_cols = []
-    result_cols = prep._resolve_selection(test_df, dp.select(labels = ''))
+    result_cols = Selector.resolve_selection(test_df, dp.select(labels = ''))
 
     assert expected_cols == result_cols
 
@@ -556,7 +556,7 @@ def test_resolve_selection_str():
     })
 
     expected_cols = ['Test_col_one']
-    result_cols = prep._resolve_selection(test_df, 'Test_col_one')
+    result_cols = Selector.resolve_selection(test_df, 'Test_col_one')
 
     assert sorted(expected_cols) == sorted(result_cols)
 
@@ -574,7 +574,7 @@ def test_resolve_selection_list():
     })
 
     expected_cols = ['Test_col_one', 'test_col3']
-    result_cols = prep._resolve_selection(test_df, ['Test_col_one', 'test_col3'])
+    result_cols = Selector.resolve_selection(test_df, ['Test_col_one', 'test_col3'])
 
     assert sorted(expected_cols) == sorted(result_cols)
 
@@ -592,7 +592,7 @@ def test_resolve_selection_set():
     })
 
     expected_cols = ['Test_col_one', 'test_col3']
-    result_cols = prep._resolve_selection(test_df, set(['Test_col_one', 'test_col3']))
+    result_cols = Selector.resolve_selection(test_df, set(['Test_col_one', 'test_col3']))
 
     assert sorted(expected_cols) == sorted(result_cols)
 

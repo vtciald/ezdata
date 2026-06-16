@@ -3,7 +3,6 @@ import numpy as np
 import scipy.stats
 from statsmodels.stats.proportion import proportion_confint
 from typing import Callable
-import re
 from . import prep
 from .selector import Selector
 
@@ -34,7 +33,7 @@ def agg_cols(
     """
     
     df = df.copy()
-    cols = prep._resolve_selection(df, cols)
+    cols = Selector.resolve_selection(df, cols)
 
     valid_methods = {'min', 'max', 'sum', 'mean', 'median', 'count', 'nunique', 'std', 'var', 'prod', 'or', 'and'}
     pd_methods = {'min', 'max', 'sum', 'mean', 'median', 'count', 'nunique', 'std', 'var', 'prod'}
@@ -80,7 +79,7 @@ def agg_rows(
     """
 
     df = df.copy()
-    cols = prep._resolve_selection(df, cols)
+    cols = Selector.resolve_selection(df, cols)
 
     valid_methods = {'min', 'max', 'sum', 'mean', 'median', 'count', 'nunique', 'std', 'var', 'prod'}
     method_map = {}
@@ -132,7 +131,7 @@ def calc_ci(
     """
     
     df = df.copy()
-    cols = prep._resolve_selection(df, cols)
+    cols = Selector.resolve_selection(df, cols)
     
     parametric_methods = {'z', 't'}
     proportion_methods = {'wald', 'wilson', 'agresti_coull', 'clopper_pearson', 'beta', 'jeffreys'}

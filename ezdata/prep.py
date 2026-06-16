@@ -37,7 +37,7 @@ def remove_cols(
     """
     
     df = df.copy()
-    cols = _resolve_selection(df, cols)
+    cols = Selector.resolve_selection(df, cols)
 
     df = df.drop(columns = cols)
 
@@ -63,7 +63,7 @@ def rename_cols(
     """
 
     df = df.copy()
-    cols = _resolve_selection(df, cols)
+    cols = Selector.resolve_selection(df, cols)
 
     df = _recode(
         df, 
@@ -97,7 +97,7 @@ def recode_vals(
     """
 
     df = df.copy()
-    cols = _resolve_selection(df, cols)
+    cols = Selector.resolve_selection(df, cols)
 
     df = _recode(
         df, 
@@ -128,7 +128,7 @@ def clean_df(
     """
 
     df = df.copy()
-    cols = _resolve_selection(df, cols)
+    cols = Selector.resolve_selection(df, cols)
 
     rename_dict = {col: str(col).translate(_FIX_CHAR_MAP).strip() for col in cols}
     df = df.rename(columns = rename_dict)
@@ -182,7 +182,7 @@ def remove_verbal_anchors(
     """
 
     df = df.copy()
-    cols = _resolve_selection(df, cols)
+    cols = Selector.resolve_selection(df, cols)
 
     str_cols = list(df[cols].select_dtypes(include=['object', 'string']).columns)
 
@@ -218,7 +218,7 @@ def filter_straightliners(
     """
 
     df = df.copy()
-    cols = _resolve_selection(df, cols)
+    cols = Selector.resolve_selection(df, cols)
 
     df[cols] = df[cols].where(df[cols].nunique(axis = 1) >= min_unique)
 
@@ -226,7 +226,7 @@ def filter_straightliners(
 
 def bin(
     df: pd.DataFrame,
-    method: str | list,
+    method: str | list[int | float],
     *,
     cols: list[str] | set[str] | str | Selector | None = None,
 ) -> pd.DataFrame:
@@ -247,7 +247,7 @@ def bin(
     """
 
     df = df.copy()
-    cols = _resolve_selection(df, cols)
+    cols = Selector.resolve_selection(df, cols)
 
     if isinstance(method, str):
         df = _bin_by_string(df, method, cols = cols)
@@ -279,7 +279,7 @@ def filter_by_bounds(
     """
 
     df = df.copy()
-    cols = _resolve_selection(df, cols)
+    cols = Selector.resolve_selection(df, cols)
 
     if min_val is not None:
         df[cols] = df[cols].where(df[cols] >= min_val)
@@ -309,7 +309,7 @@ def filter_by_iqr(
     """
 
     df = df.copy()
-    cols = _resolve_selection(df, cols)
+    cols = Selector.resolve_selection(df, cols)
 
     qs = df[cols].quantile([0.25, 0.75], axis = 0)
     iqrs = qs.loc[0.75] - qs.loc[0.25]
@@ -565,29 +565,3 @@ def _standardize_extract_mapper(
             new_mapper[val] = match.group(1)
 
     return new_mapper
-
-def _resolve_selection(
-    df: pd.DataFrame,
-    selection: list[str] | set[str] | str | Selector | None,
-) -> list[str]:
-    """Resolve column selection.
-
-    Args:
-        df (pd.DataFrame): The DataFrame.
-        selection (list[str] | set[str] | str | Selector | None): String column label(s) or a Selector.
-
-    Returns:
-        list[str]: A list of string column labels.
-    """
-        
-    if isinstance(selection, Selector):
-        return selection(df)
-    
-    if isinstance(selection, str):
-        return [selection]
-    
-    if isinstance(selection, (list, set)):
-        return list(selection)
-    
-    if selection is None:
-        return df.columns.tolist()

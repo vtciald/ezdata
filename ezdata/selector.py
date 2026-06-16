@@ -1,5 +1,6 @@
 import re
 import pandas as pd
+from typing import Union
 
 class Selector:
     """Create a Selector object to select columns.
@@ -74,3 +75,30 @@ class Selector:
         ]
 
         return matched_cols
+    
+    @staticmethod
+    def resolve_selection(
+        df: pd.DataFrame,
+        selection: Union[list[str], set[str], str, 'Selector', None],
+    ) -> list[str]:
+        """Resolve column selection.
+
+        Args:
+            df (pd.DataFrame): The DataFrame.
+            selection (list[str] | set[str] | str | Selector | None): String column label(s) or a Selector.
+
+        Returns:
+            list[str]: A list of string column labels.
+        """
+            
+        if isinstance(selection, Selector):
+            return selection(df)
+        
+        if isinstance(selection, str):
+            return [selection]
+        
+        if isinstance(selection, (list, set)):
+            return list(selection)
+        
+        if selection is None:
+            return df.columns.tolist()

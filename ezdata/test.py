@@ -38,7 +38,7 @@ def test_one_sample(
     """
 
     df = df.copy()
-    cols = prep._resolve_selection(df, cols)
+    cols = Selector.resolve_selection(df, cols)
 
     if method == 't':
         result = _one_sample_t(df, cols, null, alpha)
@@ -86,7 +86,7 @@ def test_one_sample_proportion(
             - 'count': The number of valid non-nan observations.    """
 
     df = df.copy()
-    cols = prep._resolve_selection(df, cols)
+    cols = Selector.resolve_selection(df, cols)
 
     if method == 't':
         result = _one_sample_t(df, cols, null, alpha)
