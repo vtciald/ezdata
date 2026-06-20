@@ -125,7 +125,8 @@ def test_independent_proportion(
         pd.DataFrame: A DataFrame with indices matching the labels in `target_cols`.
             Columns include:
             - A test-statistic column, dynamically named based on the test.
-                * 'test_statistic': The Chi-squared test statistic.
+                * 'test_statistic': The Chi-squared test statistic when `method = 'chi_squared'`.
+                * 'odds_ratio': The prior odds ratio when `method = 'fisher_exact'`.
             - 'p_value': The calculated p value.
             - 'stat_sig': A boolean flag indicating statistical significance.
             - 'count': The number of valid non-nan observations.
@@ -138,7 +139,7 @@ def test_independent_proportion(
         result = _chi_sq_independence(df, group_col, target_cols, alpha)
     
     elif method == 'fisher_exact':
-        raise NotImplementedError(f'Method \'{method}\' is not yet implemented.')
+        result = _fisher_exact_independence(df, group_col, target_cols, alpha)
 
     # elif method == 'bootstrap':
     #     raise NotImplementedError(f'Method \'{method}\' is not yet implemented.')
@@ -193,6 +194,60 @@ def _chi_sq_independence(
         np.array(counts),
         alpha,
         'test_statistic'
+    )
+
+def _fisher_exact_independence(
+    df: pd.DataFrame,
+    group_col: str,
+    target_cols: list[str],
+    alpha: float
+) -> pd.DataFrame:
+    """Run Fisher's Exact Test of independence.
+
+    Runs a separate test between each pair of `group_col` and one of the `target_cols`. Requires that each column have 2 unique values (ignoring NaN).
+
+    Args:
+        df (pd.DataFrame): The DataFrame.
+        group_col (str): The grouping column label.
+        target_cols (list[str]): The labels of columns to test independence with `group_col`.
+        alpha (float): The desired alpha level.
+
+    Returns:
+        pd.DataFrame: A DataFrame with indices matching the labels in `target_cols`.
+            Columns include:
+            - 'odds_ratio': The prior odds ratio.
+            - 'p_value': The calculated p value.
+            - 'stat_sig': A boolean flag indicating statistical significance.
+            - 'count': The number of valid non-nan observations.
+    """
+
+    test_statistics = []
+    p_values = []
+    counts = []
+
+    for target_col in target_cols:
+        count = (df[group_col].notna() & df[target_col].notna()).sum()
+        contingency = pd.crosstab(df[group_col].values, df[target_col].values)
+
+        if contingency.shape != (2, 2):
+                raise ValueError(
+                    f'Fisher\'s Exact Test requires a (2, 2) table. '
+                    f'{group_col} vs {target_col} produced a {contingency.shape} table.'
+                )
+
+        result = scipy.stats.fisher_exact(contingency.values)
+
+        test_statistics.append(result.statistic) # type: ignore
+        p_values.append(result.pvalue) # type: ignore
+        counts.append(count)
+    
+    return _create_test_frame(
+        target_cols,
+        np.array(test_statistics),
+        np.array(p_values),
+        np.array(counts),
+        alpha,
+        'odds_ratio'
     )
 
 def _one_sample_t(

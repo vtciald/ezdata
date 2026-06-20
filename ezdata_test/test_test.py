@@ -2,6 +2,7 @@ import pandas as pd
 import numpy as np
 from ezdata.processor import DataProcessor
 from ezdata import test
+import pytest
 
 def test_one_sample_t():
 
@@ -165,6 +166,56 @@ def test_independent_proportion_chi_sq_dummy_to_categorical():
 
     pd.testing.assert_frame_equal(result, expected)
 
+def test_independent_proportion_fisher_exact():
+
+    dp = DataProcessor()
+
+    test_df = pd.DataFrame({
+        'Col1': [1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 1, 1, 1, 0],
+        'Col2': [1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0],
+    })
+
+    expected = pd.DataFrame(
+        {
+            'odds_ratio': [2.6667],
+            'p_value': [0.6145],
+            'stat_sig': [False],
+            'count': [16],
+        },
+        index = ['Col2'],
+    )
+
+    result = dp.test_independent_proportion(test_df, 'fisher_exact', group_col = 'Col1', target_cols = 'Col2')
+
+    result['odds_ratio'] = result['odds_ratio'].round(4)
+    result['p_value'] = result['p_value'].round(4)
+    
+    pd.testing.assert_frame_equal(result, expected)
+
+def test_independent_proportion_fisher_exact_error():
+
+    dp = DataProcessor()
+
+    test_df = pd.DataFrame({
+        'Col1': [1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0],
+        'Col2': [1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0],
+        'Col3': ['yes', 'yes', 'yes', 'yes', 'no', 'no', 'no', 'no', 'no', 'no', 'no', 'maybe'],
+    })
+
+    expected = pd.DataFrame(
+        {
+            'test_statistic': [1.7778, 6.2857],
+            'p_value': [0.1824, 0.0432],
+            'stat_sig': [False, True],
+            'count': [12, 12],
+        },
+        index = ['Col2', 'Col3'],
+    )
+
+    with pytest.raises(ValueError):
+        result = dp.test_independent_proportion(test_df, 'fisher_exact', group_col = 'Col1', target_cols = 'Col3')
+
+
 # Test one sample methods
 test_one_sample_t()
 test_one_sample_wilcoxon()
@@ -174,4 +225,6 @@ test_one_sample_sign_proportion()
 # Test independent methods
 test_independent_proportion_chi_sq()
 test_independent_proportion_chi_sq_dummy_to_categorical()
+test_independent_proportion_fisher_exact()
+test_independent_proportion_fisher_exact_error()
 
