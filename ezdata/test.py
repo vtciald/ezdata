@@ -37,7 +37,6 @@ def test_one_sample(
             - 'count': The number of valid non-nan observations.
     """
 
-    df = df.copy()
     cols = Selector.resolve_selection(df, cols)
 
     if method == 't':
@@ -86,7 +85,6 @@ def test_one_sample_proportion(
             - 'count': The number of valid non-nan observations.
     """
 
-    df = df.copy()
     cols = Selector.resolve_selection(df, cols)
 
     if method == 't':
@@ -129,7 +127,6 @@ def test_one_sample_proportion(
 #             - ???
 #     """
 
-#     df = df.copy()
 #     df, group_col = prep.dummy_to_categorical(df, cols = group_col)
 #     target_cols = Selector.resolve_selection(df, target_cols)
 

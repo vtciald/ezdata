@@ -36,7 +36,6 @@ def remove_cols(
         pd.DataFrame: The DataFrame with columns removed.
     """
     
-    df = df.copy()
     cols = Selector.resolve_selection(df, cols)
 
     df = df.drop(columns = cols)
@@ -62,7 +61,6 @@ def rename_cols(
         pd.DataFrame: The DataFrame with renamed columns.
     """
 
-    df = df.copy()
     cols = Selector.resolve_selection(df, cols)
 
     df = _recode(
@@ -604,6 +602,19 @@ def dummy_to_categorical(
     cols: list[str] | set[str] | str | Selector | None = None,
     new_col_name: str = 'Categorical_Group_From_Dummies',
 ) -> tuple[pd.DataFrame, str]:
+    """Create a categorical column out of dummy-coded column(s).
+
+    Args:
+        df (pd.DataFrame): The DataFrame.
+        cols (list[str] | set[str] | str | Selector | None, optional): Column(s) to include. If None, includes all columns. Defaults to None.
+        new_col_name (str, optional): The name for the new categorical column. Defaults to 'Categorical_Group_From_Dummies'.
+
+    Raises:
+        ValueError: _description_
+
+    Returns:
+        tuple[pd.DataFrame, str]: _description_
+    """
     
     df = df.copy()
     cols = Selector.resolve_selection(df, cols)

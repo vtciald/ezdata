@@ -78,7 +78,6 @@ def agg_rows(
         pd.DataFrame | pd.Series: The resulting DataFrame or Series.
     """
 
-    df = df.copy()
     cols = Selector.resolve_selection(df, cols)
 
     valid_methods = {'min', 'max', 'sum', 'mean', 'median', 'count', 'nunique', 'std', 'var', 'prod'}
