@@ -101,57 +101,99 @@ def test_one_sample_proportion(
 
     return result    
 
-# def test_independent_proportion(
-#     df: pd.DataFrame,
-#     method: str,
-#     *,
-#     group_col: list[str] | set[str] | str | Selector,
-#     target_cols: list[str] | set[str] | str | Selector | None = None,
-#     alpha: float = 0.05,
-# ) -> pd.DataFrame:
-#     """Run an independent-sample test.
+def test_independent_proportion(
+    df: pd.DataFrame,
+    method: str,
+    *,
+    group_col: list[str] | set[str] | str | Selector,
+    target_cols: list[str] | set[str] | str | Selector | None = None,
+    alpha: float = 0.05,
+) -> pd.DataFrame:
+    """Run an independent-sample test.
 
-#     Args:
-#         df (pd.DataFrame): The DataFrame.
-#         method (str): The test method. Supported choices: 'chi_squared', 'fisher_exact'.
-#         group_col (list[str] | set[str] | str | Selector): Column(s) to use as the grouping variable. If one-hot encoded, will be converted to mutually exclusive categories.
-#         target_cols (list[str] | set[str] | str | Selector | None, optional): Column(s) to evaluate for differences on the basis of `group_col`. If None, includes all columns. Defaults to None.
-#         alpha (float, optional): The desired alpha. Defaults to 0.05.
+    Args:
+        df (pd.DataFrame): The DataFrame.
+        method (str): The test method. Supported choices: 'chi_squared', 'fisher_exact'.
+        group_col (list[str] | set[str] | str | Selector): Column(s) to use as the grouping variable. If one-hot encoded, will be converted to mutually exclusive categories.
+        target_cols (list[str] | set[str] | str | Selector | None, optional): Column(s) to evaluate for differences on the basis of `group_col`. If None, includes all columns. Defaults to None.
+        alpha (float, optional): The desired alpha. Defaults to 0.05.
 
-#     Raises:
-#         ValueError: If string argument for `method` isn't recognized.
+    Raises:
+        ValueError: If string argument for `method` isn't recognized.
 
-#     Returns:
-#         pd.DataFrame: A DataFrame with indices matching the labels in `target_cols`.
-#             Columns include:
-#             - ???
-#     """
+    Returns:
+        pd.DataFrame: A DataFrame with indices matching the labels in `target_cols`.
+            Columns include:
+            - A test-statistic column, dynamically named based on the test.
+                * 'test_statistic': The Chi-squared test statistic.
+            - 'p_value': The calculated p value.
+            - 'stat_sig': A boolean flag indicating statistical significance.
+            - 'count': The number of valid non-nan observations.
+    """
 
-#     df, group_col = prep.dummy_to_categorical(df, cols = group_col)
-#     target_cols = Selector.resolve_selection(df, target_cols)
+    df, group_col = prep.dummy_to_categorical(df, cols = group_col)
+    target_cols = Selector.resolve_selection(df, target_cols)
 
-#     # if method == 'chi_squared':
-#     #     result = _chi_sq_independence(df, group_col, target_cols, alpha)
+    if method == 'chi_squared':
+        result = _chi_sq_independence(df, group_col, target_cols, alpha)
     
-#     # elif method == 'fisher_exact':
-#     #     raise NotImplementedError(f'Method \'{method}\' is not yet implemented.')
+    elif method == 'fisher_exact':
+        raise NotImplementedError(f'Method \'{method}\' is not yet implemented.')
 
-#     # elif method == 'bootstrap':
-#     #     raise NotImplementedError(f'Method \'{method}\' is not yet implemented.')
+    # elif method == 'bootstrap':
+    #     raise NotImplementedError(f'Method \'{method}\' is not yet implemented.')
 
-#     else:
-#         raise ValueError(f'Independent test method \'{method}\' is not recognized.')
+    else:
+        raise ValueError(f'Independent test method \'{method}\' is not recognized.')
 
-#     return result  
+    return result  
 
-# def _chi_sq_independence(
-#     df: pd.DataFrame,
-#     group_col: str,
-#     target_cols: list[str],
-#     alpha: float
-# ) -> pd.DataFrame:
+def _chi_sq_independence(
+    df: pd.DataFrame,
+    group_col: str,
+    target_cols: list[str],
+    alpha: float
+) -> pd.DataFrame:
+    """Run a Chi-squared test of independence.
+
+    Runs a separate test between each pair of `group_col` and one of the `target_cols`.
+
+    Args:
+        df (pd.DataFrame): The DataFrame.
+        group_col (str): The grouping column label.
+        target_cols (list[str]): The labels of columns to test independence with `group_col`.
+        alpha (float): The desired alpha level.
+
+    Returns:
+        pd.DataFrame: A DataFrame with indices matching the labels in `target_cols`.
+            Columns include:
+            - 'test_statistic': The Chi-squared test statistic.
+            - 'p_value': The calculated p value.
+            - 'stat_sig': A boolean flag indicating statistical significance.
+            - 'count': The number of valid non-nan observations.
+    """
+
+    test_statistics = []
+    p_values = []
+    counts = []
+
+    for target_col in target_cols:
+        count = (df[group_col].notna() & df[target_col].notna()).sum()
+        contingency = pd.crosstab(df[group_col].values, df[target_col].values)
+        result = scipy.stats.chi2_contingency(contingency.values)
+
+        test_statistics.append(result.statistic) # type: ignore
+        p_values.append(result.pvalue) # type: ignore
+        counts.append(count)
     
-#     return pd.DataFrame()
+    return _create_test_frame(
+        target_cols,
+        np.array(test_statistics),
+        np.array(p_values),
+        np.array(counts),
+        alpha,
+        'test_statistic'
+    )
 
 def _one_sample_t(
     df: pd.DataFrame,

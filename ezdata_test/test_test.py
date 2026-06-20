@@ -111,8 +111,67 @@ def test_one_sample_sign_proportion():
 
     pd.testing.assert_frame_equal(result, expected)
 
+def test_independent_proportion_chi_sq():
+
+    dp = DataProcessor()
+
+    test_df = pd.DataFrame({
+        'Col1': [1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0],
+        'Col2': [1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0],
+        'Col3': ['yes', 'yes', 'yes', 'yes', 'no', 'no', 'no', 'no', 'no', 'no', 'no', 'maybe'],
+    })
+
+    expected = pd.DataFrame(
+        {
+            'test_statistic': [1.7778, 6.2857],
+            'p_value': [0.1824, 0.0432],
+            'stat_sig': [False, True],
+            'count': [12, 12],
+        },
+        index = ['Col2', 'Col3'],
+    )
+
+    result = dp.test_independent_proportion(test_df, 'chi_squared', group_col = 'Col1', target_cols = ['Col2', 'Col3'])
+
+    result['test_statistic'] = result['test_statistic'].round(4)
+    result['p_value'] = result['p_value'].round(4)
+
+    pd.testing.assert_frame_equal(result, expected)
+
+def test_independent_proportion_chi_sq_dummy_to_categorical():
+
+    dp = DataProcessor()
+
+    test_df = pd.DataFrame({
+        'Col1': [1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0],
+        'Col2': [1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0],
+        'Col3': ['yes', 'yes', 'yes', 'yes', 'no', 'no', 'no', 'no', 'no', 'no', 'no', 'maybe'],
+    })
+
+    expected = pd.DataFrame(
+        {
+            'test_statistic': [8.5714],
+            'p_value': [0.0728],
+            'stat_sig': [False],
+            'count': [12],
+        },
+        index = ['Col3'],
+    )
+
+    result = dp.test_independent_proportion(test_df, 'chi_squared', group_col = ['Col1', 'Col2'], target_cols = 'Col3')
+
+    result['test_statistic'] = result['test_statistic'].round(4)
+    result['p_value'] = result['p_value'].round(4)
+
+    pd.testing.assert_frame_equal(result, expected)
+
 # Test one sample methods
 test_one_sample_t()
 test_one_sample_wilcoxon()
 test_one_sample_sign()
 test_one_sample_sign_proportion()
+
+# Test independent methods
+test_independent_proportion_chi_sq()
+test_independent_proportion_chi_sq_dummy_to_categorical()
+

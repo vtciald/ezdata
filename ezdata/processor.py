@@ -65,3 +65,4 @@ class DataProcessor:
     # Functions from test.py
     test_one_sample = staticmethod(test.test_one_sample)
     test_one_sample_proportion = staticmethod(test.test_one_sample_proportion)
+    test_independent_proportion = staticmethod(test.test_independent_proportion)
