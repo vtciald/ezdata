@@ -53,6 +53,7 @@ class DataProcessor:
     bin = staticmethod(prep.bin)
     filter_by_bounds = staticmethod(prep.filter_by_bounds)
     filter_by_iqr = staticmethod(prep.filter_by_iqr)
+    filter_by_stdev = staticmethod(prep.filter_by_stdev)
     filter_straightliners = staticmethod(prep.filter_straightliners)
     
     # Functions from stats.py

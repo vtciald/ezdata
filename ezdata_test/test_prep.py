@@ -441,6 +441,24 @@ def test_filter_by_iqr_factor():
     
     pd.testing.assert_frame_equal(result, expected)
 
+def test_filter_by_stdev():
+
+    dp = DataProcessor()
+
+    test_df = pd.DataFrame({
+        'Col1': [-6, 1, 3, 3, 6, 6, 6, 9, 9, 9],
+        'Col2': [1, 1, 16, 25, 33, 41, 50, 51, 52, 100]
+    })
+
+    expected = pd.DataFrame({
+        'Col1': [np.nan, 1, 3, 3, 6, 6, 6, 9, 9, 9],
+        'Col2': [np.nan, np.nan, 16, 25, 33, 41, 50, 51, 52, np.nan]
+    })
+
+    result = dp.filter_by_stdev(test_df, n_stdevs = 1)
+    
+    pd.testing.assert_frame_equal(result, expected)
+
 def test_resolve_selection():
     
     dp = DataProcessor()
@@ -778,6 +796,9 @@ test_filter_by_bounds()
 test_filter_by_iqr()
 test_filter_by_iqr_factor()
 test_filter_by_iqr_nan()
+
+# Filtering by stdev
+test_filter_by_stdev()
 
 # Test getting column names
 test_resolve_selection()

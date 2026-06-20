@@ -321,6 +321,38 @@ def filter_by_iqr(
 
     return df
 
+def filter_by_stdev(
+    df: pd.DataFrame,
+    *,
+    n_stdevs: float | int = 2,
+    cols: list[str] | set[str] | str | Selector | None = None,
+) -> pd.DataFrame:
+    """Filter DataFrame values based on the standard-deviation method.
+
+    Replaces values that exceed the calculated bounds with NaN. Defines a maximum value as sample mean + factor * standard deviation and a minimum value as sample mean - factor * standard deviation.
+
+    Args:
+        df (pd.DataFrame): The DataFrame.
+        n_stdevs (float | int, optional): The number of standard deviations from the mean, defining the min and max values. Defaults to 2.
+        cols (list[str] | set[str] | str | Selector | None, optional): Column(s) to include. If None, includes all columns. Defaults to None.
+
+    Returns:
+        pd.DataFrame: The filtered DataFrame.
+    """
+
+    df = df.copy()
+    cols = Selector.resolve_selection(df, cols)
+
+    means = df[cols].mean(axis = 0)
+    stds_multiple = df[cols].std(axis = 0) * n_stdevs
+
+    mins = means - stds_multiple
+    maxes = means + stds_multiple
+
+    df[cols] = df[cols].where((df[cols] <= maxes) & (df[cols] >= mins))
+
+    return df
+
 def _bin_by_string(
     df: pd.DataFrame,
     method: str,

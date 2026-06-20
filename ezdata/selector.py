@@ -1,6 +1,6 @@
+from __future__ import annotations
 import re
 import pandas as pd
-from typing import Union
 
 class Selector:
     """Create a Selector object to select columns.
@@ -79,7 +79,7 @@ class Selector:
     @staticmethod
     def resolve_selection(
         df: pd.DataFrame,
-        selection: Union[list[str], set[str], str, 'Selector', None],
+        selection: list[str] | set[str] | str | 'Selector' | None,
     ) -> list[str]:
         """Resolve column selection.
 
