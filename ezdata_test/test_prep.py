@@ -765,6 +765,8 @@ def test_rename_cols_extract():
 
 def test_dummy_to_categorical():
 
+    dp = DataProcessor()
+
     test_df = pd.DataFrame({
         'Col1': [1, 1, 0, 0],
         'Col2': [1, 0, 1, 0],
@@ -776,12 +778,14 @@ def test_dummy_to_categorical():
         'NewCol': ['Col1 & Col2', 'Col1', 'Col2', 'Category_None'],
     })
 
-    result, _ = prep.dummy_to_categorical(test_df, cols = ['Col1', 'Col2'], new_col_name = 'NewCol')
+    result, _ = dp.dummy_to_categorical(test_df, cols = ['Col1', 'Col2'], new_col_name = 'NewCol')
 
     pd.testing.assert_frame_equal(result, expected)
 
 def test_dummy_to_categorical_nan():
 
+    dp = DataProcessor()
+
     test_df = pd.DataFrame({
         'Col1': [1, 1, 0, 0, np.nan],
         'Col2': [1, 0, 1, 0, np.nan],
@@ -793,12 +797,14 @@ def test_dummy_to_categorical_nan():
         'NewCol': ['Col1 & Col2', 'Col1', 'Col2', 'Category_None', np.nan],
     })
 
-    result, _ = prep.dummy_to_categorical(test_df, cols = ['Col1', 'Col2'], new_col_name = 'NewCol')
+    result, _ = dp.dummy_to_categorical(test_df, cols = ['Col1', 'Col2'], new_col_name = 'NewCol')
 
     pd.testing.assert_frame_equal(result, expected)
 
 def test_dummy_to_categorical_nan_part():
 
+    dp = DataProcessor()
+
     test_df = pd.DataFrame({
         'Col1': [1, 1, 0, 0, 1],
         'Col2': [1, 0, 1, 0, np.nan],
@@ -810,11 +816,13 @@ def test_dummy_to_categorical_nan_part():
         'NewCol': ['Col1 & Col2', 'Col1', 'Col2', 'Category_None', np.nan],
     })
 
-    result, _ = prep.dummy_to_categorical(test_df, cols = ['Col1', 'Col2'], new_col_name = 'NewCol')
+    result, _ = dp.dummy_to_categorical(test_df, cols = ['Col1', 'Col2'], new_col_name = 'NewCol')
 
     pd.testing.assert_frame_equal(result, expected)
 
 def test_dummy_to_categorical_error():
+
+    dp = DataProcessor()
 
     test_df = pd.DataFrame({
         'Col1': [1, 1, 5, 0, 1],
@@ -828,7 +836,7 @@ def test_dummy_to_categorical_error():
     })
 
     with pytest.raises(ValueError):
-        result, _ = prep.dummy_to_categorical(test_df, cols = ['Col1', 'Col2'], new_col_name = 'NewCol')
+        result, _ = dp.dummy_to_categorical(test_df, cols = ['Col1', 'Col2'], new_col_name = 'NewCol')
 
 # Standardizing characters in arguments
 test_clean_arg()

@@ -55,6 +55,7 @@ class DataProcessor:
     filter_by_iqr = staticmethod(prep.filter_by_iqr)
     filter_by_stdev = staticmethod(prep.filter_by_stdev)
     filter_straightliners = staticmethod(prep.filter_straightliners)
+    dummy_to_categorical = staticmethod(prep.dummy_to_categorical)
     
     # Functions from stats.py
     agg_cols = staticmethod(stats.agg_cols)

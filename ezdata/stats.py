@@ -129,7 +129,6 @@ def calc_ci(
         pd.DataFrame: A DataFrame with indices matching the columns specified in the column-selection parameters and columns 'point_estimate', 'lower', 'upper', 'count'.
     """
     
-    df = df.copy()
     cols = Selector.resolve_selection(df, cols)
     
     parametric_methods = {'z', 't'}

@@ -94,7 +94,6 @@ def recode_vals(
         pd.DataFrame: The DataFrame with renamed columns.
     """
 
-    df = df.copy()
     cols = Selector.resolve_selection(df, cols)
 
     df = _recode(
@@ -179,7 +178,6 @@ def remove_verbal_anchors(
         pd.DataFrame: The updated DataFrame.
     """
 
-    df = df.copy()
     cols = Selector.resolve_selection(df, cols)
 
     str_cols = list(df[cols].select_dtypes(include=['object', 'string']).columns)
@@ -461,6 +459,7 @@ def _recode(
         df = df.rename(columns = mapper)
 
     elif target == 'values':
+        df = df.copy()
         df[dest_cols] = df[cols].replace(mapper).to_numpy()
     
     return df
