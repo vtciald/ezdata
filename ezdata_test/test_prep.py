@@ -3,6 +3,7 @@ import numpy as np
 import pytest
 from ezdata.processor import DataProcessor
 from ezdata.selector import Selector
+from ezdata import prep
 import re
 
 def test_clean_arg():
@@ -762,6 +763,73 @@ def test_rename_cols_extract():
 
     pd.testing.assert_frame_equal(result, expected)
 
+def test_dummy_to_categorical():
+
+    test_df = pd.DataFrame({
+        'Col1': [1, 1, 0, 0],
+        'Col2': [1, 0, 1, 0],
+    })
+
+    expected = pd.DataFrame({
+        'Col1': [1, 1, 0, 0],
+        'Col2': [1, 0, 1, 0],
+        'NewCol': ['Col1 & Col2', 'Col1', 'Col2', 'Category_None'],
+    })
+
+    result, _ = prep.dummy_to_categorical(test_df, cols = ['Col1', 'Col2'], new_col_name = 'NewCol')
+
+    pd.testing.assert_frame_equal(result, expected)
+
+def test_dummy_to_categorical_nan():
+
+    test_df = pd.DataFrame({
+        'Col1': [1, 1, 0, 0, np.nan],
+        'Col2': [1, 0, 1, 0, np.nan],
+    })
+
+    expected = pd.DataFrame({
+        'Col1': [1, 1, 0, 0, np.nan],
+        'Col2': [1, 0, 1, 0, np.nan],
+        'NewCol': ['Col1 & Col2', 'Col1', 'Col2', 'Category_None', np.nan],
+    })
+
+    result, _ = prep.dummy_to_categorical(test_df, cols = ['Col1', 'Col2'], new_col_name = 'NewCol')
+
+    pd.testing.assert_frame_equal(result, expected)
+
+def test_dummy_to_categorical_nan_part():
+
+    test_df = pd.DataFrame({
+        'Col1': [1, 1, 0, 0, 1],
+        'Col2': [1, 0, 1, 0, np.nan],
+    })
+
+    expected = pd.DataFrame({
+        'Col1': [1, 1, 0, 0, 1],
+        'Col2': [1, 0, 1, 0, np.nan],
+        'NewCol': ['Col1 & Col2', 'Col1', 'Col2', 'Category_None', np.nan],
+    })
+
+    result, _ = prep.dummy_to_categorical(test_df, cols = ['Col1', 'Col2'], new_col_name = 'NewCol')
+
+    pd.testing.assert_frame_equal(result, expected)
+
+def test_dummy_to_categorical_error():
+
+    test_df = pd.DataFrame({
+        'Col1': [1, 1, 5, 0, 1],
+        'Col2': [1, 0, 1, 0, np.nan],
+    })
+
+    expected = pd.DataFrame({
+        'Col1': [1, 1, 5, 0, 1],
+        'Col2': [1, 0, 1, 0, np.nan],
+        'NewCol': ['Col1 & Col2', 'Col1', 'Col2', 'Category_None', np.nan],
+    })
+
+    with pytest.raises(ValueError):
+        result, _ = prep.dummy_to_categorical(test_df, cols = ['Col1', 'Col2'], new_col_name = 'NewCol')
+
 # Standardizing characters in arguments
 test_clean_arg()
 
@@ -819,3 +887,9 @@ test_rename_cols_extract()
 # Test recoding values
 test_recode_values()
 test_recode_values_new_col()
+
+# Test converting dummy cols to categorical
+test_dummy_to_categorical()
+test_dummy_to_categorical_nan()
+test_dummy_to_categorical_nan_part()
+test_dummy_to_categorical_error()
