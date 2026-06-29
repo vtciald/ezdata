@@ -623,7 +623,8 @@ def dummy_to_categorical(
     
     else:
         for col in cols:
-            if not df[col].isin([0, 1, True, False, np.nan, pd.NA]).all(axis = 0):
+            invalid_exists = (~df[col].isin([0, 1, True, False]) & df[col].notna()).any()
+            if invalid_exists:
                 raise ValueError(
                     f'Values in columns are not dummy-coded, so they cannot '
                     'be automatically converted to a categorical column.'

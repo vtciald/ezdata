@@ -215,6 +215,33 @@ def test_independent_proportion_fisher_exact_error():
     with pytest.raises(ValueError):
         result = dp.test_independent_proportion(test_df, 'fisher_exact', group_col = 'Col1', target_cols = 'Col3')
 
+def test_independent_anova():
+
+    dp = DataProcessor()
+
+    test_df = pd.DataFrame({
+        'Col1': [10, 42, 64, 75, 2, 635, 78, 8, 53, 74, np.nan, 86, 86, 43, 31, 75, 86, 63, 42, 4, 57, 698, 34],
+        'Col2': [43, 64, 85, 243, 745, 9, 97, 46, 53, 42, 765, 86, 96, 680, 53, 75, 500, 43, 75, 85, 45, 34, 65],
+        'Group': [np.nan, 'A', 'B', 'C', 'A', 'B', 'C', 'A', 'B', 'C', 'A', 'B', 'C', 'A', 'B', 'C', 'A', 'B', 'C', 'A', 'B', 'C', 'A']
+    })
+
+    expected = pd.DataFrame(
+        {
+            'test_statistic': [0.9805, 5.2185],
+            'p_value': [0.3943, 0.0156],
+            'stat_sig': [False, True],
+            'count': [21, 22],
+        },
+        index = ['Col1', 'Col2'],
+    )
+
+    result = dp.test_independent(test_df, 'anova', target_cols = ['Col1', 'Col2'], group_col = 'Group')
+
+    result['test_statistic'] = result['test_statistic'].round(4)
+    result['p_value'] = result['p_value'].round(4)
+    
+    pd.testing.assert_frame_equal(result, expected)
+
 
 # Test one sample methods
 test_one_sample_t()
@@ -227,4 +254,5 @@ test_independent_proportion_chi_sq()
 test_independent_proportion_chi_sq_dummy_to_categorical()
 test_independent_proportion_fisher_exact()
 test_independent_proportion_fisher_exact_error()
+test_independent_anova()
 

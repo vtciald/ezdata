@@ -109,7 +109,7 @@ def test_independent_proportion(
     target_cols: list[str] | set[str] | str | Selector | None = None,
     alpha: float = 0.05,
 ) -> pd.DataFrame:
-    """Run an independent-sample test.
+    """Run an independent-samples test.
 
     Args:
         df (pd.DataFrame): The DataFrame.
@@ -147,7 +147,92 @@ def test_independent_proportion(
     else:
         raise ValueError(f'Independent test method \'{method}\' is not recognized.')
 
-    return result  
+    return result
+
+def test_independent(
+    df: pd.DataFrame,
+    method: str,
+    *,
+    group_col: list[str] | set[str] | str | Selector,
+    target_cols: list[str] | set[str] | str | Selector | None = None,
+    alpha: float = 0.05,
+) -> pd.DataFrame:
+    """Run an independent-samples test.
+
+    Args:
+        df (pd.DataFrame): The DataFrame.
+        method (str): The test method. Supported choices: 't', 'mann_whitney', 'anova', 'kruskal_wallis'
+        group_col (list[str] | set[str] | str | Selector): Column(s) to use as the grouping variable. If one-hot encoded, will be converted to mutually exclusive categories.
+        target_cols (list[str] | set[str] | str | Selector | None, optional): Column(s) to evaluate for differences on the basis of `group_col`. If None, includes all columns. Defaults to None.
+        alpha (float, optional): The desired alpha. Defaults to 0.05.
+
+    Raises:
+        ValueError: If string argument for `method` isn't recognized.
+
+    Returns:
+        pd.DataFrame: A DataFrame with indices matching the labels in `target_cols`.
+            Columns include:
+            - A test-statistic column, dynamically named based on the test.
+                * '___': ___ when `method = 't'`.
+                * '___': ___ when `method = 'mann_whitney'`.
+                * 'test_statistic': The F statistic when `method = 'anova'`.
+                * '___': ___ when `method = 'kruskal_wallis'`.
+            - 'p_value': The calculated p value.
+            - 'stat_sig': A boolean flag indicating statistical significance.
+            - 'count': The number of valid non-nan observations.
+    """
+
+    df, group_col = prep.dummy_to_categorical(df, cols = group_col)
+    target_cols = Selector.resolve_selection(df, target_cols)
+
+    if method == 't':
+        raise NotImplementedError(f'Method \'{method}\' is not yet implemented.')
+        result = _t_independent(df, group_col, target_cols, alpha)
+    
+    elif method == 'mann_whitney':
+        raise NotImplementedError(f'Method \'{method}\' is not yet implemented.')
+        result = _mann_whitney_u_independent(df, group_col, target_cols, alpha)
+
+    elif method == 'anova':
+        result = _one_way_anova_independent(df, group_col, target_cols, alpha)
+
+    elif method == 'kruskal_wallis':
+        raise NotImplementedError(f'Method \'{method}\' is not yet implemented.')
+        result = _kruskal_wallis_independent(df, group_col, target_cols, alpha)
+
+    # elif method == 'bootstrap':
+    #     raise NotImplementedError(f'Method \'{method}\' is not yet implemented.')
+
+    else:
+        raise ValueError(f'Independent test method \'{method}\' is not recognized.')
+
+    return result
+
+def _one_way_anova_independent(
+   df: pd.DataFrame,
+   group_col: str,
+   target_cols: list[str],
+   alpha: float 
+) -> pd.DataFrame:
+    
+    counts = df.loc[df[group_col].notna(), target_cols].agg('count', axis = 0).values
+    group_data = []
+
+    for group in df[group_col].unique():
+        if group == np.nan or pd.isna(group): continue
+        group_filter = df.loc[df[group_col] == group, target_cols]
+        group_data.append(group_filter.values)
+
+    result = scipy.stats.f_oneway(*group_data, nan_policy = 'omit') # type: ignore
+
+    return _create_test_frame(
+        target_cols,
+        result.statistic,
+        result.pvalue,
+        np.array(counts),
+        alpha,
+        'test_statistic'
+    )
 
 def _chi_sq_independence(
     df: pd.DataFrame,
@@ -434,7 +519,6 @@ def _create_test_frame(
 # TODO: Add other test methods...
 # Add 'bootstrap' method to tests
 # test_independent(): independent t, mann-whitney u, one-way anova, kruskal-wallis
-# test_independent_proportion(): chi2, fishers exact
 # test_dependent(): paired t, wilcoxon signed-rank
 # test_dependent_proportion(): mcnemar asymptotic, mcnemar exact binomial, cochran's Q
 # test_regression(): linear, logistic
