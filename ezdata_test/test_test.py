@@ -242,6 +242,50 @@ def test_independent_anova():
     
     pd.testing.assert_frame_equal(result, expected)
 
+def test_independent_t():
+
+    dp = DataProcessor()
+
+    test_df = pd.DataFrame({
+        'Col1': [10, 42, 64, 75, 2, 635, 78, 8, 53, 74, np.nan, 86, 86, 43, 31, 75, 86, 63, 42, 4, 57, 698, 34],
+        'Col2': [43, 64, 85, 243, 745, 9, 97, 46, 53, 42, 765, 86, 96, 680, 53, 75, 500, 43, 75, 85, 45, 34, 65],
+        'Group': [np.nan, 'A', 'B', 'C', 'A', 'B', 'C', 'A', 'B', 'C', 'A', 'B', 'C', 'A', 'B', 'C', 'A', 'B', 'C', 'A', 'B', 'C', 'A']
+    })
+
+    multi_index = pd.MultiIndex.from_tuples(
+        [
+            ('Col1', 'A', 'B'),
+            ('Col1', 'B', 'A'),
+            ('Col1', 'A', 'C'),
+            ('Col1', 'C', 'A'),
+            ('Col1', 'B', 'C'),
+            ('Col1', 'C', 'B'),
+            ('Col2', 'A', 'B'),
+            ('Col2', 'B', 'A'),
+            ('Col2', 'A', 'C'),
+            ('Col2', 'C', 'A'),
+            ('Col2', 'B', 'C'),
+            ('Col2', 'C', 'B'),
+        ],
+        names = ['target_col', 'group_0', 'group_1'],
+    )
+
+    expected = pd.DataFrame(
+        {
+            'test_statistic': [-1.3207, -1.3207, -1.4374, -1.4374, -0.1630, -0.1630, 2.4767, 2.4767, 2.1200, 2.1200, -1.4579, -1.4579],
+            'p_value': [0.2112, 0.2112, 0.1762, 0.1762, 0.8732, 0.8732, 0.0278, 0.0278, 0.0538, 0.0538, 0.1705, 0.1705],
+            'stat_sig': [False, False, False, False, False, False, True, True, False, False, False, False],
+            'count': [14, 14, 14, 14, 14, 14, 15, 15, 15, 15, 14, 14],
+        },
+        index = multi_index,
+    )
+
+    result = dp.test_independent(test_df, 't', target_cols = ['Col1', 'Col2'], group_col = 'Group')
+    
+    result['test_statistic'] = result['test_statistic'].round(4)
+    result['p_value'] = result['p_value'].round(4)
+    
+    pd.testing.assert_frame_equal(result, expected)
 
 # Test one sample methods
 test_one_sample_t()
@@ -255,4 +299,4 @@ test_independent_proportion_chi_sq_dummy_to_categorical()
 test_independent_proportion_fisher_exact()
 test_independent_proportion_fisher_exact_error()
 test_independent_anova()
-
+test_independent_t()

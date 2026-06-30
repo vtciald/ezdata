@@ -349,6 +349,63 @@ def filter_by_stdev(
 
     return df
 
+def dummy_to_categorical(
+    df: pd.DataFrame,
+    *,
+    cols: list[str] | set[str] | str | Selector | None = None,
+    new_col_name: str = 'Categorical_Group_From_Dummies',
+) -> tuple[pd.DataFrame, str]:
+    """Create a categorical column out of dummy-coded column(s).
+
+    Args:
+        df (pd.DataFrame): The DataFrame.
+        cols (list[str] | set[str] | str | Selector | None, optional): Column(s) to include. If None, includes all columns. Defaults to None.
+        new_col_name (str, optional): The name for the new categorical column. Defaults to 'Categorical_Group_From_Dummies'.
+
+    Raises:
+        ValueError: If columns are not dummy-coded (i.e., not binary).
+
+    Returns:
+        tuple[pd.DataFrame, str]: The DataFrame and the string name of the categorical column.
+    """
+    
+    df = df.copy()
+    cols = Selector.resolve_selection(df, cols)
+    
+    if len(cols) == 1:
+        return df, cols[0]
+    
+    else:
+        for col in cols:
+            invalid_exists = (~df[col].isin([0, 1, True, False]) & df[col].notna()).any()
+            if invalid_exists:
+                raise ValueError(
+                    f'Values in columns are not dummy-coded, so they cannot '
+                    'be automatically converted to a categorical column.'
+                )
+
+    dummies = df[cols].astype('Int64')
+    row_sums = dummies.sum(axis = 1)
+
+    df.loc[row_sums == 1, new_col_name] = dummies[row_sums == 1].idxmax(axis = 1)
+    df.loc[row_sums == 0, new_col_name] = 'Category_None'
+    df.loc[df.isna().any(axis = 1), new_col_name] = np.nan
+
+    if (row_sums > 1).any(axis = 0):
+        unique_combos = df.loc[row_sums > 1, cols].drop_duplicates()
+        powers = [2 ** i for i in range(len(cols))]
+        unique_keys = (unique_combos.values * powers).sum(axis = 1)
+        all_keys = (df.loc[row_sums > 1, cols] * powers).sum(axis = 1)
+        mapper = {}
+
+        for (_, row), key in zip(unique_combos.iterrows(), unique_keys):
+            indices = row.index[row == 1]
+            mapper[key] = ' & '.join(indices)
+
+        df.loc[row_sums > 1, new_col_name] = pd.Series(all_keys).replace(mapper)
+    
+    return df, new_col_name
+
 def _bin_by_string(
     df: pd.DataFrame,
     method: str,
@@ -594,60 +651,3 @@ def _standardize_extract_mapper(
             new_mapper[val] = match.group(1)
 
     return new_mapper
-
-def dummy_to_categorical(
-    df: pd.DataFrame,
-    *,
-    cols: list[str] | set[str] | str | Selector | None = None,
-    new_col_name: str = 'Categorical_Group_From_Dummies',
-) -> tuple[pd.DataFrame, str]:
-    """Create a categorical column out of dummy-coded column(s).
-
-    Args:
-        df (pd.DataFrame): The DataFrame.
-        cols (list[str] | set[str] | str | Selector | None, optional): Column(s) to include. If None, includes all columns. Defaults to None.
-        new_col_name (str, optional): The name for the new categorical column. Defaults to 'Categorical_Group_From_Dummies'.
-
-    Raises:
-        ValueError: _description_
-
-    Returns:
-        tuple[pd.DataFrame, str]: _description_
-    """
-    
-    df = df.copy()
-    cols = Selector.resolve_selection(df, cols)
-    
-    if len(cols) == 1:
-        return df, cols[0]
-    
-    else:
-        for col in cols:
-            invalid_exists = (~df[col].isin([0, 1, True, False]) & df[col].notna()).any()
-            if invalid_exists:
-                raise ValueError(
-                    f'Values in columns are not dummy-coded, so they cannot '
-                    'be automatically converted to a categorical column.'
-                )
-
-    dummies = df[cols].astype('Int64')
-    row_sums = dummies.sum(axis = 1)
-
-    df.loc[row_sums == 1, new_col_name] = dummies[row_sums == 1].idxmax(axis = 1)
-    df.loc[row_sums == 0, new_col_name] = 'Category_None'
-    df.loc[df.isna().any(axis = 1), new_col_name] = np.nan
-
-    if (row_sums > 1).any(axis = 0):
-        unique_combos = df.loc[row_sums > 1, cols].drop_duplicates()
-        powers = [2 ** i for i in range(len(cols))]
-        unique_keys = (unique_combos.values * powers).sum(axis = 1)
-        all_keys = (df.loc[row_sums > 1, cols] * powers).sum(axis = 1)
-        mapper = {}
-
-        for (_, row), key in zip(unique_combos.iterrows(), unique_keys):
-            indices = row.index[row == 1]
-            mapper[key] = ' & '.join(indices)
-
-        df.loc[row_sums > 1, new_col_name] = pd.Series(all_keys).replace(mapper)
-    
-    return df, new_col_name

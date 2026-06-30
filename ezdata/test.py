@@ -4,6 +4,7 @@ import scipy.stats
 import re
 from . import prep
 from .selector import Selector
+from itertools import combinations
 
 def test_one_sample(
     df: pd.DataFrame,
@@ -17,7 +18,7 @@ def test_one_sample(
 
     Args:
         df (pd.DataFrame): The DataFrame.
-        method (str): The test method. Supported choices: 't', 'wilcoxon', 'sign', 'bootstrap'.
+        method (str): The test method. Supported choices: 't', 'wilcoxon', 'sign'.
         null (float, optional): The value representing the central tendency of the null hypothesis. Defaults to 0.
         alpha (float, optional): The desired alpha. Defaults to 0.05.
         cols (list[str] | set[str] | str | Selector | None, optional): Column(s) to include. If None, includes all columns. Defaults to None.
@@ -47,9 +48,6 @@ def test_one_sample(
     
     elif method == 'sign':
         result = _one_sample_sign(df, cols, null, alpha)
-    
-    # elif method == 'bootstrap':
-    #     raise NotImplementedError(f'Method \'{method}\' is not yet implemented.')
 
     else:
         raise ValueError(f'One-sample test method \'{method}\' is not recognized.')
@@ -92,9 +90,6 @@ def test_one_sample_proportion(
     
     elif method == 'sign':
         result = _one_sample_sign(df, cols, null, alpha, proportion = True)
-    
-    # elif method == 'bootstrap':
-    #     raise NotImplementedError(f'Method \'{method}\' is not yet implemented.')
 
     else:
         raise ValueError(f'One-sample test method \'{method}\' is not recognized.')
@@ -141,9 +136,6 @@ def test_independent_proportion(
     elif method == 'fisher_exact':
         result = _fisher_exact_independence(df, group_col, target_cols, alpha)
 
-    # elif method == 'bootstrap':
-    #     raise NotImplementedError(f'Method \'{method}\' is not yet implemented.')
-
     else:
         raise ValueError(f'Independent test method \'{method}\' is not recognized.')
 
@@ -173,7 +165,7 @@ def test_independent(
         pd.DataFrame: A DataFrame with indices matching the labels in `target_cols`.
             Columns include:
             - A test-statistic column, dynamically named based on the test.
-                * '___': ___ when `method = 't'`.
+                * 'test_statistic': T statistic when `method = 't'`.
                 * '___': ___ when `method = 'mann_whitney'`.
                 * 'test_statistic': The F statistic when `method = 'anova'`.
                 * '___': ___ when `method = 'kruskal_wallis'`.
@@ -186,7 +178,6 @@ def test_independent(
     target_cols = Selector.resolve_selection(df, target_cols)
 
     if method == 't':
-        raise NotImplementedError(f'Method \'{method}\' is not yet implemented.')
         result = _t_independent(df, group_col, target_cols, alpha)
     
     elif method == 'mann_whitney':
@@ -200,9 +191,6 @@ def test_independent(
         raise NotImplementedError(f'Method \'{method}\' is not yet implemented.')
         result = _kruskal_wallis_independent(df, group_col, target_cols, alpha)
 
-    # elif method == 'bootstrap':
-    #     raise NotImplementedError(f'Method \'{method}\' is not yet implemented.')
-
     else:
         raise ValueError(f'Independent test method \'{method}\' is not recognized.')
 
@@ -214,6 +202,22 @@ def _one_way_anova_independent(
    target_cols: list[str],
    alpha: float 
 ) -> pd.DataFrame:
+    """Run a one-way ANOVA.
+
+    Args:
+        df (pd.DataFrame): The DataFrame.
+        group_col (str): The grouping column label.
+        target_cols (list[str]): The labels of columns to test independence with `group_col`.
+        alpha (float): The desired alpha level.
+
+    Returns:
+        pd.DataFrame: A DataFrame with indices matching the labels in `target_cols`.
+            Columns include:
+            - 'test_statistic': The F statistic.
+            - 'p_value': The calculated p value.
+            - 'stat_sig': A boolean flag indicating statistical significance.
+            - 'count': The number of valid non-nan observations.
+    """
     
     counts = df.loc[df[group_col].notna(), target_cols].agg('count', axis = 0).values
     group_data = []
@@ -229,6 +233,66 @@ def _one_way_anova_independent(
         target_cols,
         result.statistic,
         result.pvalue,
+        np.array(counts),
+        alpha,
+        'test_statistic'
+    )
+
+def _t_independent(
+   df: pd.DataFrame,
+   group_col: str,
+   target_cols: list[str],
+   alpha: float 
+) -> pd.DataFrame:
+    """Run an independent-samples t test.
+
+    Args:
+        df (pd.DataFrame): The DataFrame.
+        group_col (str): The grouping column label.
+        target_cols (list[str]): The labels of columns to test independence with `group_col`.
+        alpha (float): The desired alpha level.
+
+    Returns:
+        pd.DataFrame: A DataFrame with multi-index indices, (target_col, group_0, group_1).
+            Columns include:
+            - 'test_statistic': The T statistic.
+            - 'p_value': The calculated p value.
+            - 'stat_sig': A boolean flag indicating statistical significance.
+            - 'count': The number of valid non-nan observations.
+    """
+
+    unique_groups = [group for group in df[group_col].unique() if pd.notna(group)]
+    pairs = list(combinations(unique_groups, 2))
+
+    index_tuples = []
+    test_statistics = []
+    p_values = []
+    counts = []
+
+    for target_col in target_cols:
+        for group0, group1 in pairs:
+            group0_filter = df.loc[df[group_col] == group0, target_col].dropna() # type: ignore
+            group1_filter = df.loc[df[group_col] == group1, target_col].dropna() # type: ignore
+            count = len(group0_filter) + len(group1_filter)
+
+            result = scipy.stats.ttest_ind(group0_filter, group1_filter, nan_policy = 'omit')
+            
+            index_tuples.append((target_col, group0, group1))
+            index_tuples.append((target_col, group1, group0)) # repeating so multi-index can be accessed both ways
+
+            counts.append(count)
+            counts.append(count)
+
+            test_statistics.append(result.statistic) # type: ignore
+            test_statistics.append(result.statistic) # type: ignore
+
+            p_values.append(result.pvalue) # type: ignore
+            p_values.append(result.pvalue) # type: ignore
+
+    return _create_test_frame(
+        index_tuples,
+        np.array(test_statistics),
+        np.array(p_values),
         np.array(counts),
         alpha,
         'test_statistic'
@@ -481,7 +545,7 @@ def _one_sample_wilcoxon(
     )
 
 def _create_test_frame(
-    cols: list[str],
+    indices: list[str] | list[tuple],
     test_statistics: np.ndarray,
     p_values: np.ndarray,
     counts: np.ndarray,
@@ -491,7 +555,7 @@ def _create_test_frame(
     """Package test results into a DataFrame.
 
     Args:
-        cols (list[str]): The labels associated with each column.
+        indices (list[str] | tuple): The labels associated with each column. If a list of tuples, will create a multi-index frame (target_col, group_0, group_1).
         test_statistics (np.ndarray): The array of test statistics.
         p_values (np.ndarray): The array of p values.
         counts (np.ndarray): The array of column non-nan counts.
@@ -509,9 +573,20 @@ def _create_test_frame(
         'count': counts.astype(int),
     }
 
+    if isinstance(indices[0], tuple):
+        multi_index = pd.MultiIndex.from_tuples(
+            indices, # type: ignore
+            names = ['target_col', 'group_0', 'group_1'],
+        )
+
+        frame_index = multi_index
+
+    else:
+        frame_index = indices
+
     result = pd.DataFrame(
         data_dict,
-        index = cols
+        index = frame_index
     )
 
     return result  
@@ -522,6 +597,8 @@ def _create_test_frame(
 # test_dependent(): paired t, wilcoxon signed-rank
 # test_dependent_proportion(): mcnemar asymptotic, mcnemar exact binomial, cochran's Q
 # test_regression(): linear, logistic
+
+# TODO: Update column selection resolution to ensure the default (when target_cols = None) doesn't include the group_col
 
 # TODO: Add p-value correction methods...bonferroni, holm-bonferroni, benjamini-hochberg
 
