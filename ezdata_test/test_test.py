@@ -332,6 +332,33 @@ def test_independent_mann_whitney():
     
     pd.testing.assert_frame_equal(result, expected)
 
+def test_independent_kruskal_wallis():
+
+    dp = DataProcessor()
+
+    test_df = pd.DataFrame({
+        'Col1': [10, 42, 64, 75, 2, 635, 78, 8, 53, 74, np.nan, 86, 86, 43, 31, 75, 86, 63, 42, 4, 57, 698, 34],
+        'Col2': [43, 64, 85, 243, 745, 9, 97, 46, 53, 42, 765, 86, 96, 680, 53, 75, 500, 43, 75, 85, 45, 34, 65],
+        'Group': [np.nan, 'A', 'B', 'C', 'A', 'B', 'C', 'A', 'B', 'C', 'A', 'B', 'C', 'A', 'B', 'C', 'A', 'B', 'C', 'A', 'B', 'C', 'A']
+    })
+
+    expected = pd.DataFrame(
+        {
+            'test_statistic': [6.9790, 4.8936],
+            'p_value': [0.0305, 0.0866],
+            'stat_sig': [True, False],
+            'count': [21, 22],
+        },
+        index = ['Col1', 'Col2'],
+    )
+
+    result = dp.test_independent(test_df, 'kruskal_wallis', target_cols = ['Col1', 'Col2'], group_col = 'Group')
+
+    result['test_statistic'] = result['test_statistic'].round(4)
+    result['p_value'] = result['p_value'].round(4)
+    
+    pd.testing.assert_frame_equal(result, expected)
+
 # Test one sample methods
 test_one_sample_t()
 test_one_sample_wilcoxon()
@@ -346,3 +373,4 @@ test_independent_proportion_fisher_exact_error()
 test_independent_anova()
 test_independent_t()
 test_independent_mann_whitney()
+test_independent_kruskal_wallis()

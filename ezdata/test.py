@@ -187,13 +187,54 @@ def test_independent(
         result = _one_way_anova_independent(df, group_col, target_cols, alpha)
 
     elif method == 'kruskal_wallis':
-        raise NotImplementedError(f'Method \'{method}\' is not yet implemented.')
-        result = _kruskal_wallis_independent(df, group_col, target_cols, alpha)
+        result = _kruskal_wallis_h_independent(df, group_col, target_cols, alpha)
 
     else:
         raise ValueError(f'Independent test method \'{method}\' is not recognized.')
 
     return result
+
+def _kruskal_wallis_h_independent(
+   df: pd.DataFrame,
+   group_col: str,
+   target_cols: list[str],
+   alpha: float 
+) -> pd.DataFrame:
+    """Run a Kruskal-Wallis H test.
+
+    Args:
+        df (pd.DataFrame): The DataFrame.
+        group_col (str): The grouping column label.
+        target_cols (list[str]): The labels of columns to test independence with `group_col`.
+        alpha (float): The desired alpha level.
+
+    Returns:
+        pd.DataFrame: A DataFrame with indices matching the labels in `target_cols`.
+            Columns include:
+            - 'test_statistic': The H statistic.
+            - 'p_value': The calculated p value.
+            - 'stat_sig': A boolean flag indicating statistical significance.
+            - 'count': The number of valid non-nan observations.
+    """
+    
+    counts = df.loc[df[group_col].notna(), target_cols].agg('count', axis = 0).values
+    group_data = []
+
+    for group in df[group_col].unique():
+        if group == np.nan or pd.isna(group): continue
+        group_filter = df.loc[df[group_col] == group, target_cols]
+        group_data.append(group_filter.values)
+
+    result = scipy.stats.kruskal(*group_data, nan_policy = 'omit') # type: ignore
+
+    return _create_test_frame(
+        target_cols,
+        result.statistic,
+        result.pvalue,
+        np.array(counts),
+        alpha,
+        'test_statistic'
+    )
 
 def _mann_whitney_u_independent(
    df: pd.DataFrame,
@@ -232,7 +273,12 @@ def _mann_whitney_u_independent(
             group1_filter = df.loc[df[group_col] == group1, target_col].dropna() # type: ignore
             count = len(group0_filter) + len(group1_filter)
 
-            result = scipy.stats.mannwhitneyu(group0_filter, group1_filter, method = 'auto', nan_policy = 'omit') # type: ignore
+            result = scipy.stats.mannwhitneyu(
+                group0_filter, 
+                group1_filter, 
+                method = 'auto', 
+                nan_policy = 'omit' # type: ignore
+            ) 
             
             # group_0, group_1
             index_tuples.append((target_col, group0, group1))
@@ -652,11 +698,10 @@ def _create_test_frame(
     return result  
   
 # TODO: Add other test methods...
-# Add 'bootstrap' method to tests
-# test_independent(): independent t, mann-whitney u, one-way anova, kruskal-wallis
 # test_dependent(): paired t, wilcoxon signed-rank
 # test_dependent_proportion(): mcnemar asymptotic, mcnemar exact binomial, cochran's Q
 # test_regression(): linear, logistic
+# Add 'bootstrap' method to tests
 
 # TODO: Update column selection resolution to ensure the default (when target_cols = None) doesn't include the group_col
 
