@@ -164,11 +164,11 @@ def test_independent(
     Returns:
         pd.DataFrame: A DataFrame with indices matching the labels in `target_cols`.
             Columns include:
-            - A test-statistic column, dynamically named based on the test.
-                * 'test_statistic': T statistic when `method = 't'`.
-                * '___': ___ when `method = 'mann_whitney'`.
-                * 'test_statistic': The F statistic when `method = 'anova'`.
-                * '___': ___ when `method = 'kruskal_wallis'`.
+            - A column `'test_statistic'` for a statistic based on the `method` used.
+                * T statistic when `method = 't'`.
+                * U statistic when `method = 'mann_whitney'`.
+                * F statistic when `method = 'anova'`.
+                * H statistic when `method = 'kruskal_wallis'`.
             - 'p_value': The calculated p value.
             - 'stat_sig': A boolean flag indicating statistical significance.
             - 'count': The number of valid non-nan observations.
@@ -181,7 +181,6 @@ def test_independent(
         result = _t_independent(df, group_col, target_cols, alpha)
     
     elif method == 'mann_whitney':
-        raise NotImplementedError(f'Method \'{method}\' is not yet implemented.')
         result = _mann_whitney_u_independent(df, group_col, target_cols, alpha)
 
     elif method == 'anova':
@@ -195,6 +194,67 @@ def test_independent(
         raise ValueError(f'Independent test method \'{method}\' is not recognized.')
 
     return result
+
+def _mann_whitney_u_independent(
+   df: pd.DataFrame,
+   group_col: str,
+   target_cols: list[str],
+   alpha: float 
+) -> pd.DataFrame:
+    """Run a Mann-Whitney U test.
+
+    Args:
+        df (pd.DataFrame): The DataFrame.
+        group_col (str): The grouping column label.
+        target_cols (list[str]): The labels of columns to test independence with `group_col`.
+        alpha (float): The desired alpha level.
+
+    Returns:
+        pd.DataFrame: A DataFrame with multi-index indices, (target_col, group_0, group_1).
+            Columns include:
+            - 'test_statistic': The U statistic.
+            - 'p_value': The calculated p value.
+            - 'stat_sig': A boolean flag indicating statistical significance.
+            - 'count': The number of valid non-nan observations.
+    """
+    
+    unique_groups = [group for group in df[group_col].unique() if pd.notna(group)]
+    pairs = list(combinations(unique_groups, 2))
+
+    index_tuples = []
+    test_statistics = []
+    p_values = []
+    counts = []
+
+    for target_col in target_cols:
+        for group0, group1 in pairs:
+            group0_filter = df.loc[df[group_col] == group0, target_col].dropna() # type: ignore
+            group1_filter = df.loc[df[group_col] == group1, target_col].dropna() # type: ignore
+            count = len(group0_filter) + len(group1_filter)
+
+            result = scipy.stats.mannwhitneyu(group0_filter, group1_filter, method = 'auto', nan_policy = 'omit') # type: ignore
+            
+            # group_0, group_1
+            index_tuples.append((target_col, group0, group1))
+            counts.append(count)
+            test_statistics.append(result.statistic) # type: ignore
+            p_values.append(result.pvalue) # type: ignore
+
+            # group_1, group_0 (so multi-index can be accessed both ways)
+            index_tuples.append((target_col, group1, group0))
+            counts.append(count)  
+            u_reversed = (len(group0_filter) * len(group1_filter)) - result.statistic          
+            test_statistics.append(u_reversed) # type: ignore
+            p_values.append(result.pvalue) # type: ignore
+
+    return _create_test_frame(
+        index_tuples,
+        np.array(test_statistics),
+        np.array(p_values),
+        np.array(counts),
+        alpha,
+        'test_statistic'
+    )
 
 def _one_way_anova_independent(
    df: pd.DataFrame,
@@ -276,17 +336,17 @@ def _t_independent(
             count = len(group0_filter) + len(group1_filter)
 
             result = scipy.stats.ttest_ind(group0_filter, group1_filter, nan_policy = 'omit')
-            
+
+            # group_0, group_1
             index_tuples.append((target_col, group0, group1))
-            index_tuples.append((target_col, group1, group0)) # repeating so multi-index can be accessed both ways
-
             counts.append(count)
-            counts.append(count)
-
             test_statistics.append(result.statistic) # type: ignore
-            test_statistics.append(result.statistic) # type: ignore
-
             p_values.append(result.pvalue) # type: ignore
+
+            # group_1, group_0 (so multi-index can be accessed both ways)
+            index_tuples.append((target_col, group1, group0))
+            counts.append(count)            
+            test_statistics.append(-result.statistic) # type: ignore
             p_values.append(result.pvalue) # type: ignore
 
     return _create_test_frame(
