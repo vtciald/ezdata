@@ -67,3 +67,5 @@ class DataProcessor:
     test_one_sample_proportion = staticmethod(test.test_one_sample_proportion)
     test_independent = staticmethod(test.test_independent)
     test_independent_proportion = staticmethod(test.test_independent_proportion)
+    # test_dependent = staticmethod(test.test_dependent)
+    # test_dependent_proportion = staticmethod(test.test_dependent_proportion)

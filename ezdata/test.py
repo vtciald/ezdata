@@ -29,10 +29,10 @@ def test_one_sample(
     Returns:
         pd.DataFrame: A DataFrame with indices matching the columns specified in the column-selection parameters.
             Columns include:
-            - A descriptive difference column, dynamically named based on the test.
-                * 'mean_diff' when `method = 't'`.
-                * 'median_diff' when `method = 'wilcoxon' or `method = 'sign' and proportion = False`
-                * 'prop_diff' when `method = 'sign' and proportion = True`
+            - 'test_statistic': A statistic based on the `method` used.
+                * T statistic when `method = 't'`.
+                * The estimate of the proportion of successes. when `method = 'sign'`.
+                * The sum of the ranks of the differences above or below zero, whichever is smaller when `method = 'wilcoxon'.
             - 'p_value': The calculated p value.
             - 'stat_sig': A boolean flag indicating statistical significance.
             - 'count': The number of valid non-nan observations.
@@ -119,9 +119,9 @@ def test_independent_proportion(
     Returns:
         pd.DataFrame: A DataFrame with indices matching the labels in `target_cols`.
             Columns include:
-            - A test-statistic column, dynamically named based on the test.
-                * 'test_statistic': The Chi-squared test statistic when `method = 'chi_squared'`.
-                * 'odds_ratio': The prior odds ratio when `method = 'fisher_exact'`.
+            - 'test_statistic': A statistic based on the `method` used.
+                * The Chi-squared test statistic when `method = 'chi_squared'`.
+                * The prior odds ratio when `method = 'fisher_exact'`.
             - 'p_value': The calculated p value.
             - 'stat_sig': A boolean flag indicating statistical significance.
             - 'count': The number of valid non-nan observations.
@@ -164,7 +164,7 @@ def test_independent(
     Returns:
         pd.DataFrame: A DataFrame with indices matching the labels in `target_cols`.
             Columns include:
-            - A column `'test_statistic'` for a statistic based on the `method` used.
+            - 'test_statistic': A statistic based on the `method` used.
                 * T statistic when `method = 't'`.
                 * U statistic when `method = 'mann_whitney'`.
                 * F statistic when `method = 'anova'`.
@@ -188,6 +188,53 @@ def test_independent(
 
     elif method == 'kruskal_wallis':
         result = _kruskal_wallis_h_independent(df, group_col, target_cols, alpha)
+
+    else:
+        raise ValueError(f'Independent test method \'{method}\' is not recognized.')
+
+    return result
+
+def test_dependent(
+    df: pd.DataFrame,
+    method: str,
+    *,
+    group_col: list[str] | set[str] | str | Selector,
+    target_cols: list[str] | set[str] | str | Selector | None = None,
+    alpha: float = 0.05,
+) -> pd.DataFrame:
+    """Run an independent-samples test.
+
+    Args:
+        df (pd.DataFrame): The DataFrame.
+        method (str): The test method. Supported choices: 't', 'wilcoxon'
+        group_col (list[str] | set[str] | str | Selector): Column(s) to use as the grouping variable. If one-hot encoded, will be converted to mutually exclusive categories.
+        target_cols (list[str] | set[str] | str | Selector | None, optional): Column(s) to evaluate for differences on the basis of `group_col`. If None, includes all columns. Defaults to None.
+        alpha (float, optional): The desired alpha. Defaults to 0.05.
+
+    Raises:
+        ValueError: If string argument for `method` isn't recognized.
+
+    Returns:
+        pd.DataFrame: A DataFrame with indices matching the labels in `target_cols`.
+            Columns include:
+            - 'test_statistic': A statistic based on the `method` used.
+                * T statistic when `method = 't'`.
+                * The sum of the ranks of the differences above or below zero, whichever is smaller when `method = 'wilcoxon'`.
+            - 'p_value': The calculated p value.
+            - 'stat_sig': A boolean flag indicating statistical significance.
+            - 'count': The number of valid non-nan observations.
+    """
+
+    df, group_col = prep.dummy_to_categorical(df, cols = group_col)
+    target_cols = Selector.resolve_selection(df, target_cols)
+
+    if method == 't':
+        raise NotImplementedError(f'Method \'{method}\' not yet implemented.')
+        result = _t_dependent(df, group_col, target_cols, alpha)
+    
+    elif method == 'wilcoxon':
+        raise NotImplementedError(f'Method \'{method}\' not yet implemented.')
+        result = _wilcoxon_dependent(df, group_col, target_cols, alpha)
 
     else:
         raise ValueError(f'Independent test method \'{method}\' is not recognized.')
@@ -229,11 +276,10 @@ def _kruskal_wallis_h_independent(
 
     return _create_test_frame(
         target_cols,
-        result.statistic,
-        result.pvalue,
-        np.array(counts),
+        np.array(result.statistic),
+        np.array(result.pvalue),
+        np.array(counts), # type: ignore
         alpha,
-        'test_statistic'
     )
 
 def _mann_whitney_u_independent(
@@ -299,7 +345,6 @@ def _mann_whitney_u_independent(
         np.array(p_values),
         np.array(counts),
         alpha,
-        'test_statistic'
     )
 
 def _one_way_anova_independent(
@@ -337,11 +382,10 @@ def _one_way_anova_independent(
 
     return _create_test_frame(
         target_cols,
-        result.statistic,
-        result.pvalue,
+        np.array(result.statistic),
+        np.array(result.pvalue),
         np.array(counts),
         alpha,
-        'test_statistic'
     )
 
 def _t_independent(
@@ -401,7 +445,6 @@ def _t_independent(
         np.array(p_values),
         np.array(counts),
         alpha,
-        'test_statistic'
     )
 
 def _chi_sq_independence(
@@ -448,7 +491,6 @@ def _chi_sq_independence(
         np.array(p_values),
         np.array(counts),
         alpha,
-        'test_statistic'
     )
 
 def _fisher_exact_independence(
@@ -470,7 +512,7 @@ def _fisher_exact_independence(
     Returns:
         pd.DataFrame: A DataFrame with indices matching the labels in `target_cols`.
             Columns include:
-            - 'odds_ratio': The prior odds ratio.
+            - 'test_statistic': The prior odds ratio.
             - 'p_value': The calculated p value.
             - 'stat_sig': A boolean flag indicating statistical significance.
             - 'count': The number of valid non-nan observations.
@@ -502,7 +544,6 @@ def _fisher_exact_independence(
         np.array(p_values),
         np.array(counts),
         alpha,
-        'odds_ratio'
     )
 
 def _one_sample_t(
@@ -522,13 +563,13 @@ def _one_sample_t(
     Returns:
         pd.DataFrame: A DataFrame with indices matching the labels in `cols`.
             Columns include:
-            - 'mean_diff': The difference between observed and null means.
+            - 'test_statistic': The t statistic.
             - 'p_value': The calculated p value.
             - 'stat_sig': A boolean flag indicating statistical significance.
             - 'count': The number of valid non-nan observations.
     """
 
-    desc = df[cols].agg(['count', 'mean'], axis = 0)
+    counts = df[cols].agg('count', axis = 0)
 
     result = scipy.stats.ttest_1samp(
         df[cols].to_numpy(),
@@ -539,11 +580,10 @@ def _one_sample_t(
     
     return _create_test_frame(
         cols,
-        desc.loc['mean'].to_numpy() - null,
-        result.pvalue, # type: ignore
-        desc.loc['count'].to_numpy(),
+        np.array(result.statistic), # type: ignore
+        np.array(result.pvalue), # type: ignore
+        np.array(counts),
         alpha,
-        'mean_diff',
     )
 
 def _one_sample_sign(
@@ -560,14 +600,12 @@ def _one_sample_sign(
         cols (list[str]): The columns on which to operate.
         null (float, optional): The population median under the null hypothesis. Defaults to 0.
         alpha (float): The desired alpha level.
-        proportion (bool): Whether the test is on a proportion or continuous 
+        proportion (bool): Whether the test is on a proportion or continuous. Defaults to False.
 
     Returns:
         pd.DataFrame: A DataFrame with indices matching the labels in `cols`.
             Columns include:
-            - A descriptive difference column, dynamically named based on the test.
-                * 'median_diff' when `proportion = False`
-                * 'prop_diff' when `proportion = True`
+            - 'test_statistic': The estimate of the proportion of successes.
             - 'p_value': The calculated p value.
             - 'stat_sig': A boolean flag indicating statistical significance.
             - 'count': The number of valid non-nan observations.
@@ -595,8 +633,7 @@ def _one_sample_sign(
                 p = null if proportion else 0.5
             )
 
-            test_statistic = np.mean(df[col]) - null if proportion else np.median(diffs)
-            test_statistics.append(test_statistic)
+            test_statistics.append(result.statistic)
             p_values.append(result.pvalue)
             counts.append(len(data))
     
@@ -606,7 +643,6 @@ def _one_sample_sign(
         np.array(p_values),
         np.array(counts),
         alpha,
-        'prop_diff' if proportion else 'median_diff',
     )
 
 def _one_sample_wilcoxon(
@@ -626,13 +662,13 @@ def _one_sample_wilcoxon(
     Returns:
         pd.DataFrame: A DataFrame with indices matching the labels in `cols`.
             Columns include:
-            - 'median_diff': The difference between observed and null medians.
+            - 'test_statistic': The sum of the ranks of the differences above or below zero, whichever is smaller.
             - 'p_value': The calculated p value.
             - 'stat_sig': A boolean flag indicating statistical significance.
             - 'count': The number of valid non-nan observations.
     """
 
-    desc = df[cols].agg(['count', 'median'], axis = 0)
+    counts = df[cols].agg('count', axis = 0)
 
     result = scipy.stats.wilcoxon(
         df[cols].to_numpy() - null,
@@ -643,11 +679,10 @@ def _one_sample_wilcoxon(
     
     return _create_test_frame(
         cols,
-        desc.loc['median'].to_numpy() - null,
-        result.pvalue, # type: ignore
-        desc.loc['count'].to_numpy(),
+        np.array(result.statistic),
+        np.array(result.pvalue),
+        np.array(counts),
         alpha,
-        'median_diff'
     )
 
 def _create_test_frame(
@@ -656,7 +691,6 @@ def _create_test_frame(
     p_values: np.ndarray,
     counts: np.ndarray,
     alpha: float,
-    statistic_name: str,
 ) -> pd.DataFrame:
     """Package test results into a DataFrame.
 
@@ -673,7 +707,7 @@ def _create_test_frame(
     """
     
     data_dict = {
-        f'{statistic_name}': test_statistics.astype(float),
+        'test_statistic': test_statistics.astype(float),
         'p_value': p_values.astype(float),
         'stat_sig': (p_values < alpha).astype(bool),
         'count': counts.astype(int),
@@ -696,12 +730,16 @@ def _create_test_frame(
     )
 
     return result  
-  
+
+# TODO: ensure/double check all methods can run on multiple target cols
+
 # TODO: Add other test methods...
 # test_dependent(): paired t, wilcoxon signed-rank
 # test_dependent_proportion(): mcnemar asymptotic, mcnemar exact binomial, cochran's Q
 # test_regression(): linear, logistic
 # Add 'bootstrap' method to tests
+
+# TODO: Update the old test methods (one sample?) to just report the test statistic rather than, e.g., mean diff?
 
 # TODO: Update column selection resolution to ensure the default (when target_cols = None) doesn't include the group_col
 

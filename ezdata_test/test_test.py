@@ -16,7 +16,7 @@ def test_one_sample_t():
 
     expected = pd.DataFrame(
         {
-            'mean_diff': [0.5, -0.125, 2.75],
+            'test_statistic': [2.6458, -0.3568, 2.3684],
             'p_value': [0.0331, 0.7318, 0.0497],
             'stat_sig': [True, False, True],
             'count': [8, 8, 8],
@@ -26,7 +26,7 @@ def test_one_sample_t():
 
     result = dp.test_one_sample(test_df, 't')
 
-    result['mean_diff'] = result['mean_diff'].round(4)
+    result['test_statistic'] = result['test_statistic'].round(4)
     result['p_value'] = result['p_value'].round(4)
 
     pd.testing.assert_frame_equal(result, expected)
@@ -43,7 +43,7 @@ def test_one_sample_wilcoxon():
 
     expected = pd.DataFrame(
         {
-            'median_diff': [0.5, 0.0, 2.0],
+            'test_statistic': [0.0, 4.0, 2.0],
             'p_value': [0.125, 1.0, 0.0312],
             'stat_sig': [False, False, True],
             'count': [8, 8, 8],
@@ -53,7 +53,7 @@ def test_one_sample_wilcoxon():
 
     result = dp.test_one_sample(test_df, 'wilcoxon')
 
-    result['median_diff'] = result['median_diff'].round(4)
+    result['test_statistic'] = result['test_statistic'].round(4)
     result['p_value'] = result['p_value'].round(4)
 
     pd.testing.assert_frame_equal(result, expected)
@@ -70,7 +70,7 @@ def test_one_sample_sign():
 
     expected = pd.DataFrame(
         {
-            'median_diff': [0.5, 0.0, 2.0],
+            'test_statistic': [1.00, 0.500, 0.875],
             'p_value': [0.125, 1.0, 0.0703],
             'stat_sig': [False, False, False],
             'count': [8, 8, 8],
@@ -80,7 +80,7 @@ def test_one_sample_sign():
 
     result = dp.test_one_sample(test_df, 'sign')
 
-    result['median_diff'] = result['median_diff'].round(4)
+    result['test_statistic'] = result['test_statistic'].round(4)
     result['p_value'] = result['p_value'].round(4)
 
     pd.testing.assert_frame_equal(result, expected)
@@ -97,7 +97,7 @@ def test_one_sample_sign_proportion():
 
     expected = pd.DataFrame(
         {
-            'prop_diff': [0.0, 0.25, -0.4167],
+            'test_statistic': [0.5, 0.75, 0.0833],
             'p_value': [1.0, 0.146, 0.0063],
             'stat_sig': [False, False, True],
             'count': [12, 12, 12],
@@ -107,7 +107,7 @@ def test_one_sample_sign_proportion():
 
     result = dp.test_one_sample_proportion(test_df, 'sign')
 
-    result['prop_diff'] = result['prop_diff'].round(4)
+    result['test_statistic'] = result['test_statistic'].round(4)
     result['p_value'] = result['p_value'].round(4)
 
     pd.testing.assert_frame_equal(result, expected)
@@ -177,7 +177,7 @@ def test_independent_proportion_fisher_exact():
 
     expected = pd.DataFrame(
         {
-            'odds_ratio': [2.6667],
+            'test_statistic': [2.6667],
             'p_value': [0.6145],
             'stat_sig': [False],
             'count': [16],
@@ -187,7 +187,7 @@ def test_independent_proportion_fisher_exact():
 
     result = dp.test_independent_proportion(test_df, 'fisher_exact', group_col = 'Col1', target_cols = 'Col2')
 
-    result['odds_ratio'] = result['odds_ratio'].round(4)
+    result['test_statistic'] = result['test_statistic'].round(4)
     result['p_value'] = result['p_value'].round(4)
     
     pd.testing.assert_frame_equal(result, expected)

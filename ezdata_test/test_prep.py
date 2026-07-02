@@ -72,11 +72,11 @@ def test_clean_df_cols_regex():
 
     expected = pd.DataFrame({
         '"Derp\'': ['Bad-String Value', 'Hello World-'],
-        '"Test\'': ['Bad-String Value', 'Hello World-'],
+        '“Test’': ['Bad\u2014String\u00A0Value', 'Hello\xa0World–'],
         'Col2': [25, 50]
     })
 
-    result = dp.clean_df(test_df, cols = dp.select(pattern = r'e'))
+    result = dp.clean_df(test_df, cols = dp.select(pattern = r'er'))
 
     pd.testing.assert_frame_equal(result, expected)
 
