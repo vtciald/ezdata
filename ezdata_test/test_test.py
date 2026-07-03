@@ -359,6 +359,47 @@ def test_independent_kruskal_wallis():
     
     pd.testing.assert_frame_equal(result, expected)
 
+def test_dependent_t():
+
+    dp = DataProcessor()
+
+    test_df = pd.DataFrame({
+        'Col_pre': [10, 42, 64, 75, 2, 635, 78, 8, 53, 74, np.nan, 86, 86, 43, 31, 75, 86, 63, 42, 4, 57, 698, 34],
+        'Col_post': [43, 64, 85, 243, 745, 9, 97, 46, 53, 42, 765, 86, 96, 680, 53, 75, 500, 43, 75, 85, 45, 34, 65],
+        'Col3': [33, 0, -10, 44, 0, -40, 97, 46, 0, -5, 765, 0, 96, 32, 0, 75, 25, 43, 0, -10, 0, 220, 65],
+    })
+
+    multi_index = pd.MultiIndex.from_tuples(
+        [
+            ('Col_pre', 'Col_post'),
+            ('Col_post', 'Col_pre'),
+            ('Col_pre', 'Col3'),
+            ('Col3', 'Col_pre'),
+            ('Col_post', 'Col3'),
+            ('Col3', 'Col_post'),
+        ],
+        names = ['group_0', 'group_1'],
+    )
+
+    expected = pd.DataFrame(
+        {
+            'test_statistic': [-0.6396, 0.6396, 2.0604, -2.0604, 2.4497, -2.4497],
+            'p_value': [0.5294, 0.5294, 0.0520, 0.0520, 0.0227, 0.0227],
+            'stat_sig': [False, False, False, False, True, True],
+            'count': [22, 22, 22, 22, 23, 23],
+        },
+        index = multi_index,
+    )
+
+    result = dp.test_dependent(test_df, 't', target_cols = ['Col_pre', 'Col_post', 'Col3'])
+
+    result['test_statistic'] = result['test_statistic'].round(4)
+    result['p_value'] = result['p_value'].round(4)
+
+    print(result)
+    
+    pd.testing.assert_frame_equal(result, expected)
+
 # Test one sample methods
 test_one_sample_t()
 test_one_sample_wilcoxon()
@@ -374,3 +415,6 @@ test_independent_anova()
 test_independent_t()
 test_independent_mann_whitney()
 test_independent_kruskal_wallis()
+
+# Test dependent methods
+test_dependent_t()

@@ -194,11 +194,10 @@ def test_independent(
 
     return result
 
-def test_dependent(
+def test_dependent( # TODO: add an easier way to pair columns together to avoid excessive tests
     df: pd.DataFrame,
     method: str,
     *,
-    group_col: list[str] | set[str] | str | Selector,
     target_cols: list[str] | set[str] | str | Selector | None = None,
     alpha: float = 0.05,
 ) -> pd.DataFrame:
@@ -207,7 +206,6 @@ def test_dependent(
     Args:
         df (pd.DataFrame): The DataFrame.
         method (str): The test method. Supported choices: 't', 'wilcoxon'
-        group_col (list[str] | set[str] | str | Selector): Column(s) to use as the grouping variable. If one-hot encoded, will be converted to mutually exclusive categories.
         target_cols (list[str] | set[str] | str | Selector | None, optional): Column(s) to evaluate for differences on the basis of `group_col`. If None, includes all columns. Defaults to None.
         alpha (float, optional): The desired alpha. Defaults to 0.05.
 
@@ -225,12 +223,11 @@ def test_dependent(
             - 'count': The number of valid non-nan observations.
     """
 
-    df, group_col = prep.dummy_to_categorical(df, cols = group_col)
     target_cols = Selector.resolve_selection(df, target_cols)
+    column_pairs = list(combinations(target_cols, 2))
 
     if method == 't':
-        raise NotImplementedError(f'Method \'{method}\' not yet implemented.')
-        result = _t_dependent(df, group_col, target_cols, alpha)
+        result = _t_dependent(df, column_pairs, alpha)
     
     elif method == 'wilcoxon':
         raise NotImplementedError(f'Method \'{method}\' not yet implemented.')
@@ -240,6 +237,56 @@ def test_dependent(
         raise ValueError(f'Independent test method \'{method}\' is not recognized.')
 
     return result
+
+def _t_dependent(
+   df: pd.DataFrame,
+   column_pairs: list[tuple[str, str]],
+   alpha: float,
+) -> pd.DataFrame:
+    """Run a dependent-samples T test.
+
+    Args:
+        df (pd.DataFrame): The DataFrame.
+        column_pairs (list[tuple[str, str]]): Pairs of column labels to compare.
+        alpha (float): The desired alpha level.
+
+    Returns:
+        pd.DataFrame: A DataFrame with indices matching the labels in `target_cols`.
+            Columns include:
+            - 'test_statistic': The T statistic.
+            - 'p_value': The calculated p value.
+            - 'stat_sig': A boolean flag indicating statistical significance.
+            - 'count': The number of valid non-nan observations.
+    """
+    
+    index_tuples = []
+    counts = []
+    test_statistics = []
+    p_values = []
+
+    for col0, col1 in column_pairs:
+        count = (df[col0].notna() & df[col1].notna()).sum()
+        result = scipy.stats.ttest_rel(df[col0], df[col1], axis = 0, nan_policy = 'omit')
+
+        # group_0, group_1
+        index_tuples.append((col0, col1))
+        counts.append(count)
+        test_statistics.append(result.statistic) # type: ignore
+        p_values.append(result.pvalue) # type: ignore
+
+        # group_1, group_0 (so multi-index can be accessed both ways)
+        index_tuples.append((col1, col0))      
+        counts.append(count)
+        test_statistics.append(np.nan if pd.isna(result.statistic) else -result.statistic) # type: ignore
+        p_values.append(result.pvalue) # type: ignore
+
+    return _create_test_frame(
+        index_tuples,
+        np.array(test_statistics),
+        np.array(p_values),
+        np.array(counts), # type: ignore
+        alpha,
+    )
 
 def _kruskal_wallis_h_independent(
    df: pd.DataFrame,
@@ -436,7 +483,7 @@ def _t_independent(
             # group_1, group_0 (so multi-index can be accessed both ways)
             index_tuples.append((target_col, group1, group0))
             counts.append(count)            
-            test_statistics.append(-result.statistic) # type: ignore
+            test_statistics.append(np.nan if pd.isna(result.statistic) else -result.statistic) # type: ignore
             p_values.append(result.pvalue) # type: ignore
 
     return _create_test_frame(
@@ -714,9 +761,14 @@ def _create_test_frame(
     }
 
     if isinstance(indices[0], tuple):
+        names = ['group_0', 'group_1']
+
+        if len(indices[0]) > 2:
+            names = ['target_col', 'group_0', 'group_1']
+            
         multi_index = pd.MultiIndex.from_tuples(
             indices, # type: ignore
-            names = ['target_col', 'group_0', 'group_1'],
+            names = names,
         )
 
         frame_index = multi_index
@@ -731,15 +783,11 @@ def _create_test_frame(
 
     return result  
 
-# TODO: ensure/double check all methods can run on multiple target cols
-
 # TODO: Add other test methods...
 # test_dependent(): paired t, wilcoxon signed-rank
 # test_dependent_proportion(): mcnemar asymptotic, mcnemar exact binomial, cochran's Q
 # test_regression(): linear, logistic
 # Add 'bootstrap' method to tests
-
-# TODO: Update the old test methods (one sample?) to just report the test statistic rather than, e.g., mean diff?
 
 # TODO: Update column selection resolution to ensure the default (when target_cols = None) doesn't include the group_col
 
