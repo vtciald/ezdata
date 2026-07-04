@@ -438,6 +438,44 @@ def test_dependent_t_pair():
     
     pd.testing.assert_frame_equal(result, expected)
 
+def test_dependent_wilcoxon():
+
+    dp = DataProcessor()
+
+    test_df = pd.DataFrame({
+        'Col1_pre': [10, 42, 64, 75, 2, 635, 78, 8, 53, 74, np.nan, 86, 86, 43, 31, 75, 86, 63, 42, 4, 57, 698, 34],
+        'Col1_post': [43, 64, 85, 243, 745, 9, 97, 46, 53, 42, 765, 86, 96, 680, 53, 75, 500, 43, 75, 85, 45, 34, 65],
+        'Col_pre': [10, 42, 64, 1, 2, 635, 78, 8, 53, 13, 13, 86, 86, 43, 31, 75, 4, 14, 42, 4, 57, 698, 34],
+        'Col_post': [43, 64, 85, 243, 745, 9, 97, 46, 53, 42, 765, 86, 96, 680, 53, 75, 500, 43, 75, 85, 45, 34, 65],
+    })
+
+    multi_index = pd.MultiIndex.from_tuples(
+        [
+            ('Col1_pre', 'Col1_post'),
+            ('Col1_post', 'Col1_pre'),
+            ('Col_pre', 'Col_post'),
+            ('Col_post', 'Col_pre'),
+        ],
+        names = ['group_0', 'group_1'],
+    )
+
+    expected = pd.DataFrame(
+        {
+            'test_statistic': [49.0, 49.0, 36.0, 36.0],
+            'p_value': [0.0641, 0.0641, 0.0100, 0.0100],
+            'stat_sig': [False, False, True, True],
+            'count': [22, 22, 23, 23],
+        },
+        index = multi_index,
+    )
+
+    result = dp.test_dependent(test_df, 'wilcoxon', target_cols = dp.pair(r'(pre|post)'))
+
+    result['test_statistic'] = result['test_statistic'].round(4)
+    result['p_value'] = result['p_value'].round(4)
+    
+    pd.testing.assert_frame_equal(result, expected)
+
 # Test one sample methods
 test_one_sample_t()
 test_one_sample_wilcoxon()
@@ -457,3 +495,4 @@ test_independent_kruskal_wallis()
 # Test dependent methods
 test_dependent_t()
 test_dependent_t_pair()
+test_dependent_wilcoxon()

@@ -131,10 +131,10 @@ def test_independent_proportion(
     target_cols = Selector.resolve(df, target_cols)
 
     if method == 'chi_squared':
-        result = _chi_sq_independence(df, group_col, target_cols, alpha)
+        result = _independent_chi_sq(df, group_col, target_cols, alpha)
     
     elif method == 'fisher_exact':
-        result = _fisher_exact_independence(df, group_col, target_cols, alpha)
+        result = _independent_fisher_exact(df, group_col, target_cols, alpha)
 
     else:
         raise ValueError(f'Independent test method \'{method}\' is not recognized.')
@@ -178,16 +178,16 @@ def test_independent(
     target_cols = Selector.resolve(df, target_cols)
 
     if method == 't':
-        result = _t_independent(df, group_col, target_cols, alpha)
+        result = _independent_t(df, group_col, target_cols, alpha)
     
     elif method == 'mann_whitney':
-        result = _mann_whitney_u_independent(df, group_col, target_cols, alpha)
+        result = _independent_mann_whitney_u(df, group_col, target_cols, alpha)
 
     elif method == 'anova':
-        result = _one_way_anova_independent(df, group_col, target_cols, alpha)
+        result = _independent_one_way_anova(df, group_col, target_cols, alpha)
 
     elif method == 'kruskal_wallis':
-        result = _kruskal_wallis_h_independent(df, group_col, target_cols, alpha)
+        result = _independent_kruskal_wallis_h(df, group_col, target_cols, alpha)
 
     else:
         raise ValueError(f'Independent test method \'{method}\' is not recognized.')
@@ -229,18 +229,17 @@ def test_dependent(
     target_cols = Selector.resolve_pair(df, target_cols)
 
     if method == 't':
-        result = _t_dependent(df, target_cols, alpha)
+        result = _dependent_t(df, target_cols, alpha)
     
     elif method == 'wilcoxon':
-        raise NotImplementedError(f'Method \'{method}\' not yet implemented.')
-        result = _wilcoxon_dependent(df, group_col, target_cols, alpha)
+        result = _dependent_wilcoxon(df, target_cols, alpha)
 
     else:
         raise ValueError(f'Independent test method \'{method}\' is not recognized.')
 
     return result
 
-def _t_dependent(
+def _dependent_t(
    df: pd.DataFrame,
    column_pairs: list[tuple[str, str]],
    alpha: float,
@@ -290,7 +289,63 @@ def _t_dependent(
         alpha,
     )
 
-def _kruskal_wallis_h_independent(
+def _dependent_wilcoxon(
+   df: pd.DataFrame,
+   column_pairs: list[tuple[str, str]],
+   alpha: float,
+) -> pd.DataFrame:
+    """Run a dependent-samples Wilcoxon signed-rank test.
+
+    Args:
+        df (pd.DataFrame): The DataFrame.
+        column_pairs (list[tuple[str, str]]): Pairs of column labels to compare.
+        alpha (float): The desired alpha level.
+
+    Returns:
+        pd.DataFrame: A DataFrame with indices matching the labels in `target_cols`.
+            Columns include:
+            - 'test_statistic': The T statistic.
+            - 'p_value': The calculated p value.
+            - 'stat_sig': A boolean flag indicating statistical significance.
+            - 'count': The number of valid non-nan observations.
+    """
+    
+    index_tuples = []
+    counts = []
+    test_statistics = []
+    p_values = []
+
+    for col0, col1 in column_pairs:
+        count = (df[col0].notna() & df[col1].notna()).sum()
+        result = scipy.stats.wilcoxon(
+            df[col0],
+            df[col1],
+            zero_method = 'wilcox',
+            method = 'auto',
+            nan_policy = 'omit', # type: ignore
+        )
+
+        # group_0, group_1
+        index_tuples.append((col0, col1))
+        counts.append(count)
+        test_statistics.append(result.statistic) # type: ignore
+        p_values.append(result.pvalue) # type: ignore
+
+        # group_1, group_0 (so multi-index can be accessed both ways)
+        index_tuples.append((col1, col0))      
+        counts.append(count)
+        test_statistics.append(result.statistic) # type: ignore
+        p_values.append(result.pvalue) # type: ignore
+
+    return _create_test_frame(
+        index_tuples,
+        np.array(test_statistics),
+        np.array(p_values),
+        np.array(counts), # type: ignore
+        alpha,
+    )
+
+def _independent_kruskal_wallis_h(
    df: pd.DataFrame,
    group_col: str,
    target_cols: list[str],
@@ -331,7 +386,7 @@ def _kruskal_wallis_h_independent(
         alpha,
     )
 
-def _mann_whitney_u_independent(
+def _independent_mann_whitney_u(
    df: pd.DataFrame,
    group_col: str,
    target_cols: list[str],
@@ -396,7 +451,7 @@ def _mann_whitney_u_independent(
         alpha,
     )
 
-def _one_way_anova_independent(
+def _independent_one_way_anova(
    df: pd.DataFrame,
    group_col: str,
    target_cols: list[str],
@@ -437,7 +492,7 @@ def _one_way_anova_independent(
         alpha,
     )
 
-def _t_independent(
+def _independent_t(
    df: pd.DataFrame,
    group_col: str,
    target_cols: list[str],
@@ -496,7 +551,7 @@ def _t_independent(
         alpha,
     )
 
-def _chi_sq_independence(
+def _independent_chi_sq(
     df: pd.DataFrame,
     group_col: str,
     target_cols: list[str],
@@ -542,7 +597,7 @@ def _chi_sq_independence(
         alpha,
     )
 
-def _fisher_exact_independence(
+def _independent_fisher_exact(
     df: pd.DataFrame,
     group_col: str,
     target_cols: list[str],
@@ -723,6 +778,7 @@ def _one_sample_wilcoxon(
         df[cols].to_numpy() - null,
         alternative = 'two-sided',
         zero_method = 'wilcox',
+        method = 'auto',
         nan_policy = 'omit', # type: ignore
     )
     
@@ -796,25 +852,3 @@ def _create_test_frame(
 # TODO: Add p-value correction methods...bonferroni, holm-bonferroni, benjamini-hochberg
 
 # TODO: Consider adding test of normality (and maybe leverage alongside sample size when method is unspecified in higher-level funcs?)
-
-# TODO: Consider adding power functions
-# If i want to add a power func, desc is df.agg_rows(.., ['count', 'std'])
-# rng = np.random.default_rng(0)
-
-# for col in desc.columns:
-#     rvs = lambda size: rng.normal(
-#         loc = desc[col].loc['alt_mean'],
-#         scale = desc[col].loc['std'],
-#         size = size,
-#     )
-
-#     power = scipy.stats.power(
-#         scipy.stats.ttest_1samp,
-#         rvs,
-#         desc[col].loc['count'],
-#         significance = alpha,
-#         n_resamples = 2000,
-#         kwargs = {'popmean': 0}
-#     )
-
-#     desc.loc['power', col] = power.power

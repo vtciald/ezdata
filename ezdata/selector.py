@@ -25,7 +25,7 @@ class Selector(ABC):
 
         Args:
             df (pd.DataFrame): The DataFrame.
-            selection (list[str] | set[str] | list[tuple[str, str]] | set[tuple[str, str]] | ColumnSelector | PairSelector | None): String column label(s) or a Selector.
+            selection (list[str] | set[str] | | tuple[str, str] | list[tuple[str, str]] | set[tuple[str, str]] | ColumnSelector | PairSelector | None): String column label(s) or a Selector.
 
         Returns:
             list[str]: A list of string column labels.
@@ -45,19 +45,18 @@ class Selector(ABC):
         elif isinstance(selection, tuple):
             return cast(list[tuple[str, str]], [selection])
 
-        elif isinstance(selection, (list, set)):
-            if isinstance(selection, set):
-                cols = list(selection)
+        elif isinstance(selection, set):
+            cols = list(selection)
 
-            else:
-                cols = selection
+        elif isinstance(selection, list):
+            cols = selection
             
             if isinstance(cols[0], tuple):
                 return cast(list[tuple[str, str]], cols)
 
         if cols is None:
             raise TypeError(
-                f'Invalid argument for column-pair selection: \'{selection}\'. '
+                f'Invalid argument for column-pair selection: \'{selection}\'.'
             )
 
         return cast(list[tuple[str, str]], list(combinations(cols, 2)))
