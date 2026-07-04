@@ -503,7 +503,7 @@ def test_resolve_selection():
     })
 
     for params, expected_cols in zip(select_params, select_results):
-        result_cols = Selector.resolve_selection(test_df, dp.select(**params))
+        result_cols = Selector.resolve(test_df, dp.select(**params))
 
         assert sorted(expected_cols) == sorted(result_cols) 
 
@@ -521,7 +521,7 @@ def test_resolve_selection_no_params():
     })
 
     expected_cols = test_df.columns.tolist()
-    result_cols = Selector.resolve_selection(test_df, dp.select())
+    result_cols = Selector.resolve(test_df, dp.select())
 
     assert expected_cols == result_cols
 
@@ -539,7 +539,7 @@ def test_resolve_selection_no_match():
     })
 
     expected_cols = []
-    result_cols = Selector.resolve_selection(test_df, dp.select(labels = ' '))
+    result_cols = Selector.resolve(test_df, dp.select(labels = ' '))
 
     assert expected_cols == result_cols
 
@@ -557,7 +557,7 @@ def test_resolve_selection_empty_string():
     })
 
     expected_cols = []
-    result_cols = Selector.resolve_selection(test_df, dp.select(labels = ''))
+    result_cols = Selector.resolve(test_df, dp.select(labels = ''))
 
     assert expected_cols == result_cols
 
@@ -575,7 +575,7 @@ def test_resolve_selection_str():
     })
 
     expected_cols = ['Test_col_one']
-    result_cols = Selector.resolve_selection(test_df, 'Test_col_one')
+    result_cols = Selector.resolve(test_df, 'Test_col_one')
 
     assert sorted(expected_cols) == sorted(result_cols)
 
@@ -593,7 +593,7 @@ def test_resolve_selection_list():
     })
 
     expected_cols = ['Test_col_one', 'test_col3']
-    result_cols = Selector.resolve_selection(test_df, ['Test_col_one', 'test_col3'])
+    result_cols = Selector.resolve(test_df, ['Test_col_one', 'test_col3'])
 
     assert sorted(expected_cols) == sorted(result_cols)
 
@@ -611,7 +611,7 @@ def test_resolve_selection_set():
     })
 
     expected_cols = ['Test_col_one', 'test_col3']
-    result_cols = Selector.resolve_selection(test_df, set(['Test_col_one', 'test_col3']))
+    result_cols = Selector.resolve(test_df, set(['Test_col_one', 'test_col3']))
 
     assert sorted(expected_cols) == sorted(result_cols)
 
@@ -838,6 +838,58 @@ def test_dummy_to_categorical_error():
     with pytest.raises(ValueError):
         result, _ = dp.dummy_to_categorical(test_df, cols = ['Col1', 'Col2'], new_col_name = 'NewCol')
 
+def test_resolve_selection_pair():
+    
+    dp = DataProcessor()
+
+    test_df = pd.DataFrame({
+        'Age': [1, 2, 3],
+        'Gender': [4, 5, 6],
+        'InviteSegment_Group1': [7, 8, 9],
+        'InviteSegment_Group2': [10, 11, 12],
+        'Group_Column': [13, 14, 15],
+        'Another_1_Column': [16, 17, 18],
+        'Another_2_Column': [19, 20, 21],
+        'Another_3_Column': [22, 23, 24],
+        'Another_4_Column': [25, 26, 27],
+        'Another_5_Column': [28, 29, 30],
+        'Another_Test_Column': [31, 32, 33],
+        'Another_Test': [34, 35, 36],
+    })
+
+    expected1 = [
+        ('InviteSegment_Group1', 'InviteSegment_Group2'),
+        ('Another_1_Column', 'Another_2_Column'),
+        ('Another_1_Column', 'Another_3_Column'),
+        ('Another_2_Column', 'Another_3_Column')
+    ]
+
+    expected2 = [
+        ('Another_1_Column', 'Another_2_Column'),
+        ('Another_1_Column', 'Another_3_Column'),
+        ('Another_2_Column', 'Another_3_Column'),
+    ]
+
+    expected3 = [
+        ('Another_1_Column', 'Another_Test'),
+        ('Age', 'Gender'),
+    ]
+
+    result1 = Selector.resolve_pair(test_df, dp.pair(r'[123]'))
+
+    assert expected1 == result1
+
+    result2 = Selector.resolve_pair(test_df, dp.pair(r'[123]' , prefix = 'Another', suffix = 'Column'))
+
+    assert expected2 == result2
+
+    result3 = Selector.resolve_pair(test_df, [('Another_1_Column', 'Another_Test'), ('Age', 'Gender')])
+
+    assert expected3 == result3
+
+    with pytest.raises(TypeError):
+        result4 = Selector.resolve_pair(test_df, 0) # type: ignore
+
 # Standardizing characters in arguments
 test_clean_arg()
 
@@ -901,3 +953,6 @@ test_dummy_to_categorical()
 test_dummy_to_categorical_nan()
 test_dummy_to_categorical_nan_part()
 test_dummy_to_categorical_error()
+
+# Test resolving pair selection
+test_resolve_selection_pair()

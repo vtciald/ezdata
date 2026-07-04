@@ -1,6 +1,6 @@
 import pandas as pd
 import numpy as np
-from .selector import Selector
+from .selector import Selector, ColumnSelector
 import warnings
 import re
 
@@ -24,7 +24,7 @@ _PATTERN_BIN_METHOD = re.compile(r'(?P<kind>i|q)(?P<number>\d+\.?\d*)', re.IGNOR
 
 def remove_cols(
     df: pd.DataFrame, 
-    cols: list[str] | set[str] | str | Selector,
+    cols: list[str] | set[str] | str | ColumnSelector,
 ) -> pd.DataFrame:
     """Remove columns whose labels match the given criteria.
 
@@ -36,7 +36,7 @@ def remove_cols(
         pd.DataFrame: The DataFrame with columns removed.
     """
     
-    cols = Selector.resolve_selection(df, cols)
+    cols = Selector.resolve(df, cols)
 
     df = df.drop(columns = cols)
 
@@ -47,7 +47,7 @@ def rename_cols(
     mapper: dict | str | re.Pattern,
     *,
     regex_keys: bool = False,
-    cols: list[str] | set[str] | str | Selector | None = None,
+    cols: list[str] | set[str] | str | ColumnSelector | None = None,
 ) -> pd.DataFrame:
     """Rename DataFrame columns according to the given mapper.
 
@@ -61,7 +61,7 @@ def rename_cols(
         pd.DataFrame: The DataFrame with renamed columns.
     """
 
-    cols = Selector.resolve_selection(df, cols)
+    cols = Selector.resolve(df, cols)
 
     df = _recode(
         df, 
@@ -79,7 +79,7 @@ def recode_vals(
     *,
     new_col_prefix: str | None = None,
     regex_keys: bool = False,
-    cols: list[str] | set[str] | str | Selector | None = None,
+    cols: list[str] | set[str] | str | ColumnSelector | None = None,
 ) -> pd.DataFrame:
     """Recode DataFrame values according to the given mapper.
 
@@ -94,7 +94,7 @@ def recode_vals(
         pd.DataFrame: The DataFrame with renamed columns.
     """
 
-    cols = Selector.resolve_selection(df, cols)
+    cols = Selector.resolve(df, cols)
 
     df = _recode(
         df, 
@@ -110,7 +110,7 @@ def recode_vals(
 def clean_df(
     df: pd.DataFrame,
     *,
-    cols: list[str] | set[str] | str | Selector | None = None,
+    cols: list[str] | set[str] | str | ColumnSelector | None = None,
 ) -> pd.DataFrame:
     """Standardize characters and strip strings in DataFrame.
 
@@ -125,7 +125,7 @@ def clean_df(
     """
 
     df = df.copy()
-    cols = Selector.resolve_selection(df, cols)
+    cols = Selector.resolve(df, cols)
 
     rename_dict = {col: str(col).translate(_FIX_CHAR_MAP).strip() for col in cols}
     df = df.rename(columns = rename_dict)
@@ -164,7 +164,7 @@ def clean_arg(
 def remove_verbal_anchors(
     df: pd.DataFrame,
     *,
-    cols: list[str] | set[str] | str | Selector | None = None,
+    cols: list[str] | set[str] | str | ColumnSelector | None = None,
 ) -> pd.DataFrame:
     """Extract leading digits from string values in a DataFrame.
 
@@ -178,7 +178,7 @@ def remove_verbal_anchors(
         pd.DataFrame: The updated DataFrame.
     """
 
-    cols = Selector.resolve_selection(df, cols)
+    cols = Selector.resolve(df, cols)
 
     str_cols = list(df[cols].select_dtypes(include=['object', 'string']).columns)
 
@@ -198,7 +198,7 @@ def filter_straightliners(
     df: pd.DataFrame,
     *,
     min_unique: int = 2,
-    cols: list[str] | set[str] | str | Selector | None = None,
+    cols: list[str] | set[str] | str | ColumnSelector | None = None,
 ) -> pd.DataFrame:
     """Filter DataFrame values based on the required minimum number of unique values in a row.
 
@@ -214,7 +214,7 @@ def filter_straightliners(
     """
 
     df = df.copy()
-    cols = Selector.resolve_selection(df, cols)
+    cols = Selector.resolve(df, cols)
 
     df[cols] = df[cols].where(df[cols].nunique(axis = 1) >= min_unique)
 
@@ -224,7 +224,7 @@ def bin(
     df: pd.DataFrame,
     method: str | list[int | float],
     *,
-    cols: list[str] | set[str] | str | Selector | None = None,
+    cols: list[str] | set[str] | str | ColumnSelector | None = None,
 ) -> pd.DataFrame:
     """Bin DataFrame values.
 
@@ -243,7 +243,7 @@ def bin(
     """
 
     df = df.copy()
-    cols = Selector.resolve_selection(df, cols)
+    cols = Selector.resolve(df, cols)
 
     if isinstance(method, str):
         df = _bin_by_string(df, method, cols = cols)
@@ -258,7 +258,7 @@ def filter_by_bounds(
     *,
     min_val: int | None = None,
     max_val: int | None = None,
-    cols: list[str] | set[str] | str | Selector | None = None,
+    cols: list[str] | set[str] | str | ColumnSelector | None = None,
 ) -> pd.DataFrame:
     """Filter DataFrame values based on the given minimum and maximum.
 
@@ -275,7 +275,7 @@ def filter_by_bounds(
     """
 
     df = df.copy()
-    cols = Selector.resolve_selection(df, cols)
+    cols = Selector.resolve(df, cols)
 
     if min_val is not None:
         df[cols] = df[cols].where(df[cols] >= min_val)
@@ -289,7 +289,7 @@ def filter_by_iqr(
     df: pd.DataFrame,
     *,
     factor: float | int = 1.5,
-    cols: list[str] | set[str] | str | Selector | None = None,
+    cols: list[str] | set[str] | str | ColumnSelector | None = None,
 ) -> pd.DataFrame:
     """Filter DataFrame values based on the IQR method.
 
@@ -305,7 +305,7 @@ def filter_by_iqr(
     """
 
     df = df.copy()
-    cols = Selector.resolve_selection(df, cols)
+    cols = Selector.resolve(df, cols)
 
     qs = df[cols].quantile([0.25, 0.75], axis = 0)
     iqrs = qs.loc[0.75] - qs.loc[0.25]
@@ -321,7 +321,7 @@ def filter_by_stdev(
     df: pd.DataFrame,
     *,
     n_stdevs: float | int = 2,
-    cols: list[str] | set[str] | str | Selector | None = None,
+    cols: list[str] | set[str] | str | ColumnSelector | None = None,
 ) -> pd.DataFrame:
     """Filter DataFrame values based on the standard-deviation method.
 
@@ -337,7 +337,7 @@ def filter_by_stdev(
     """
 
     df = df.copy()
-    cols = Selector.resolve_selection(df, cols)
+    cols = Selector.resolve(df, cols)
 
     means = df[cols].mean(axis = 0)
     stds_multiple = df[cols].std(axis = 0) * n_stdevs
@@ -352,7 +352,7 @@ def filter_by_stdev(
 def dummy_to_categorical(
     df: pd.DataFrame,
     *,
-    cols: list[str] | set[str] | str | Selector | None = None,
+    cols: list[str] | set[str] | str | ColumnSelector | None = None,
     new_col_name: str = 'Categorical_Group_From_Dummies',
 ) -> tuple[pd.DataFrame, str]:
     """Create a categorical column out of dummy-coded column(s).
@@ -370,7 +370,7 @@ def dummy_to_categorical(
     """
     
     df = df.copy()
-    cols = Selector.resolve_selection(df, cols)
+    cols = Selector.resolve(df, cols)
     
     if len(cols) == 1:
         return df, cols[0]

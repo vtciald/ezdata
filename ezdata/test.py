@@ -3,7 +3,7 @@ import pandas as pd
 import scipy.stats
 import re
 from . import prep
-from .selector import Selector
+from .selector import Selector, ColumnSelector, PairSelector
 from itertools import combinations
 
 def test_one_sample(
@@ -12,7 +12,7 @@ def test_one_sample(
     *,
     null: float = 0.0,
     alpha: float = 0.05,
-    cols: list[str] | set[str] | str | Selector | None = None,
+    cols: list[str] | set[str] | str | ColumnSelector | None = None,
 ) -> pd.DataFrame:
     """Run a one-sample test.
 
@@ -38,7 +38,7 @@ def test_one_sample(
             - 'count': The number of valid non-nan observations.
     """
 
-    cols = Selector.resolve_selection(df, cols)
+    cols = Selector.resolve(df, cols)
 
     if method == 't':
         result = _one_sample_t(df, cols, null, alpha)
@@ -60,7 +60,7 @@ def test_one_sample_proportion(
     *,
     null: float = 0.5,
     alpha: float = 0.05,
-    cols: list[str] | set[str] | str | Selector | None = None,
+    cols: list[str] | set[str] | str | ColumnSelector | None = None,
 ) -> pd.DataFrame:
     """Run a one-sample test.
 
@@ -83,7 +83,7 @@ def test_one_sample_proportion(
             - 'count': The number of valid non-nan observations.
     """
 
-    cols = Selector.resolve_selection(df, cols)
+    cols = Selector.resolve(df, cols)
 
     if method == 't':
         result = _one_sample_t(df, cols, null, alpha)
@@ -100,8 +100,8 @@ def test_independent_proportion(
     df: pd.DataFrame,
     method: str,
     *,
-    group_col: list[str] | set[str] | str | Selector,
-    target_cols: list[str] | set[str] | str | Selector | None = None,
+    group_col: list[str] | set[str] | str | ColumnSelector,
+    target_cols: list[str] | set[str] | str | ColumnSelector | None = None,
     alpha: float = 0.05,
 ) -> pd.DataFrame:
     """Run an independent-samples test.
@@ -128,7 +128,7 @@ def test_independent_proportion(
     """
 
     df, group_col = prep.dummy_to_categorical(df, cols = group_col)
-    target_cols = Selector.resolve_selection(df, target_cols)
+    target_cols = Selector.resolve(df, target_cols)
 
     if method == 'chi_squared':
         result = _chi_sq_independence(df, group_col, target_cols, alpha)
@@ -145,8 +145,8 @@ def test_independent(
     df: pd.DataFrame,
     method: str,
     *,
-    group_col: list[str] | set[str] | str | Selector,
-    target_cols: list[str] | set[str] | str | Selector | None = None,
+    group_col: list[str] | set[str] | str | ColumnSelector,
+    target_cols: list[str] | set[str] | str | ColumnSelector | None = None,
     alpha: float = 0.05,
 ) -> pd.DataFrame:
     """Run an independent-samples test.
@@ -175,7 +175,7 @@ def test_independent(
     """
 
     df, group_col = prep.dummy_to_categorical(df, cols = group_col)
-    target_cols = Selector.resolve_selection(df, target_cols)
+    target_cols = Selector.resolve(df, target_cols)
 
     if method == 't':
         result = _t_independent(df, group_col, target_cols, alpha)
@@ -194,11 +194,11 @@ def test_independent(
 
     return result
 
-def test_dependent( # TODO: add an easier way to pair columns together to avoid excessive tests
+def test_dependent(
     df: pd.DataFrame,
     method: str,
     *,
-    target_cols: list[str] | set[str] | str | Selector | None = None,
+    target_cols: list[str] | set[str] | list[tuple[str, str]] | ColumnSelector | PairSelector | None = None,
     alpha: float = 0.05,
 ) -> pd.DataFrame:
     """Run an independent-samples test.
@@ -206,8 +206,11 @@ def test_dependent( # TODO: add an easier way to pair columns together to avoid 
     Args:
         df (pd.DataFrame): The DataFrame.
         method (str): The test method. Supported choices: 't', 'wilcoxon'
-        target_cols (list[str] | set[str] | str | Selector | None, optional): Column(s) to evaluate for differences on the basis of `group_col`. If None, includes all columns. Defaults to None.
+        target_cols (list[str] | set[str] | list[tuple[str, str]] | str | ColumnSelector | PairSelector | None, optional): Column(s) to evaluate for differences on the basis of `group_col`. If None, includes all columns. Defaults to None.
         alpha (float, optional): The desired alpha. Defaults to 0.05.
+
+    Note:
+        If `target_cols` is a list or set of strings (or ColumnSelector), all combinations of columns will be tested.
 
     Raises:
         ValueError: If string argument for `method` isn't recognized.
@@ -223,11 +226,10 @@ def test_dependent( # TODO: add an easier way to pair columns together to avoid 
             - 'count': The number of valid non-nan observations.
     """
 
-    target_cols = Selector.resolve_selection(df, target_cols)
-    column_pairs = list(combinations(target_cols, 2))
+    target_cols = Selector.resolve_pair(df, target_cols)
 
     if method == 't':
-        result = _t_dependent(df, column_pairs, alpha)
+        result = _t_dependent(df, target_cols, alpha)
     
     elif method == 'wilcoxon':
         raise NotImplementedError(f'Method \'{method}\' not yet implemented.')

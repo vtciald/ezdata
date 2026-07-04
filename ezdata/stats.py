@@ -4,7 +4,7 @@ import scipy.stats
 from statsmodels.stats.proportion import proportion_confint
 from typing import Callable
 from . import prep
-from .selector import Selector
+from .selector import Selector, ColumnSelector
 
 def agg_cols(
     df: pd.DataFrame,
@@ -12,7 +12,7 @@ def agg_cols(
     target_col: str,
     *,
     drop_inputs: bool = False,
-    cols: list[str] | set[str] | str | Selector | None = None,
+    cols: list[str] | set[str] | str | ColumnSelector | None = None,
 ) -> pd.DataFrame:
     """Aggregate across columns to create a new column.
 
@@ -33,7 +33,7 @@ def agg_cols(
     """
     
     df = df.copy()
-    cols = Selector.resolve_selection(df, cols)
+    cols = Selector.resolve(df, cols)
 
     valid_methods = {'min', 'max', 'sum', 'mean', 'median', 'count', 'nunique', 'std', 'var', 'prod', 'or', 'and'}
     pd_methods = {'min', 'max', 'sum', 'mean', 'median', 'count', 'nunique', 'std', 'var', 'prod'}
@@ -60,7 +60,7 @@ def agg_rows(
     df: pd.DataFrame,
     method: str | list[str],
     *,
-    cols: list[str] | set[str] | str | Selector | None = None,
+    cols: list[str] | set[str] | str | ColumnSelector | None = None,
 ) -> pd.DataFrame | pd.Series:
     """Aggregate across rows of the given DataFrame to create a new DataFrame or Series.
 
@@ -78,7 +78,7 @@ def agg_rows(
         pd.DataFrame | pd.Series: The resulting DataFrame or Series.
     """
 
-    cols = Selector.resolve_selection(df, cols)
+    cols = Selector.resolve(df, cols)
 
     valid_methods = {'min', 'max', 'sum', 'mean', 'median', 'count', 'nunique', 'std', 'var', 'prod'}
     method_map = {}
@@ -108,7 +108,7 @@ def calc_ci(
     alpha: float = 0.05,
     random_state: int = 0,
     metric: str = 'mean',
-    cols: list[str] | set[str] | str | Selector | None = None,
+    cols: list[str] | set[str] | str | ColumnSelector | None = None,
 ) -> pd.DataFrame:
     """Calculate confidence intervals according to the given method.
     
@@ -129,7 +129,7 @@ def calc_ci(
         pd.DataFrame: A DataFrame with indices matching the columns specified in the column-selection parameters and columns 'point_estimate', 'lower', 'upper', 'count'.
     """
     
-    cols = Selector.resolve_selection(df, cols)
+    cols = Selector.resolve(df, cols)
     
     parametric_methods = {'z', 't'}
     proportion_methods = {'wald', 'wilson', 'agresti_coull', 'clopper_pearson', 'beta', 'jeffreys'}

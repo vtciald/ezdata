@@ -6,7 +6,7 @@ from . import prep
 from . import stats
 from . import reduction
 from . import test
-from .selector import Selector
+from .selector import Selector, ColumnSelector, PairSelector
     
 class DataProcessor:
     """Create a DataProcessor object to process data.
@@ -18,8 +18,8 @@ class DataProcessor:
         prefix: str | None = None,
         suffix: str | None = None,
         pattern: re.Pattern | str | None = None,
-    ) -> Selector:
-        """Create a Selector instance.
+    ) -> ColumnSelector:
+        """Create a ColumnSelector instance.
 
         Selection parameters (e.g., `labels`, `prefix`, etc.) are used in conjunction with one another, taking the intersection of matching columns. In other words, only columns matching all selection criteria will be selected.
 
@@ -33,7 +33,35 @@ class DataProcessor:
             If all selection arguments are None, all columns will be selected.
         """
 
-        return Selector(
+        return ColumnSelector(
+            labels = labels,
+            prefix = prefix,
+            suffix = suffix,
+            pattern = pattern
+        )
+    
+    def pair(
+        self,
+        pair_pattern: re.Pattern | str,
+        labels: list[str] | set[str] | str | None = None,
+        prefix: str | None = None,
+        suffix: str | None = None,
+        pattern: re.Pattern | str | None = None,
+    ) -> PairSelector:
+        """Create a PairSelector instance.
+
+        Selection parameters (e.g., `labels`, `prefix`, etc.) are used in conjunction with one another, taking the intersection of matching columns. In other words, only columns matching all selection criteria will be selected.
+
+        Args:
+            pair_pattern (re.Pattern | str): A regex pattern that describes the portion of the label that differentiates paired columns.
+            labels (list[str] | set[str] | str | None, optional): Full column labels to select. Defaults to None.
+            prefix (str | None, optional): The prefix of columns to select. Defaults to None.
+            suffix (str | None, optional): The suffix of columns to select. Defaults to None.
+            pattern (str | re.Pattern | None, optional): A regex pattern describing columns to select. Defaults to None.
+        """
+
+        return PairSelector(
+            pair_pattern,
             labels = labels,
             prefix = prefix,
             suffix = suffix,

@@ -395,8 +395,46 @@ def test_dependent_t():
 
     result['test_statistic'] = result['test_statistic'].round(4)
     result['p_value'] = result['p_value'].round(4)
+    
+    pd.testing.assert_frame_equal(result, expected)
 
-    print(result)
+def test_dependent_t_pair():
+
+    dp = DataProcessor()
+
+    test_df = pd.DataFrame({
+        'Col1_pre': [10, 42, 64, 75, 2, 635, 78, 8, 53, 74, np.nan, 86, 86, 43, 31, 75, 86, 63, 42, 4, 57, 698, 34],
+        'Col1_post': [43, 64, 85, 243, 745, 9, 97, 46, 53, 42, 765, 86, 96, 680, 53, 75, 500, 43, 75, 85, 45, 34, 65],
+        'Col2_pre': [10, 42, 64, 75, 2, 635, 78, 8, 53, 74, np.nan, 86, 86, 43, 31, 75, 86, 63, 42, 4, 57, 698, 34],
+        'Col2_post': [43, 64, 85, 243, 745, 9, 97, 46, 53, 42, 765, 86, 96, 680, 53, 75, 500, 43, 75, 85, 45, 34, 65],
+        'Test_pre': [33, 0, -10, 44, 0, -40, 97, 46, 0, -5, 765, 0, 96, 32, 0, 75, 25, 43, 0, -10, 0, 220, 65],
+        'Test_post': [33, 0, -10, 44, 0, -40, 97, 46, 0, -5, 765, 0, 96, 32, 0, 75, 25, 43, 0, -10, 0, 220, 65],
+    })
+
+    multi_index = pd.MultiIndex.from_tuples(
+        [
+            ('Col1_pre', 'Col1_post'),
+            ('Col1_post', 'Col1_pre'),
+            ('Col2_pre', 'Col2_post'),
+            ('Col2_post', 'Col2_pre'),
+        ],
+        names = ['group_0', 'group_1'],
+    )
+
+    expected = pd.DataFrame(
+        {
+            'test_statistic': [-0.6396, 0.6396, -0.6396, 0.6396],
+            'p_value': [0.5294, 0.5294, 0.5294, 0.5294],
+            'stat_sig': [False, False, False, False],
+            'count': [22, 22, 22, 22],
+        },
+        index = multi_index,
+    )
+
+    result = dp.test_dependent(test_df, 't', target_cols = dp.pair(r'(pre|post)', prefix = 'Col'))
+
+    result['test_statistic'] = result['test_statistic'].round(4)
+    result['p_value'] = result['p_value'].round(4)
     
     pd.testing.assert_frame_equal(result, expected)
 
@@ -418,3 +456,4 @@ test_independent_kruskal_wallis()
 
 # Test dependent methods
 test_dependent_t()
+test_dependent_t_pair()
