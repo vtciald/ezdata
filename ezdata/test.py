@@ -1,10 +1,10 @@
 import numpy as np
 import pandas as pd
-import scipy.stats
-import re
+from scipy.stats import ttest_rel, wilcoxon, kruskal, mannwhitneyu, f_oneway, ttest_ind, chi2_contingency, fisher_exact, ttest_1samp, binomtest
 from . import prep
 from .selector import Selector, ColumnSelector, PairSelector
 from itertools import combinations
+from statsmodels.stats.contingency_tables import mcnemar, cochrans_q
 
 def test_one_sample(
     df: pd.DataFrame,
@@ -201,7 +201,7 @@ def test_dependent(
     target_cols: list[str] | set[str] | list[tuple[str, str]] | ColumnSelector | PairSelector | None = None,
     alpha: float = 0.05,
 ) -> pd.DataFrame:
-    """Run an independent-samples test.
+    """Run an dependent-samples test.
 
     Args:
         df (pd.DataFrame): The DataFrame.
@@ -239,6 +239,108 @@ def test_dependent(
 
     return result
 
+def test_dependent_proportion(
+    df: pd.DataFrame,
+    method: str,
+    *,
+    target_cols: list[str] | set[str] | list[tuple[str, str]] | ColumnSelector | PairSelector | None = None,
+    alpha: float = 0.05,
+) -> pd.DataFrame:
+    """Run an dependent-samples test.
+
+    Args:
+        df (pd.DataFrame): The DataFrame.
+        method (str): The test method. Supported choices: 'mcnemar_exact', 'mcnemar_asymptotic', 'cochran'.
+        target_cols (list[str] | set[str] | list[tuple[str, str]] | str | ColumnSelector | PairSelector | None, optional): Column(s) to evaluate for differences on the basis of `group_col`. If None, includes all columns. Defaults to None.
+        alpha (float, optional): The desired alpha. Defaults to 0.05.
+
+    Note:
+        If `target_cols` is a list or set of strings (or ColumnSelector), all combinations of columns will be tested.
+
+    Raises:
+        ValueError: If string argument for `method` isn't recognized.
+
+    Returns:
+        pd.DataFrame: A DataFrame with indices matching the labels in `target_cols`.
+            Columns include:
+            - 'test_statistic': A statistic based on the `method` used.
+                * T statistic when `method = 't'`.
+                * The sum of the ranks of the differences above or below zero, whichever is smaller when `method = 'wilcoxon'`.
+            - 'p_value': The calculated p value.
+            - 'stat_sig': A boolean flag indicating statistical significance.
+            - 'count': The number of valid non-nan observations.
+    """
+
+    target_cols = Selector.resolve_pair(df, target_cols)
+
+    if method == 'mcnemar_exact':
+        result = _dependent_mcnemar(df, target_cols, alpha, exact = True)
+
+    elif method == 'mcnemar_asymptotic':
+        result = _dependent_mcnemar(df, target_cols, alpha, exact = False)
+    
+    elif method == 'cochran':
+        raise NotImplementedError(f'Method \'{method}\' not yet implemented.')
+        result = _dependent_cochran(df, target_cols, alpha)
+
+    else:
+        raise ValueError(f'Independent test method \'{method}\' is not recognized.')
+
+    return result
+
+def _dependent_mcnemar(
+   df: pd.DataFrame,
+   column_pairs: list[tuple[str, str]],
+   alpha: float,
+   exact: bool,
+) -> pd.DataFrame:
+    """Run a McNemar test.
+
+    Args:
+        df (pd.DataFrame): The DataFrame.
+        column_pairs (list[tuple[str, str]]): Pairs of column labels to compare.
+        alpha (float): The desired alpha level.
+        exact (bool): If true, the exact binomial distribution will be used. Otherwise, the chi2 approximation will be used.
+
+    Returns:
+        pd.DataFrame: A DataFrame with indices matching the labels in `target_cols`.
+            Columns include:
+            - 'test_statistic': The Chi-squared test statistic when `exact = False` otherwise the minimum of discordant-pair counts.
+            - 'p_value': The calculated p value.
+            - 'stat_sig': A boolean flag indicating statistical significance.
+            - 'count': The number of valid non-nan observations.
+    """
+    
+    index_tuples = []
+    counts = []
+    test_statistics = []
+    p_values = []
+
+    for col0, col1 in column_pairs:
+        table = pd.crosstab(df[col0], df[col1])
+        count = (df[col0].notna() & df[col1].notna()).sum()
+        result = mcnemar(table, exact)
+
+        # group_0, group_1
+        index_tuples.append((col0, col1))
+        counts.append(count)
+        test_statistics.append(result.statistic) # type: ignore
+        p_values.append(result.pvalue) # type: ignore
+
+        # group_1, group_0 (so multi-index can be accessed both ways)
+        index_tuples.append((col1, col0))      
+        counts.append(count)
+        test_statistics.append(result.statistic) # type: ignore
+        p_values.append(result.pvalue) # type: ignore
+
+    return _create_test_frame(
+        index_tuples,
+        np.array(test_statistics),
+        np.array(p_values),
+        np.array(counts), # type: ignore
+        alpha,
+    )
+
 def _dependent_t(
    df: pd.DataFrame,
    column_pairs: list[tuple[str, str]],
@@ -267,7 +369,7 @@ def _dependent_t(
 
     for col0, col1 in column_pairs:
         count = (df[col0].notna() & df[col1].notna()).sum()
-        result = scipy.stats.ttest_rel(df[col0], df[col1], axis = 0, nan_policy = 'omit')
+        result = ttest_rel(df[col0], df[col1], axis = 0, nan_policy = 'omit')
 
         # group_0, group_1
         index_tuples.append((col0, col1))
@@ -317,7 +419,7 @@ def _dependent_wilcoxon(
 
     for col0, col1 in column_pairs:
         count = (df[col0].notna() & df[col1].notna()).sum()
-        result = scipy.stats.wilcoxon(
+        result = wilcoxon(
             df[col0],
             df[col1],
             zero_method = 'wilcox',
@@ -376,7 +478,7 @@ def _independent_kruskal_wallis_h(
         group_filter = df.loc[df[group_col] == group, target_cols]
         group_data.append(group_filter.values)
 
-    result = scipy.stats.kruskal(*group_data, nan_policy = 'omit') # type: ignore
+    result = kruskal(*group_data, nan_policy = 'omit') # type: ignore
 
     return _create_test_frame(
         target_cols,
@@ -423,7 +525,7 @@ def _independent_mann_whitney_u(
             group1_filter = df.loc[df[group_col] == group1, target_col].dropna() # type: ignore
             count = len(group0_filter) + len(group1_filter)
 
-            result = scipy.stats.mannwhitneyu(
+            result = mannwhitneyu(
                 group0_filter, 
                 group1_filter, 
                 method = 'auto', 
@@ -482,7 +584,7 @@ def _independent_one_way_anova(
         group_filter = df.loc[df[group_col] == group, target_cols]
         group_data.append(group_filter.values)
 
-    result = scipy.stats.f_oneway(*group_data, nan_policy = 'omit') # type: ignore
+    result = f_oneway(*group_data, nan_policy = 'omit') # type: ignore
 
     return _create_test_frame(
         target_cols,
@@ -529,7 +631,7 @@ def _independent_t(
             group1_filter = df.loc[df[group_col] == group1, target_col].dropna() # type: ignore
             count = len(group0_filter) + len(group1_filter)
 
-            result = scipy.stats.ttest_ind(group0_filter, group1_filter, nan_policy = 'omit')
+            result = ttest_ind(group0_filter, group1_filter, nan_policy = 'omit')
 
             # group_0, group_1
             index_tuples.append((target_col, group0, group1))
@@ -583,7 +685,7 @@ def _independent_chi_sq(
     for target_col in target_cols:
         count = (df[group_col].notna() & df[target_col].notna()).sum()
         contingency = pd.crosstab(df[group_col].values, df[target_col].values)
-        result = scipy.stats.chi2_contingency(contingency.values)
+        result = chi2_contingency(contingency.values)
 
         test_statistics.append(result.statistic) # type: ignore
         p_values.append(result.pvalue) # type: ignore
@@ -636,7 +738,7 @@ def _independent_fisher_exact(
                     f'{group_col} vs {target_col} produced a {contingency.shape} table.'
                 )
 
-        result = scipy.stats.fisher_exact(contingency.values)
+        result = fisher_exact(contingency.values)
 
         test_statistics.append(result.statistic) # type: ignore
         p_values.append(result.pvalue) # type: ignore
@@ -675,7 +777,7 @@ def _one_sample_t(
 
     counts = df[cols].agg('count', axis = 0)
 
-    result = scipy.stats.ttest_1samp(
+    result = ttest_1samp(
         df[cols].to_numpy(),
         popmean = null,
         alternative = 'two-sided',
@@ -731,7 +833,7 @@ def _one_sample_sign(
             counts.append(len(data))
         
         else:
-            result = scipy.stats.binomtest(
+            result = binomtest(
                 positives,
                 total_trials,
                 p = null if proportion else 0.5
@@ -774,7 +876,7 @@ def _one_sample_wilcoxon(
 
     counts = df[cols].agg('count', axis = 0)
 
-    result = scipy.stats.wilcoxon(
+    result = wilcoxon(
         df[cols].to_numpy() - null,
         alternative = 'two-sided',
         zero_method = 'wilcox',
@@ -842,10 +944,11 @@ def _create_test_frame(
     return result  
 
 # TODO: Add other test methods...
-# test_dependent(): paired t, wilcoxon signed-rank
 # test_dependent_proportion(): mcnemar asymptotic, mcnemar exact binomial, cochran's Q
 # test_regression(): linear, logistic
 # Add 'bootstrap' method to tests
+
+# TODO: Update "Notes:" in docstrings for each test to add reminders of when/why to use each (e.g., exact mcnemars for < 25, etc.)
 
 # TODO: Update column selection resolution to ensure the default (when target_cols = None) doesn't include the group_col
 
