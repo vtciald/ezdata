@@ -3,6 +3,7 @@ import numpy as np
 import scipy.stats
 from statsmodels.stats.proportion import proportion_confint
 from typing import Callable
+from collections.abc import Sequence
 from . import prep
 from .selector import Selector, ColumnSelector
 
@@ -12,7 +13,7 @@ def agg_cols(
     target_col: str,
     *,
     drop_inputs: bool = False,
-    cols: list[str] | set[str] | str | ColumnSelector | None = None,
+    cols: Sequence[str] | str | ColumnSelector | None = None,
 ) -> pd.DataFrame:
     """Aggregate across columns to create a new column.
 
@@ -23,7 +24,7 @@ def agg_cols(
         method (str): The aggregation method. Supported choices: 'min', 'max', 'sum', 'mean', 'median', 'count', 'std', 'var', 'prod', 'or', 'and'.
         target_col (str): The target column name in which to store the aggregated values.
         drop_inputs (bool): If true, drops the columns used in aggregation (i.e., those indicated in `cols`). Defaults to False.
-        cols (list[str] | set[str] | str | Selector | None, optional): Column(s) to include. If None, includes all columns. Defaults to None.
+        cols (Sequence[str] | str | ColumnSelector | None, optional): Column(s) to include. If None, includes all columns. Defaults to None.
 
     Raises:
         ValueError: If the aggregation method specified in `method` isn't recognized.
@@ -60,7 +61,7 @@ def agg_rows(
     df: pd.DataFrame,
     method: str | list[str],
     *,
-    cols: list[str] | set[str] | str | ColumnSelector | None = None,
+    cols: Sequence[str] | str | ColumnSelector | None = None,
 ) -> pd.DataFrame | pd.Series:
     """Aggregate across rows of the given DataFrame to create a new DataFrame or Series.
 
@@ -69,7 +70,7 @@ def agg_rows(
     Args:
         df (pd.DataFrame): The DataFrame.
         method (str | list[str]): The aggregation method. Supported choices: 'min', 'max', 'sum', 'mean', 'median', 'count', 'std', 'var', 'prod'.
-        cols (list[str] | set[str] | str | Selector | None, optional): Column(s) to include. If None, includes all columns. Defaults to None.
+        cols (Sequence[str] | str | ColumnSelector | None, optional): Column(s) to include. If None, includes all columns. Defaults to None.
 
     Raises:
         ValueError: If a given aggregation method in `method` isn't recognized.
@@ -108,7 +109,7 @@ def calc_ci(
     alpha: float = 0.05,
     random_state: int = 0,
     metric: str = 'mean',
-    cols: list[str] | set[str] | str | ColumnSelector | None = None,
+    cols: Sequence[str] | str | ColumnSelector | None = None,
 ) -> pd.DataFrame:
     """Calculate confidence intervals according to the given method.
     
@@ -123,7 +124,7 @@ def calc_ci(
         alpha (float, optional): The desired alpha. Defaults to 0.05.
         random_state (int, optional): A random-number-generator seed, relevant for bootstrapping. Defaults to 0.
         metric (str, optional): The measure of central tendency to craft the interval around, relevant for bootstrapping. Supported choices: 'mean', 'median'. Defaults to 'mean'.
-        cols (list[str] | set[str] | str | Selector | None, optional): Column(s) to include. If None, includes all columns. Defaults to None.
+        cols (Sequence[str] | str | ColumnSelector | None, optional): Column(s) to include. If None, includes all columns. Defaults to None.
         
     Returns:
         pd.DataFrame: A DataFrame with indices matching the columns specified in the column-selection parameters and columns 'point_estimate', 'lower', 'upper', 'count'.

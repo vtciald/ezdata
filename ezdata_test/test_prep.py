@@ -597,7 +597,7 @@ def test_resolve_selection_list():
 
     assert sorted(expected_cols) == sorted(result_cols)
 
-def test_resolve_selection_set():
+def test_resolve_selection_tuple():
 
     dp = DataProcessor()
 
@@ -611,7 +611,7 @@ def test_resolve_selection_set():
     })
 
     expected_cols = ['Test_col_one', 'test_col3']
-    result_cols = Selector.resolve(test_df, set(['Test_col_one', 'test_col3']))
+    result_cols = Selector.resolve(test_df, ('Test_col_one', 'test_col3'))
 
     assert sorted(expected_cols) == sorted(result_cols)
 
@@ -858,21 +858,21 @@ def test_resolve_selection_pair():
     })
 
     expected1 = [
-        ('InviteSegment_Group1', 'InviteSegment_Group2'),
-        ('Another_1_Column', 'Another_2_Column'),
-        ('Another_1_Column', 'Another_3_Column'),
-        ('Another_2_Column', 'Another_3_Column')
+        ['InviteSegment_Group1', 'InviteSegment_Group2'],
+        ['Another_1_Column', 'Another_2_Column'],
+        ['Another_1_Column', 'Another_3_Column'],
+        ['Another_2_Column', 'Another_3_Column']
     ]
 
     expected2 = [
-        ('Another_1_Column', 'Another_2_Column'),
-        ('Another_1_Column', 'Another_3_Column'),
-        ('Another_2_Column', 'Another_3_Column'),
+        ['Another_1_Column', 'Another_2_Column'],
+        ['Another_1_Column', 'Another_3_Column'],
+        ['Another_2_Column', 'Another_3_Column'],
     ]
 
     expected3 = [
-        ('Another_1_Column', 'Another_Test'),
-        ('Age', 'Gender'),
+        ['Another_1_Column', 'Another_Test'],
+        ['Age', 'Gender'],
     ]
 
     result1 = Selector.resolve_pair(test_df, dp.pair(r'[123]'))
@@ -935,7 +935,7 @@ test_resolve_selection_no_match()
 test_resolve_selection_empty_string()
 test_resolve_selection_str()
 test_resolve_selection_list()
-test_resolve_selection_set()
+test_resolve_selection_tuple()
 
 # Test renaming columns
 test_rename_cols()

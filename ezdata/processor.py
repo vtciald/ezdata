@@ -7,6 +7,7 @@ from . import stats
 from . import reduction
 from . import test
 from .selector import Selector, ColumnSelector, PairSelector
+from collections.abc import Sequence
     
 class DataProcessor:
     """Create a DataProcessor object to process data.
@@ -14,7 +15,7 @@ class DataProcessor:
 
     def select(
         self,
-        labels: list[str] | set[str] | str | None = None,
+        labels: Sequence[str] | str | None = None,
         prefix: str | None = None,
         suffix: str | None = None,
         pattern: re.Pattern | str | None = None,
@@ -43,7 +44,7 @@ class DataProcessor:
     def pair(
         self,
         pair_pattern: re.Pattern | str,
-        labels: list[str] | set[str] | str | None = None,
+        labels: Sequence[str] | str | None = None,
         prefix: str | None = None,
         suffix: str | None = None,
         pattern: re.Pattern | str | None = None,

@@ -1,6 +1,7 @@
 import pandas as pd
 import numpy as np
 from .selector import Selector, ColumnSelector
+from collections.abc import Sequence
 import warnings
 import re
 
@@ -24,13 +25,13 @@ _PATTERN_BIN_METHOD = re.compile(r'(?P<kind>i|q)(?P<number>\d+\.?\d*)', re.IGNOR
 
 def remove_cols(
     df: pd.DataFrame, 
-    cols: list[str] | set[str] | str | ColumnSelector,
+    cols: Sequence[str] | str | ColumnSelector,
 ) -> pd.DataFrame:
     """Remove columns whose labels match the given criteria.
 
     Args:
         df (pd.DataFrame): The DataFrame.
-        cols (list[str] | set[str] | str | Selector): The columns to remove.
+        cols (Sequence[str] | str | Selector): The columns to remove.
 
     Returns:
         pd.DataFrame: The DataFrame with columns removed.
@@ -47,7 +48,7 @@ def rename_cols(
     mapper: dict | str | re.Pattern,
     *,
     regex_keys: bool = False,
-    cols: list[str] | set[str] | str | ColumnSelector | None = None,
+    cols: Sequence[str] | str | ColumnSelector | None = None,
 ) -> pd.DataFrame:
     """Rename DataFrame columns according to the given mapper.
 
@@ -55,7 +56,7 @@ def rename_cols(
         df (pd.DataFrame): The DataFrame.
         mapper (dict | str | re.Pattern): A dictionary mapping existing column names to desired column names. Alternatively, this can be a regex pattern with a single capture group to define what to extract from exisiting column names.
         regex_keys (bool, optional): Whether to treat string keys of `mapper` as regex patterns. Defaults to False.
-        cols (list[str] | set[str] | str | Selector | None, optional): Column(s) to include. If None, includes all columns. Defaults to None.
+        cols (Sequence[str] | str | Selector | None, optional): Column(s) to include. If None, includes all columns. Defaults to None.
 
     Returns:
         pd.DataFrame: The DataFrame with renamed columns.
@@ -79,7 +80,7 @@ def recode_vals(
     *,
     new_col_prefix: str | None = None,
     regex_keys: bool = False,
-    cols: list[str] | set[str] | str | ColumnSelector | None = None,
+    cols: Sequence[str] | str | ColumnSelector | None = None,
 ) -> pd.DataFrame:
     """Recode DataFrame values according to the given mapper.
 
@@ -88,7 +89,7 @@ def recode_vals(
         mapper (dict | str | re.Pattern): A dictionary mapping existing values to desired values. Alternatively, this can be a regex pattern with a single capture group to define what to extract from exisiting values.
         new_col_prefix (str | None, optional): A prefix to add to new columns with the potentially-recoded values. If None, will not create new columns. Defaults to None.
         regex_keys (bool, optional): Whether to treat string keys of `mapper` as regex patterns. Defaults to False.
-        cols (list[str] | set[str] | str | Selector | None, optional): Column(s) to include. If None, includes all columns. Defaults to None.
+        cols (Sequence[str] | str | Selector | None, optional): Column(s) to include. If None, includes all columns. Defaults to None.
 
     Returns:
         pd.DataFrame: The DataFrame with renamed columns.
@@ -110,7 +111,7 @@ def recode_vals(
 def clean_df(
     df: pd.DataFrame,
     *,
-    cols: list[str] | set[str] | str | ColumnSelector | None = None,
+    cols: Sequence[str] | str | ColumnSelector | None = None,
 ) -> pd.DataFrame:
     """Standardize characters and strip strings in DataFrame.
 
@@ -118,7 +119,7 @@ def clean_df(
 
     Args:
         df (pd.DataFrame): The DataFrame.
-        cols (list[str] | set[str] | str | Selector | None, optional): Column(s) to include. If None, includes all columns. Defaults to None.
+        cols (Sequence[str] | str | Selector | None, optional): Column(s) to include. If None, includes all columns. Defaults to None.
 
     Returns:
         pd.DataFrame: The DataFrame with standardized characters.
@@ -164,7 +165,7 @@ def clean_arg(
 def remove_verbal_anchors(
     df: pd.DataFrame,
     *,
-    cols: list[str] | set[str] | str | ColumnSelector | None = None,
+    cols: Sequence[str] | str | ColumnSelector | None = None,
 ) -> pd.DataFrame:
     """Extract leading digits from string values in a DataFrame.
 
@@ -172,7 +173,7 @@ def remove_verbal_anchors(
 
     Args:
         df (pd.DataFrame): The DataFrame.
-        cols (list[str] | set[str] | str | Selector | None, optional): Column(s) to include. If None, includes all columns. Defaults to None.
+        cols (Sequence[str] | str | Selector | None, optional): Column(s) to include. If None, includes all columns. Defaults to None.
 
     Returns:
         pd.DataFrame: The updated DataFrame.
@@ -198,7 +199,7 @@ def filter_straightliners(
     df: pd.DataFrame,
     *,
     min_unique: int = 2,
-    cols: list[str] | set[str] | str | ColumnSelector | None = None,
+    cols: Sequence[str] | str | ColumnSelector | None = None,
 ) -> pd.DataFrame:
     """Filter DataFrame values based on the required minimum number of unique values in a row.
 
@@ -207,7 +208,7 @@ def filter_straightliners(
     Args:
         df (pd.DataFrame): The DataFrame.
         min_unique (int, optional): The minimum number of unique values desired in a row. If below this number, values will be replaced with NaN. Defaults to 2.
-        cols (list[str] | set[str] | str | Selector | None, optional): Column(s) to include. If None, includes all columns. Defaults to None.
+        cols (Sequence[str] | str | Selector | None, optional): Column(s) to include. If None, includes all columns. Defaults to None.
 
     Returns:
         pd.DataFrame: The DataFrame with straightliners' values replaced.
@@ -224,7 +225,7 @@ def bin(
     df: pd.DataFrame,
     method: str | list[int | float],
     *,
-    cols: list[str] | set[str] | str | ColumnSelector | None = None,
+    cols: Sequence[str] | str | ColumnSelector | None = None,
 ) -> pd.DataFrame:
     """Bin DataFrame values.
 
@@ -236,7 +237,7 @@ def bin(
             * A string of the form 'q#': Quantile binning (e.g., 'q4' and 'q2' bins on the basis of quartiles or a median split, respectively).
             * A string of the form 'i#': Interval binning (e.g., 'i5' will create 5 equal-width intervals that capture the range of values).
             * A list of numbers: Explicitly defined bin edges.
-        cols (list[str] | set[str] | str | Selector | None, optional): Column(s) to include. If None, includes all columns. Defaults to None.
+        cols (Sequence[str] | str | Selector | None, optional): Column(s) to include. If None, includes all columns. Defaults to None.
 
     Returns:
         pd.DataFrame: The binned DataFrame.
@@ -258,7 +259,7 @@ def filter_by_bounds(
     *,
     min_val: int | None = None,
     max_val: int | None = None,
-    cols: list[str] | set[str] | str | ColumnSelector | None = None,
+    cols: Sequence[str] | str | ColumnSelector | None = None,
 ) -> pd.DataFrame:
     """Filter DataFrame values based on the given minimum and maximum.
 
@@ -268,7 +269,7 @@ def filter_by_bounds(
         df (pd.DataFrame): The DataFrame.
         min (int, optional): The minimum value to keep. Defaults to None.
         max (int, optional): The maximum value to keep. Defaults to None.
-        cols (list[str] | set[str] | str | Selector | None, optional): Column(s) to include. If None, includes all columns. Defaults to None.
+        cols (Sequence[str] | str | Selector | None, optional): Column(s) to include. If None, includes all columns. Defaults to None.
 
     Returns:
         pd.DataFrame: The filtered DataFrame.
@@ -289,7 +290,7 @@ def filter_by_iqr(
     df: pd.DataFrame,
     *,
     factor: float | int = 1.5,
-    cols: list[str] | set[str] | str | ColumnSelector | None = None,
+    cols: Sequence[str] | str | ColumnSelector | None = None,
 ) -> pd.DataFrame:
     """Filter DataFrame values based on the IQR method.
 
@@ -298,7 +299,7 @@ def filter_by_iqr(
     Args:
         df (pd.DataFrame): The DataFrame.
         factor (float | int, optional): The factor by which to multiply the IQR to determine min and max values. Defaults to 1.5.
-        cols (list[str] | set[str] | str | Selector | None, optional): Column(s) to include. If None, includes all columns. Defaults to None.
+        cols (Sequence[str] | str | Selector | None, optional): Column(s) to include. If None, includes all columns. Defaults to None.
 
     Returns:
         pd.DataFrame: The filtered DataFrame.
@@ -321,7 +322,7 @@ def filter_by_stdev(
     df: pd.DataFrame,
     *,
     n_stdevs: float | int = 2,
-    cols: list[str] | set[str] | str | ColumnSelector | None = None,
+    cols: Sequence[str] | str | ColumnSelector | None = None,
 ) -> pd.DataFrame:
     """Filter DataFrame values based on the standard-deviation method.
 
@@ -330,7 +331,7 @@ def filter_by_stdev(
     Args:
         df (pd.DataFrame): The DataFrame.
         n_stdevs (float | int, optional): The number of standard deviations from the mean, defining the min and max values. Defaults to 2.
-        cols (list[str] | set[str] | str | Selector | None, optional): Column(s) to include. If None, includes all columns. Defaults to None.
+        cols (Sequence[str] | str | Selector | None, optional): Column(s) to include. If None, includes all columns. Defaults to None.
 
     Returns:
         pd.DataFrame: The filtered DataFrame.
@@ -352,14 +353,14 @@ def filter_by_stdev(
 def dummy_to_categorical(
     df: pd.DataFrame,
     *,
-    cols: list[str] | set[str] | str | ColumnSelector | None = None,
+    cols: Sequence[str] | str | ColumnSelector | None = None,
     new_col_name: str = 'Categorical_Group_From_Dummies',
 ) -> tuple[pd.DataFrame, str]:
     """Create a categorical column out of dummy-coded column(s).
 
     Args:
         df (pd.DataFrame): The DataFrame.
-        cols (list[str] | set[str] | str | Selector | None, optional): Column(s) to include. If None, includes all columns. Defaults to None.
+        cols (Sequence[str] | str | Selector | None, optional): Column(s) to include. If None, includes all columns. Defaults to None.
         new_col_name (str, optional): The name for the new categorical column. Defaults to 'Categorical_Group_From_Dummies'.
 
     Raises:

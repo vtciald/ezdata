@@ -3,6 +3,7 @@ import pandas as pd
 from scipy.stats import ttest_rel, wilcoxon, kruskal, mannwhitneyu, f_oneway, ttest_ind, chi2_contingency, fisher_exact, ttest_1samp, binomtest
 from . import prep
 from .selector import Selector, ColumnSelector, PairSelector
+from collections.abc import Sequence
 from itertools import combinations
 from statsmodels.stats.contingency_tables import mcnemar, cochrans_q
 
@@ -12,7 +13,7 @@ def test_one_sample(
     *,
     null: float = 0.0,
     alpha: float = 0.05,
-    cols: list[str] | set[str] | str | ColumnSelector | None = None,
+    cols: Sequence[str] | str | ColumnSelector | None = None,
 ) -> pd.DataFrame:
     """Run a one-sample test.
 
@@ -21,7 +22,7 @@ def test_one_sample(
         method (str): The test method. Supported choices: 't', 'wilcoxon', 'sign'.
         null (float, optional): The value representing the central tendency of the null hypothesis. Defaults to 0.
         alpha (float, optional): The desired alpha. Defaults to 0.05.
-        cols (list[str] | set[str] | str | Selector | None, optional): Column(s) to include. If None, includes all columns. Defaults to None.
+        cols (Sequence[str] | str | ColumnSelector | None, optional): Column(s) to include. If None, includes all columns. Defaults to None.
 
     Raises:
         ValueError: If string argument for `method` isn't recognized.
@@ -60,7 +61,7 @@ def test_one_sample_proportion(
     *,
     null: float = 0.5,
     alpha: float = 0.05,
-    cols: list[str] | set[str] | str | ColumnSelector | None = None,
+    cols: Sequence[str] | str | ColumnSelector | None = None,
 ) -> pd.DataFrame:
     """Run a one-sample test.
 
@@ -69,7 +70,7 @@ def test_one_sample_proportion(
         method (str): The test method. Supported choices: 't', 'sign'.
         null (float, optional): The value representing the central tendency of the null hypothesis. Defaults to 0.5.
         alpha (float, optional): The desired alpha. Defaults to 0.05.
-        cols (list[str] | set[str] | str | Selector | None, optional): Column(s) to include. If None, includes all columns. Defaults to None.
+        cols (Sequence[str] | str | ColumnSelector | None, optional): Column(s) to include. If None, includes all columns. Defaults to None.
 
     Raises:
         ValueError: If string argument for `method` isn't recognized.
@@ -100,8 +101,8 @@ def test_independent_proportion(
     df: pd.DataFrame,
     method: str,
     *,
-    group_col: list[str] | set[str] | str | ColumnSelector,
-    target_cols: list[str] | set[str] | str | ColumnSelector | None = None,
+    group_col: Sequence[str] | str | ColumnSelector,
+    target_cols: Sequence[str] | str | ColumnSelector | None = None,
     alpha: float = 0.05,
 ) -> pd.DataFrame:
     """Run an independent-samples test.
@@ -109,8 +110,8 @@ def test_independent_proportion(
     Args:
         df (pd.DataFrame): The DataFrame.
         method (str): The test method. Supported choices: 'chi_squared', 'fisher_exact'.
-        group_col (list[str] | set[str] | str | Selector): Column(s) to use as the grouping variable. If one-hot encoded, will be converted to mutually exclusive categories.
-        target_cols (list[str] | set[str] | str | Selector | None, optional): Column(s) to evaluate for differences on the basis of `group_col`. If None, includes all columns. Defaults to None.
+        group_col (Sequence[str] | str | ColumnSelector): Column(s) to use as the grouping variable. If one-hot encoded, will be converted to mutually exclusive categories.
+        target_cols (Sequence[str] | str | ColumnSelector | None, optional): Column(s) to evaluate for differences on the basis of `group_col`. If None, includes all columns. Defaults to None.
         alpha (float, optional): The desired alpha. Defaults to 0.05.
 
     Raises:
@@ -145,8 +146,8 @@ def test_independent(
     df: pd.DataFrame,
     method: str,
     *,
-    group_col: list[str] | set[str] | str | ColumnSelector,
-    target_cols: list[str] | set[str] | str | ColumnSelector | None = None,
+    group_col: Sequence[str] | str | ColumnSelector,
+    target_cols: Sequence[str] | str | ColumnSelector | None = None,
     alpha: float = 0.05,
 ) -> pd.DataFrame:
     """Run an independent-samples test.
@@ -154,8 +155,8 @@ def test_independent(
     Args:
         df (pd.DataFrame): The DataFrame.
         method (str): The test method. Supported choices: 't', 'mann_whitney', 'anova', 'kruskal_wallis'
-        group_col (list[str] | set[str] | str | Selector): Column(s) to use as the grouping variable. If one-hot encoded, will be converted to mutually exclusive categories.
-        target_cols (list[str] | set[str] | str | Selector | None, optional): Column(s) to evaluate for differences on the basis of `group_col`. If None, includes all columns. Defaults to None.
+        group_col (Sequence[str] | str | ColumnSelector): Column(s) to use as the grouping variable. If one-hot encoded, will be converted to mutually exclusive categories.
+        target_cols (Sequence[str] | str | ColumnSelector | None, optional): Column(s) to evaluate for differences on the basis of `group_col`. If None, includes all columns. Defaults to None.
         alpha (float, optional): The desired alpha. Defaults to 0.05.
 
     Raises:
@@ -198,7 +199,7 @@ def test_dependent(
     df: pd.DataFrame,
     method: str,
     *,
-    target_cols: list[str] | set[str] | list[tuple[str, str]] | ColumnSelector | PairSelector | None = None,
+    target_cols: Sequence[str] | Sequence[Sequence[str]] | ColumnSelector | PairSelector | None = None,
     alpha: float = 0.05,
 ) -> pd.DataFrame:
     """Run an dependent-samples test.
@@ -206,7 +207,7 @@ def test_dependent(
     Args:
         df (pd.DataFrame): The DataFrame.
         method (str): The test method. Supported choices: 't', 'wilcoxon'
-        target_cols (list[str] | set[str] | list[tuple[str, str]] | str | ColumnSelector | PairSelector | None, optional): Column(s) to evaluate for differences on the basis of `group_col`. If None, includes all columns. Defaults to None.
+        target_cols (Sequence[str] | Sequence[Sequence[str]] | ColumnSelector | PairSelector | None, optional): Column(s) to evaluate for differences on the basis of `group_col`. If None, includes all columns. Defaults to None.
         alpha (float, optional): The desired alpha. Defaults to 0.05.
 
     Note:
@@ -243,7 +244,7 @@ def test_dependent_proportion(
     df: pd.DataFrame,
     method: str,
     *,
-    target_cols: list[str] | set[str] | list[tuple[str, str]] | ColumnSelector | PairSelector | None = None,
+    target_cols: Sequence[str] | Sequence[Sequence[str]] | ColumnSelector | PairSelector | None = None,
     alpha: float = 0.05,
 ) -> pd.DataFrame:
     """Run an dependent-samples test.
@@ -251,7 +252,7 @@ def test_dependent_proportion(
     Args:
         df (pd.DataFrame): The DataFrame.
         method (str): The test method. Supported choices: 'mcnemar_exact', 'mcnemar_asymptotic', 'cochran'.
-        target_cols (list[str] | set[str] | list[tuple[str, str]] | str | ColumnSelector | PairSelector | None, optional): Column(s) to evaluate for differences on the basis of `group_col`. If None, includes all columns. Defaults to None.
+        target_cols (Sequence[str] | Sequence[Sequence[str]] | ColumnSelector | PairSelector | None, optional): Column(s) to evaluate for differences on the basis of `group_col`. If None, includes all columns. Defaults to None.
         alpha (float, optional): The desired alpha. Defaults to 0.05.
 
     Note:
@@ -271,16 +272,19 @@ def test_dependent_proportion(
             - 'count': The number of valid non-nan observations.
     """
 
-    target_cols = Selector.resolve_pair(df, target_cols)
+    
 
     if method == 'mcnemar_exact':
+        target_cols = Selector.resolve_pair(df, target_cols)
         result = _dependent_mcnemar(df, target_cols, alpha, exact = True)
 
     elif method == 'mcnemar_asymptotic':
+        target_cols = Selector.resolve_pair(df, target_cols)
         result = _dependent_mcnemar(df, target_cols, alpha, exact = False)
     
     elif method == 'cochran':
         raise NotImplementedError(f'Method \'{method}\' not yet implemented.')
+        target_cols = Selector.resolve_pair(df, target_cols) # TODO: groups of cols?? or just list of cols?
         result = _dependent_cochran(df, target_cols, alpha)
 
     else:
@@ -288,9 +292,62 @@ def test_dependent_proportion(
 
     return result
 
+def _dependent_cochran(
+   df: pd.DataFrame,
+   column_pairs: list[list[str]],
+   alpha: float,
+   exact: bool,
+) -> pd.DataFrame:
+    """Run a Cochran's Q test.
+
+    Args:
+        df (pd.DataFrame): The DataFrame.
+        column_pairs (list[tuple[str, str]]): Pairs of column labels to compare.
+        alpha (float): The desired alpha level.
+        exact (bool): If true, the exact binomial distribution will be used. Otherwise, the chi2 approximation will be used.
+
+    Returns:
+        pd.DataFrame: A DataFrame with indices matching the labels in `target_cols`.
+            Columns include:
+            - 'test_statistic': Cochran's Q test statistic.
+            - 'p_value': The calculated p value.
+            - 'stat_sig': A boolean flag indicating statistical significance.
+            - 'count': The number of valid non-nan observations.
+    """
+    
+    index_tuples = []
+    counts = []
+    test_statistics = []
+    p_values = []
+
+    for col0, col1 in column_pairs:
+        table = pd.crosstab(df[col0], df[col1])
+        count = (df[col0].notna() & df[col1].notna()).sum()
+        result = mcnemar(table, exact)
+
+        # group_0, group_1
+        index_tuples.append((col0, col1))
+        counts.append(count)
+        test_statistics.append(result.statistic) # type: ignore
+        p_values.append(result.pvalue) # type: ignore
+
+        # group_1, group_0 (so multi-index can be accessed both ways)
+        index_tuples.append((col1, col0))      
+        counts.append(count)
+        test_statistics.append(result.statistic) # type: ignore
+        p_values.append(result.pvalue) # type: ignore
+
+    return _create_test_frame(
+        index_tuples,
+        np.array(test_statistics),
+        np.array(p_values),
+        np.array(counts), # type: ignore
+        alpha,
+    )
+
 def _dependent_mcnemar(
    df: pd.DataFrame,
-   column_pairs: list[tuple[str, str]],
+   column_pairs: list[list[str]],
    alpha: float,
    exact: bool,
 ) -> pd.DataFrame:
@@ -298,7 +355,7 @@ def _dependent_mcnemar(
 
     Args:
         df (pd.DataFrame): The DataFrame.
-        column_pairs (list[tuple[str, str]]): Pairs of column labels to compare.
+        column_pairs (list[list[str]]): Pairs of column labels to compare.
         alpha (float): The desired alpha level.
         exact (bool): If true, the exact binomial distribution will be used. Otherwise, the chi2 approximation will be used.
 
@@ -343,7 +400,7 @@ def _dependent_mcnemar(
 
 def _dependent_t(
    df: pd.DataFrame,
-   column_pairs: list[tuple[str, str]],
+   column_pairs: list[list[str]],
    alpha: float,
 ) -> pd.DataFrame:
     """Run a dependent-samples T test.
@@ -393,7 +450,7 @@ def _dependent_t(
 
 def _dependent_wilcoxon(
    df: pd.DataFrame,
-   column_pairs: list[tuple[str, str]],
+   column_pairs: list[list[str]],
    alpha: float,
 ) -> pd.DataFrame:
     """Run a dependent-samples Wilcoxon signed-rank test.
