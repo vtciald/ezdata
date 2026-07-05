@@ -26,10 +26,10 @@ class Selector(ABC):
 
         Args:
             df (pd.DataFrame): The DataFrame.
-            selection (Sequence[str] | Sequence[Sequence[str]] | ColumnSelector | PairSelector | None): String column label(s) or a Selector.
+            selection (Sequence[str] | Sequence[Sequence[str]] | ColumnSelector | PairSelector | None): Sequence of string column labels, sequence of sequences containing string column labels, or an appropriate Selector.
 
         Returns:
-            list[str]: A list of string column labels.
+            list[list[str]]: A list of lists containing string column labels.
         """
        
         if isinstance(selection, PairSelector):
@@ -39,11 +39,16 @@ class Selector(ABC):
             cols = selection(df)
     
         elif isinstance(selection, Sequence) and not isinstance(selection, str):
-            if isinstance(selection[0], str):
-                cols = list(selection)
+            cols, all_inner_len_2 = Selector._standardize_sequence(selection)
 
-            elif isinstance(selection[0], Sequence):
-                return [list(item) for item in selection]
+            if all_inner_len_2:
+                return cols
+            
+            elif (not all_inner_len_2) and (all_inner_len_2 is not None):
+                raise ValueError(
+                    f'Inner lengths of the given sequence aren\'t all 2. '
+                    'All inner lengths must be 2 to define pairs of columns.'
+                )
             
         elif selection is None:
             cols = df.columns.tolist()
@@ -57,6 +62,43 @@ class Selector(ABC):
         column_pairs = [[str(pair[0]), str(pair[1])] for pair in pairs]
     
         return column_pairs
+    
+    @staticmethod
+    def resolve_group_within(
+        df: pd.DataFrame,
+        selection:  Sequence[Sequence[str]] | 'PairSelector' | 'GroupWithinSelector',
+    ) -> list[list[str]]:
+        """Resolve column-group (within) selection.
+
+        Args:
+            df (pd.DataFrame): The DataFrame.
+            selection (Sequence[Sequence[str]] | PairSelector | GroupWithinSelector): Sequence of sequences containing string column labels or an appropriate Selector.
+
+        Returns:
+            list[list[str]]: A list of lists containing string column labels.
+        """
+       
+        if isinstance(selection, PairSelector):
+            return selection(df)
+        
+        elif isinstance(selection, GroupWithinSelector):
+            return selection(df)
+    
+        elif isinstance(selection, Sequence) and not isinstance(selection, str):
+            cols, all_inner_len_2 = Selector._standardize_sequence(selection)
+
+            if all_inner_len_2 is None:
+                raise TypeError(
+                    f'Invalid argument for column-group (within) selection: \'{selection}\'.'
+                )
+
+            else:
+                return cols
+
+        else:
+            raise TypeError(
+                f'Invalid argument for column-group (within) selection: \'{selection}\'.'
+            )          
 
     @staticmethod
     def resolve(
@@ -67,7 +109,7 @@ class Selector(ABC):
 
         Args:
             df (pd.DataFrame): The DataFrame.
-            selection (Sequence[str] | str | ColumnSelector | None): String column label(s) or a Selector.
+            selection (Sequence[str] | str | ColumnSelector | None): String column label(s) or a ColumnSelector.
 
         Returns:
             list[str]: A list of string column labels.
@@ -80,15 +122,90 @@ class Selector(ABC):
             return [selection]
         
         elif isinstance(selection, Sequence):
-            return list(selection)
+            return Selector._standardize_str_sequence(selection)
         
         elif selection is None:
             return df.columns.tolist()
         
         else:
             raise TypeError(
-                f'Invalid argument for pair selection: \'{selection}\'.'
+                f'Invalid argument for column selection: \'{selection}\'.'
             )
+    
+    @staticmethod    
+    def _standardize_sequence(
+        sequence: Sequence[str] | Sequence[Sequence[str]],  
+    ) -> tuple[list[list[str]], bool | None]:
+        """Standardize a sequence containing strings or sequences of strings.
+
+        Args:
+            sequence (Sequence[str] | Sequence[Sequence[str]]): The sequence to standardize.
+
+        Raises:
+            TypeError: If inner type is not a string or sequence of strings.
+            TypeError: If inner types are inconsistent.
+
+        Returns:
+            tuple[list[list[str]], bool | None]: The standardized list of lists of strings and a bool indicating if all inner lengths are 2 (None if it's a 1D sequence).
+        """
+               
+        standardized = []
+        inner_type = type(sequence[0])
+        all_inner_len_2 = None
+
+        for item in sequence:
+            if not isinstance(item, Sequence):
+                raise TypeError(
+                    f'Invalid inner type of sequence: \'{sequence}\'. '
+                    'Must be a string or sequence of strings.'
+                )
+            
+            elif not isinstance(item, inner_type):
+                raise TypeError(f'Inconsistent inner type of sequence: \'{sequence}\'.')
+            
+            elif not isinstance(item, str):
+                if len(item) != 2:
+                    all_inner_len_2 = False
+
+                standardized.append(Selector._standardize_str_sequence(item))
+
+            else: # is a string
+                standardized.append(item)
+
+        if all_inner_len_2 is None and inner_type is not str:
+            all_inner_len_2 = True
+        
+        return standardized, all_inner_len_2
+
+    @staticmethod
+    def _standardize_str_sequence(
+        sequence: Sequence[str],
+    ) -> list[str]:
+        """Standardize a sequence of strings.
+
+        Args:
+            sequence (Sequence[str]): The sequence of strings to standardize.
+
+        Raises:
+            TypeError: If an inner type isn't string.
+
+        Returns:
+            list[str]: The standardized list of strings.
+        """
+        
+        standardized = []
+
+        for item in sequence:
+            if not isinstance(item, str):
+                raise TypeError(
+                    f'Invalid inner type for selection argument: \'{sequence}\'. '
+                    'Must be a sequence of strings or sequence of sequences containing strings.'
+                )
+            
+            else:
+                standardized.append(item)
+
+        return standardized
         
     def _assign_labels(
         self,
@@ -371,5 +488,60 @@ class PairSelector(Selector):
 
                 for pair in pairs:
                     column_pairs.append([pair[0], pair[1]])
+
+        return column_pairs
+    
+class GroupWithinSelector(Selector):
+    """Create a GroupWithinSelector object to select groups of columns.
+    """
+
+    def __init__(
+        self,
+        group_pattern: re.Pattern | str,
+        *,
+        labels: Sequence[str] | str | None = None,
+        prefix: str | None = None,
+        suffix: str | None = None,
+        pattern: re.Pattern | str | None = None,
+    ) -> None:
+        """Initialize a GroupWithinSelector instance.
+
+        Creates groups of columns that match if substrings matching `group_pattern` were to be removed.
+
+        Selection parameters (e.g., `labels`, `prefix`, etc.) are used in conjunction with one another, taking the intersection of matching columns. In other words, only columns matching all selection criteria will be selected.
+
+        Args:
+            group_pattern (re.Pattern | str): A regex pattern that describes the portion of the label that differentiates members of column groups.
+            labels (Sequence[str] | str | None, optional): Full column labels to select. Defaults to None.
+            prefix (str | None, optional): The prefix of columns to select. Defaults to None.
+            suffix (str | None, optional): The suffix of columns to select. Defaults to None.
+            pattern (str | re.Pattern | None, optional): A regex pattern describing columns to select. Defaults to None.
+
+        Note:
+            If all selection arguments are None, all columns will be selected.
+        """
+
+        self._assign_labels(labels)
+        self._assign_prefix(prefix)
+        self._assign_suffix(suffix)
+        self._assign_pattern(pattern)
+        self._assign_group_pattern(group_pattern)
+    
+    def __call__(
+        self,
+        df: pd.DataFrame,
+    ) -> list[list[str]]:
+        """Resolve selection.
+
+        Args:
+            df (pd.DataFrame): The DataFrame.
+
+        Returns:
+            list[list[str]]: The list of column label pairs.
+        """
+
+        group_dict = self._get_col_groups(df)
+            
+        column_pairs = [cols for cols in group_dict.values() if len(cols) > 1]               
 
         return column_pairs
