@@ -897,7 +897,7 @@ def test_resolve_selection_pair():
         result6 = Selector.resolve_pair(test_df, [['Test1', 3], ['Test1', 'Test3']]) # type: ignore
 
 
-def test_resolve_selection_group_within():
+def test_resolve_selection_group_split():
     
     dp = DataProcessor()
 
@@ -945,23 +945,101 @@ def test_resolve_selection_group_within():
         ['Some3_start', 'Some3_mid', 'Some3_end']
     ]
 
-    result1 = Selector.resolve_group_within(test_df, dp.group_within(r'[123]'))
+    result1 = Selector.resolve_group(test_df, dp.group_split(r'[123]'))
 
     assert expected1 == result1
 
-    result2 = Selector.resolve_group_within(test_df, dp.group_within(r'start|mid|end'))
+    result2 = Selector.resolve_group(test_df, dp.group_split(r'_(start|mid|end)'))
 
     assert expected2 == result2
 
-    result3 = Selector.resolve_group_within(test_df, [('Some2_start', 'Some2_mid', 'Some2_end'), ('Some3_start', 'Some3_mid', 'Some3_end')])
+    result3 = Selector.resolve_group(test_df, [('Some2_start', 'Some2_mid', 'Some2_end'), ('Some3_start', 'Some3_mid', 'Some3_end')])
     
     assert expected3 == result3
 
-    with pytest.raises(TypeError):
-        result4 = Selector.resolve_group_within(test_df, 0) # type: ignore
+def test_resolve_selection_group_error():
+    
+    dp = DataProcessor()
+
+    test_df = pd.DataFrame({
+        'Age': [1, 2, 3],
+        'Gender': [4, 5, 6],
+        'InviteSegment_Group1': [7, 8, 9],
+        'InviteSegment_Group2': [10, 11, 12],
+        'Group_Column': [13, 14, 15],
+        'Another_1_Column': [16, 17, 18],
+        'Another_2_Column': [19, 20, 21],
+        'Another_3_Column': [22, 23, 24],
+        'Another_4_Column': [25, 26, 27],
+        'Another_5_Column': [28, 29, 30],
+        'Another_6_Column': [28, 29, 30],
+        'Another_Test_Column': [31, 32, 33],
+        'Another_Test': [34, 35, 36],
+        'Some1_start': [34, 35, 36],
+        'Some1_mid': [34, 35, 36],
+        'Some1_end': [34, 35, 36],
+        'Some2_start': [34, 35, 36],
+        'Some2_mid': [34, 35, 36],
+        'Some2_end': [34, 35, 36],
+        'Some3_start': [34, 35, 36],
+        'Some3_mid': [34, 35, 36],
+        'Some3_end': [34, 35, 36],
+    })
 
     with pytest.raises(TypeError):
-        result5 = Selector.resolve_group_within(test_df, [['Test1', 3], ['Test1', 'Test3']]) # type: ignore
+        result1 = Selector.resolve_group(test_df, 0) # type: ignore
+
+    with pytest.raises(TypeError):
+        result2 = Selector.resolve_group(test_df, [['Test1', 3], ['Test1', 'Test3']]) # type: ignore
+
+def test_resolve_selection_group_match():
+    
+    dp = DataProcessor()
+
+    test_df = pd.DataFrame({
+        'Age': [1, 2, 3],
+        'Gender': [4, 5, 6],
+        'InviteSegment_Group1': [7, 8, 9],
+        'InviteSegment_Group2': [10, 11, 12],
+        'Group_Column': [13, 14, 15],
+        'Another_1_Column': [16, 17, 18],
+        'Another_2_Column': [19, 20, 21],
+        'Another_3_Column': [22, 23, 24],
+        'Another_4_Column': [25, 26, 27],
+        'Another_5_Column': [28, 29, 30],
+        'Another_6_Column': [28, 29, 30],
+        'Another_Test_Column': [31, 32, 33],
+        'Another_Test': [34, 35, 36],
+        'Some1_start': [34, 35, 36],
+        'Some1_mid': [34, 35, 36],
+        'Some1_end': [34, 35, 36],
+        'Some2_start': [34, 35, 36],
+        'Some2_mid': [34, 35, 36],
+        'Some2_end': [34, 35, 36],
+        'Some3_start': [34, 35, 36],
+        'Some3_mid': [34, 35, 36],
+        'Some3_end': [34, 35, 36],
+    })
+
+    expected1 = [
+        ['InviteSegment_Group1', 'Another_1_Column', 'Some1_start', 'Some1_mid', 'Some1_end'],
+        ['InviteSegment_Group2', 'Another_2_Column', 'Some2_start', 'Some2_mid', 'Some2_end'],
+        ['Another_3_Column', 'Some3_start', 'Some3_mid', 'Some3_end'],
+    ]
+
+    expected2 = [
+        ['Some1_start', 'Some2_start', 'Some3_start'],
+        ['Some1_mid', 'Some2_mid', 'Some3_mid'],
+        ['Some1_end', 'Some2_end', 'Some3_end'],
+    ]
+
+    result1 = Selector.resolve_group(test_df, dp.group_match(r'[123]'))
+    
+    assert expected1 == result1
+
+    result2 = Selector.resolve_group(test_df, dp.group_match(r'_(start|mid|end)'))
+
+    assert expected2 == result2
 
 
 # Standardizing characters in arguments
@@ -1030,4 +1108,6 @@ test_dummy_to_categorical_error()
 
 # Test resolving pair selection
 test_resolve_selection_pair()
-test_resolve_selection_group_within()
+test_resolve_selection_group_split()
+test_resolve_selection_group_match()
+test_resolve_selection_group_error()

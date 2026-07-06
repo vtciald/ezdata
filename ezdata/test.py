@@ -1000,6 +1000,8 @@ def _create_test_frame(
 
     return result  
 
+# TODO: Differentiate a pair match vs pair split Selector / method??
+
 # TODO: Add other test methods...
 # test_dependent_proportion(): mcnemar asymptotic, mcnemar exact binomial, cochran's Q
 # test_regression(): linear, logistic

@@ -6,7 +6,7 @@ from . import prep
 from . import stats
 from . import reduction
 from . import test
-from .selector import Selector, ColumnSelector, PairSelector, GroupWithinSelector
+from .selector import Selector, ColumnSelector, PairSelector, GroupSplitSelector, GroupMatchSelector
 from collections.abc import Sequence
     
 class DataProcessor:
@@ -69,15 +69,15 @@ class DataProcessor:
             pattern = pattern
         )
     
-    def group_within(
+    def group_split(
         self,
         group_pattern: re.Pattern | str,
         labels: Sequence[str] | str | None = None,
         prefix: str | None = None,
         suffix: str | None = None,
         pattern: re.Pattern | str | None = None,
-    ) -> GroupWithinSelector:
-        """Create a GroupWithinSelector instance.
+    ) -> GroupSplitSelector:
+        """Create a GroupSplitSelector instance.
 
         Creates groups of columns that match if substrings matching `group_pattern` were to be removed.
 
@@ -91,7 +91,37 @@ class DataProcessor:
             pattern (str | re.Pattern | None, optional): A regex pattern describing columns to select. Defaults to None.
         """
 
-        return GroupWithinSelector(
+        return GroupSplitSelector(
+            group_pattern,
+            labels = labels,
+            prefix = prefix,
+            suffix = suffix,
+            pattern = pattern
+        )
+
+    def group_match(
+        self,
+        group_pattern: re.Pattern | str,
+        labels: Sequence[str] | str | None = None,
+        prefix: str | None = None,
+        suffix: str | None = None,
+        pattern: re.Pattern | str | None = None,
+    ) -> GroupMatchSelector:
+        """Initialize a GroupMatchSelector instance.
+
+        Creates groups of columns that match on their first matching `group_pattern`.
+
+        Selection parameters (e.g., `labels`, `prefix`, etc.) are used in conjunction with one another, taking the intersection of matching columns. In other words, only columns matching all selection criteria will be selected.
+
+        Args:
+            group_pattern (re.Pattern | str): A regex pattern that describes the portion of the label that indicates members of column groups.
+            labels (list[str] | set[str] | str | None, optional): Full column labels to select. Defaults to None.
+            prefix (str | None, optional): The prefix of columns to select. Defaults to None.
+            suffix (str | None, optional): The suffix of columns to select. Defaults to None.
+            pattern (str | re.Pattern | None, optional): A regex pattern describing columns to select. Defaults to None.
+        """
+
+        return GroupMatchSelector(
             group_pattern,
             labels = labels,
             prefix = prefix,
