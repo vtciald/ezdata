@@ -26,7 +26,7 @@ class Selector(ABC):
 
         Args:
             df (pd.DataFrame): The DataFrame.
-            selection (Sequence[str] | Sequence[Sequence[str]] | ColumnSelector | PairSelector | None): Sequence of string column labels, sequence of sequences containing string column labels, or an appropriate Selector.
+            selection (Sequence[str] | Sequence[Sequence[str]] | ColumnSelector | PairRootSelector | None): Sequence of string column labels, sequence of sequences containing string column labels, or an appropriate Selector.
 
         Returns:
             list[list[str]]: A list of lists containing string column labels.
@@ -66,13 +66,13 @@ class Selector(ABC):
     @staticmethod
     def resolve_group(
         df: pd.DataFrame,
-        selection:  Sequence[Sequence[str]] | 'PairSelector' | 'GroupSplitSelector' | 'GroupMatchSelector',
+        selection:  Sequence[Sequence[str]] | 'PairSelector' | 'GroupSelector',
     ) -> list[list[str]]:
         """Resolve column-group selection.
 
         Args:
             df (pd.DataFrame): The DataFrame.
-            selection (Sequence[Sequence[str]] | PairSelector | GroupSplitSelector): Sequence of sequences containing string column labels or an appropriate Selector.
+            selection (Sequence[Sequence[str]] | PairRootSelector | GroupRootSelector): Sequence of sequences containing string column labels or an appropriate Selector.
 
         Returns:
             list[list[str]]: A list of lists containing string column labels.
@@ -81,10 +81,7 @@ class Selector(ABC):
         if isinstance(selection, PairSelector):
             return selection(df)
         
-        elif isinstance(selection, GroupSplitSelector):
-            return selection(df)
-        
-        elif isinstance(selection, GroupMatchSelector):
+        elif isinstance(selection, GroupSelector):
             return selection(df)
     
         elif isinstance(selection, Sequence) and not isinstance(selection, str):
@@ -460,23 +457,26 @@ class PairSelector(Selector):
         self,
         group_pattern: re.Pattern | str,
         *,
+        match: bool,
         labels: Sequence[str] | str | None = None,
         prefix: str | None = None,
         suffix: str | None = None,
         pattern: re.Pattern | str | None = None,
     ) -> None:
-        """Initialize a PairSelector instance.
+        """Initialize a PairRootSelector instance.
 
         Selection parameters (e.g., `labels`, `prefix`, etc.) are used in conjunction with one another, taking the intersection of matching columns. In other words, only columns matching all selection criteria will be selected.
 
         Args:
             group_pattern (re.Pattern | str): A regex pattern that describes the portion of the label that differentiates paired columns.
+            match (bool): If true, pairs columns whose extracted `group_pattern` will match. Otherwise, pairs columns whose roots match (after stripping `group_pattern`).
             labels (Sequence[str] | str | None, optional): Full column labels to select. Defaults to None.
             prefix (str | None, optional): The prefix of columns to select. Defaults to None.
             suffix (str | None, optional): The suffix of columns to select. Defaults to None.
             pattern (str | re.Pattern | None, optional): A regex pattern describing columns to select. Defaults to None.
         """
 
+        self.match = match
         self._assign_labels(labels)
         self._assign_prefix(prefix)
         self._assign_suffix(suffix)
@@ -496,7 +496,7 @@ class PairSelector(Selector):
             list[list[str]]: The list of column label pairs.
         """
 
-        group_dict = self._get_col_groups(df, False)
+        group_dict = self._get_col_groups(df, self.match)
             
         column_pairs = []
         for cols in group_dict.values():
@@ -508,33 +508,34 @@ class PairSelector(Selector):
 
         return column_pairs
     
-class GroupSplitSelector(Selector):
-    """Create a GroupSplitSelector object to select groups of columns.
+class GroupSelector(Selector):
+    """Create a GroupSelector object to select groups of columns.
     """
 
     def __init__(
         self,
         group_pattern: re.Pattern | str,
         *,
+        match: bool,
         labels: Sequence[str] | str | None = None,
         prefix: str | None = None,
         suffix: str | None = None,
         pattern: re.Pattern | str | None = None,
     ) -> None:
-        """Initialize a GroupSplitSelector instance.
-
-        Creates groups of columns that match if substrings matching `group_pattern` were to be removed.
+        """Initialize a GroupSelector instance.
 
         Selection parameters (e.g., `labels`, `prefix`, etc.) are used in conjunction with one another, taking the intersection of matching columns. In other words, only columns matching all selection criteria will be selected.
 
         Args:
             group_pattern (re.Pattern | str): A regex pattern that describes the portion of the label that differentiates members of column groups.
+            match (bool): If true, groups columns whose extracted `group_pattern` will match. Otherwise, groups columns whose roots match (after stripping `group_pattern`).
             labels (Sequence[str] | str | None, optional): Full column labels to select. Defaults to None.
             prefix (str | None, optional): The prefix of columns to select. Defaults to None.
             suffix (str | None, optional): The suffix of columns to select. Defaults to None.
             pattern (str | re.Pattern | None, optional): A regex pattern describing columns to select. Defaults to None.
         """
 
+        self.match = match
         self._assign_labels(labels)
         self._assign_prefix(prefix)
         self._assign_suffix(suffix)
@@ -554,59 +555,7 @@ class GroupSplitSelector(Selector):
             list[list[str]]: The list of column label pairs.
         """
 
-        group_dict = self._get_col_groups(df, False)
-            
-        column_pairs = [cols for cols in group_dict.values()]               
-
-        return column_pairs
-    
-class GroupMatchSelector(Selector):
-    """Create a GroupMatchSelector object to select groups of columns.
-    """
-
-    def __init__(
-        self,
-        group_pattern: re.Pattern | str,
-        *,
-        labels: Sequence[str] | str | None = None,
-        prefix: str | None = None,
-        suffix: str | None = None,
-        pattern: re.Pattern | str | None = None,
-    ) -> None:
-        """Initialize a GroupMatchSelector instance.
-
-        Creates groups of columns that match on their first matching `group_pattern`.
-
-        Selection parameters (e.g., `labels`, `prefix`, etc.) are used in conjunction with one another, taking the intersection of matching columns. In other words, only columns matching all selection criteria will be selected.
-
-        Args:
-            group_pattern (re.Pattern | str): A regex pattern that describes the portion of the label that indicates members of column groups.
-            labels (Sequence[str] | str | None, optional): Full column labels to select. Defaults to None.
-            prefix (str | None, optional): The prefix of columns to select. Defaults to None.
-            suffix (str | None, optional): The suffix of columns to select. Defaults to None.
-            pattern (str | re.Pattern | None, optional): A regex pattern describing columns to select. Defaults to None.
-        """
-
-        self._assign_labels(labels)
-        self._assign_prefix(prefix)
-        self._assign_suffix(suffix)
-        self._assign_pattern(pattern)
-        self._assign_group_pattern(group_pattern)
-    
-    def __call__(
-        self,
-        df: pd.DataFrame,
-    ) -> list[list[str]]:
-        """Resolve selection.
-
-        Args:
-            df (pd.DataFrame): The DataFrame.
-
-        Returns:
-            list[list[str]]: The list of column label pairs.
-        """
-
-        group_dict = self._get_col_groups(df, True)
+        group_dict = self._get_col_groups(df, self.match)
             
         column_pairs = [cols for cols in group_dict.values()]               
 

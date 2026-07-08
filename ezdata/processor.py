@@ -6,7 +6,7 @@ from . import prep
 from . import stats
 from . import reduction
 from . import test
-from .selector import Selector, ColumnSelector, PairSelector, GroupSplitSelector, GroupMatchSelector
+from .selector import Selector, ColumnSelector, PairSelector, GroupSelector
 from collections.abc import Sequence
     
 class DataProcessor:
@@ -41,7 +41,7 @@ class DataProcessor:
             pattern = pattern
         )
     
-    def pair(
+    def select_pair_by_root(
         self,
         pair_pattern: re.Pattern | str,
         labels: Sequence[str] | str | None = None,
@@ -50,6 +50,8 @@ class DataProcessor:
         pattern: re.Pattern | str | None = None,
     ) -> PairSelector:
         """Create a PairSelector instance.
+
+        Creates groups of columns that match if substrings matching `group_pattern` were to be removed.
 
         Selection parameters (e.g., `labels`, `prefix`, etc.) are used in conjunction with one another, taking the intersection of matching columns. In other words, only columns matching all selection criteria will be selected.
 
@@ -63,21 +65,53 @@ class DataProcessor:
 
         return PairSelector(
             pair_pattern,
+            match = False,
             labels = labels,
             prefix = prefix,
             suffix = suffix,
             pattern = pattern
         )
     
-    def group_split(
+    def select_pair_by_match(
+        self,
+        pair_pattern: re.Pattern | str,
+        labels: Sequence[str] | str | None = None,
+        prefix: str | None = None,
+        suffix: str | None = None,
+        pattern: re.Pattern | str | None = None,
+    ) -> PairSelector:
+        """Create a PairSelector instance.
+
+        Creates pairs of columns that match on their first matching `group_pattern`.
+
+        Selection parameters (e.g., `labels`, `prefix`, etc.) are used in conjunction with one another, taking the intersection of matching columns. In other words, only columns matching all selection criteria will be selected.
+
+        Args:
+            pair_pattern (re.Pattern | str): A regex pattern that describes the portion of the label that differentiates paired columns.
+            labels (list[str] | set[str] | str | None, optional): Full column labels to select. Defaults to None.
+            prefix (str | None, optional): The prefix of columns to select. Defaults to None.
+            suffix (str | None, optional): The suffix of columns to select. Defaults to None.
+            pattern (str | re.Pattern | None, optional): A regex pattern describing columns to select. Defaults to None.
+        """
+
+        return PairSelector(
+            pair_pattern,
+            match = True,
+            labels = labels,
+            prefix = prefix,
+            suffix = suffix,
+            pattern = pattern
+        )
+    
+    def select_group_by_root(
         self,
         group_pattern: re.Pattern | str,
         labels: Sequence[str] | str | None = None,
         prefix: str | None = None,
         suffix: str | None = None,
         pattern: re.Pattern | str | None = None,
-    ) -> GroupSplitSelector:
-        """Create a GroupSplitSelector instance.
+    ) -> GroupSelector:
+        """Create a GroupSelector instance.
 
         Creates groups of columns that match if substrings matching `group_pattern` were to be removed.
 
@@ -91,23 +125,24 @@ class DataProcessor:
             pattern (str | re.Pattern | None, optional): A regex pattern describing columns to select. Defaults to None.
         """
 
-        return GroupSplitSelector(
+        return GroupSelector(
             group_pattern,
+            match = False,
             labels = labels,
             prefix = prefix,
             suffix = suffix,
             pattern = pattern
         )
 
-    def group_match(
+    def select_group_by_match(
         self,
         group_pattern: re.Pattern | str,
         labels: Sequence[str] | str | None = None,
         prefix: str | None = None,
         suffix: str | None = None,
         pattern: re.Pattern | str | None = None,
-    ) -> GroupMatchSelector:
-        """Initialize a GroupMatchSelector instance.
+    ) -> GroupSelector:
+        """Initialize a GroupSelector instance.
 
         Creates groups of columns that match on their first matching `group_pattern`.
 
@@ -121,8 +156,9 @@ class DataProcessor:
             pattern (str | re.Pattern | None, optional): A regex pattern describing columns to select. Defaults to None.
         """
 
-        return GroupMatchSelector(
+        return GroupSelector(
             group_pattern,
+            match = True,
             labels = labels,
             prefix = prefix,
             suffix = suffix,

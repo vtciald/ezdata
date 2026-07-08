@@ -431,7 +431,7 @@ def test_dependent_t_pair():
         index = multi_index,
     )
 
-    result = dp.test_dependent(test_df, 't', target_cols = dp.pair(r'(pre|post)', prefix = 'Col'))
+    result = dp.test_dependent(test_df, 't', target_cols = dp.select_pair_by_root(r'(pre|post)', prefix = 'Col'))
 
     result['test_statistic'] = result['test_statistic'].round(4)
     result['p_value'] = result['p_value'].round(4)
@@ -469,7 +469,7 @@ def test_dependent_wilcoxon():
         index = multi_index,
     )
 
-    result = dp.test_dependent(test_df, 'wilcoxon', target_cols = dp.pair(r'(pre|post)'))
+    result = dp.test_dependent(test_df, 'wilcoxon', target_cols = dp.select_pair_by_root(r'(pre|post)'))
 
     result['test_statistic'] = result['test_statistic'].round(4)
     result['p_value'] = result['p_value'].round(4)
@@ -507,7 +507,7 @@ def test_dependent_proportion_mcnemar_exact():
         index = multi_index,
     )
 
-    result = dp.test_dependent_proportion(test_df, 'mcnemar_exact', target_cols = dp.pair(r'(pre|post)'))
+    result = dp.test_dependent_proportion(test_df, 'mcnemar_exact', target_cols = dp.select_pair_by_root(r'(pre|post)'))
 
     result['test_statistic'] = result['test_statistic'].round(4)
     result['p_value'] = result['p_value'].round(4)
@@ -545,7 +545,7 @@ def test_dependent_proportion_mcnemar_asymptotic():
         index = multi_index,
     )
 
-    result = dp.test_dependent_proportion(test_df, 'mcnemar_asymptotic', target_cols = dp.pair(r'(pre|post)'))
+    result = dp.test_dependent_proportion(test_df, 'mcnemar_asymptotic', target_cols = dp.select_pair_by_root(r'(pre|post)'))
 
     result['test_statistic'] = result['test_statistic'].round(4)
     result['p_value'] = result['p_value'].round(4)

@@ -838,7 +838,7 @@ def test_dummy_to_categorical_error():
     with pytest.raises(ValueError):
         result, _ = dp.dummy_to_categorical(test_df, cols = ['Col1', 'Col2'], new_col_name = 'NewCol')
 
-def test_resolve_selection_pair():
+def test_resolve_selection_pair_root():
     
     dp = DataProcessor()
 
@@ -875,11 +875,11 @@ def test_resolve_selection_pair():
         ['Age', 'Gender'],
     ]
 
-    result1 = Selector.resolve_pair(test_df, dp.pair(r'[123]'))
+    result1 = Selector.resolve_pair(test_df, dp.select_pair_by_root(r'[123]'))
 
     assert expected1 == result1
 
-    result2 = Selector.resolve_pair(test_df, dp.pair(r'[123]' , prefix = 'Another', suffix = 'Column'))
+    result2 = Selector.resolve_pair(test_df, dp.select_pair_by_root(r'[123]' , prefix = 'Another', suffix = 'Column'))
 
     assert expected2 == result2
 
@@ -887,17 +887,42 @@ def test_resolve_selection_pair():
 
     assert expected3 == result3
 
-    with pytest.raises(TypeError):
-        result4 = Selector.resolve_pair(test_df, 0) # type: ignore
+def test_resolve_selection_pair_match():
+    
+    dp = DataProcessor()
 
-    with pytest.raises(ValueError):
-        result5 = Selector.resolve_pair(test_df, [['Test1', 'Test2', 'Test3'], ['Test1', 'Test2', 'Test3']])
+    test_df = pd.DataFrame({
+        'Age': [1, 2, 3],
+        'Gender': [4, 5, 6],
+        'InviteSegment_Group1': [7, 8, 9],
+        'InviteSegment_Group2': [10, 11, 12],
+        'Group_Column': [13, 14, 15],
+        'Another_1_Column': [16, 17, 18],
+        'Another_2_Column': [19, 20, 21],
+        'Another_3_Column': [22, 23, 24],
+        'Another_4_Column': [25, 26, 27],
+        'Another_5_Column': [28, 29, 30],
+        'Another_Test_Column': [31, 32, 33],
+        'Another_Test': [34, 35, 36],
+    })
 
-    with pytest.raises(TypeError):
-        result6 = Selector.resolve_pair(test_df, [['Test1', 3], ['Test1', 'Test3']]) # type: ignore
+    expected1 = [
+        ['InviteSegment_Group1', 'Another_1_Column'], 
+        ['InviteSegment_Group2', 'Another_2_Column'],
+    ]
+
+    expected2 = []
+
+    result1 = Selector.resolve_pair(test_df, dp.select_pair_by_match(r'[123]'))
+
+    assert expected1 == result1
+
+    result2 = Selector.resolve_pair(test_df, dp.select_pair_by_match(r'[123]' , prefix = 'Another', suffix = 'Column'))
+
+    assert expected2 == result2
 
 
-def test_resolve_selection_group_split():
+def test_resolve_selection_group_root():
     
     dp = DataProcessor()
 
@@ -945,11 +970,11 @@ def test_resolve_selection_group_split():
         ['Some3_start', 'Some3_mid', 'Some3_end']
     ]
 
-    result1 = Selector.resolve_group(test_df, dp.group_split(r'[123]'))
+    result1 = Selector.resolve_group(test_df, dp.select_group_by_root(r'[123]'))
 
     assert expected1 == result1
 
-    result2 = Selector.resolve_group(test_df, dp.group_split(r'_(start|mid|end)'))
+    result2 = Selector.resolve_group(test_df, dp.select_group_by_root(r'_(start|mid|end)'))
 
     assert expected2 == result2
 
@@ -992,6 +1017,10 @@ def test_resolve_selection_group_error():
     with pytest.raises(TypeError):
         result2 = Selector.resolve_group(test_df, [['Test1', 3], ['Test1', 'Test3']]) # type: ignore
 
+    with pytest.raises(ValueError):
+        result4 = Selector.resolve_pair(test_df, [['Test1', 'Test2', 'Test3'], ['Test1', 'Test2', 'Test3']])
+
+
 def test_resolve_selection_group_match():
     
     dp = DataProcessor()
@@ -1033,11 +1062,11 @@ def test_resolve_selection_group_match():
         ['Some1_end', 'Some2_end', 'Some3_end'],
     ]
 
-    result1 = Selector.resolve_group(test_df, dp.group_match(r'[123]'))
+    result1 = Selector.resolve_group(test_df, dp.select_group_by_match(r'[123]'))
     
     assert expected1 == result1
 
-    result2 = Selector.resolve_group(test_df, dp.group_match(r'_(start|mid|end)'))
+    result2 = Selector.resolve_group(test_df, dp.select_group_by_match(r'_(start|mid|end)'))
 
     assert expected2 == result2
 
@@ -1106,8 +1135,9 @@ test_dummy_to_categorical_nan()
 test_dummy_to_categorical_nan_part()
 test_dummy_to_categorical_error()
 
-# Test resolving pair selection
-test_resolve_selection_pair()
-test_resolve_selection_group_split()
+# Test resolving pair/group selection
+test_resolve_selection_pair_root()
+test_resolve_selection_pair_match()
+test_resolve_selection_group_root()
 test_resolve_selection_group_match()
 test_resolve_selection_group_error()
