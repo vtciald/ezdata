@@ -72,14 +72,13 @@ def test_one_sample_proportion(
 
     Args:
         df (pd.DataFrame): The DataFrame.
-        method (str): The test method. Supported choices: 't', 'sign'.
+        method (str): The test method. Supported choices: 'exact'.
         null (float, optional): The value representing the central tendency of the null hypothesis. Defaults to 0.5.
         alpha (float, optional): The desired alpha. Defaults to 0.05.
         cols (Sequence[str] | str | ColumnSelector | None, optional): Column(s) to include. If None, includes all columns. Defaults to None.
 
     Notes:
-        * 't': One-sample t-test (parametric). Difference between column and null.
-        * 'sign': One-sample sign test (non-parametric). Difference (ignoring magnitude) between column and null.
+        * 'exact': One-sample exact binomial test (non-parametric). Difference between column and null.
     
     Raises:
         ValueError: If string argument for `method` isn't recognized.
@@ -88,8 +87,7 @@ def test_one_sample_proportion(
         pd.DataFrame: A DataFrame with indices matching the labels in `cols`.
             Columns include:
             - 'test_statistic': A statistic based on the `method` used.
-                * T statistic when `method = 't'`.
-                * The estimate of the proportion of successes. when `method = 'sign'`.
+                * The estimate of the proportion of successes when `method = 'exact'`.
             - 'p_value': The calculated p value.
             - 'stat_sig': A boolean flag indicating statistical significance.
             - 'count': The number of valid non-nan observations.
@@ -97,11 +95,8 @@ def test_one_sample_proportion(
 
     cols = Selector.resolve(df, cols)
 
-    if method == 't':
-        result = _one_sample_t(df, cols, null, alpha)
-    
-    elif method == 'sign':
-        result = _one_sample_sign(df, cols, null, alpha, proportion = True)
+    if method == 'exact':
+        result = _one_sample_binomial(df, cols, null, alpha)
 
     else:
         raise ValueError(f'One-sample test method \'{method}\' is not recognized.')
@@ -870,16 +865,71 @@ def _one_sample_sign(
     cols: list[str],
     null: float,
     alpha: float,
-    proportion: bool = False,
 ) -> pd.DataFrame:
     """Run a one-sample sign test.
 
     Args:
         df (pd.DataFrame): The DataFrame.
         cols (list[str]): The columns on which to operate.
+        null (float): The population median under the null hypothesis.
+        alpha (float): The desired alpha level.
+
+    Returns:
+        pd.DataFrame: A DataFrame with indices matching the labels in `cols`.
+            Columns include:
+            - 'test_statistic': The estimate of the proportion positive differences.
+            - 'p_value': The calculated p value.
+            - 'stat_sig': A boolean flag indicating statistical significance.
+            - 'count': The number of valid non-nan observations.
+    """
+
+    test_statistics = []
+    p_values = []
+    counts = []
+
+    for col in cols:
+        data = df[col].dropna()
+        diffs = data - null
+        positives = np.sum(diffs > 0)
+        total_trials = np.sum(diffs != 0)
+
+        if total_trials == 0:
+            test_statistics.append(np.nan)
+            p_values.append(np.nan)
+            counts.append(len(data))
+        
+        else:
+            result = binomtest(
+                positives,
+                total_trials,
+                p = 0.5
+            )
+
+            test_statistics.append(result.statistic)
+            p_values.append(result.pvalue)
+            counts.append(len(data))
+    
+    return _create_test_frame(
+        cols,
+        np.array(test_statistics),
+        np.array(p_values),
+        np.array(counts),
+        alpha,
+    )
+
+def _one_sample_binomial(
+    df: pd.DataFrame,
+    cols: list[str],
+    null: float,
+    alpha: float,
+) -> pd.DataFrame:
+    """Run a one-sample binomial test.
+
+    Args:
+        df (pd.DataFrame): The DataFrame.
+        cols (list[str]): The columns on which to operate.
         null (float, optional): The population median under the null hypothesis. Defaults to 0.
         alpha (float): The desired alpha level.
-        proportion (bool): Whether the test is on a proportion or continuous. Defaults to False.
 
     Returns:
         pd.DataFrame: A DataFrame with indices matching the labels in `cols`.
@@ -896,9 +946,8 @@ def _one_sample_sign(
 
     for col in cols:
         data = df[col].dropna()
-        diffs = data - null
-        positives = np.sum(diffs > 0)
-        total_trials = len(data) if proportion else np.sum(diffs != 0)
+        successes = np.sum(data)
+        total_trials = len(data)
 
         if total_trials == 0:
             test_statistics.append(np.nan)
@@ -907,9 +956,9 @@ def _one_sample_sign(
         
         else:
             result = binomtest(
-                positives,
+                successes,
                 total_trials,
-                p = null if proportion else 0.5
+                p = null,
             )
 
             test_statistics.append(result.statistic)
@@ -1016,13 +1065,11 @@ def _create_test_frame(
 
     return result  
 
-# TODO: Remove one-sample proportion t. add exact (binomial) for smaller sample sizes and chi-square goodness of fit for larger sample sizes
+# TODO: Remove one-sample proportion t. add exact (binomial)
 
 # TODO: Add other test methods...
 # test_regression(): linear, logistic
 # Add 'bootstrap' method to tests
-
-# TODO: Update "Notes:" in docstrings for each test to add reminders of when/why to use each (e.g., exact mcnemars for < 25, etc.)
 
 # TODO: Update column selection resolution to ensure the default (when target_cols = None) doesn't include the group_col
 

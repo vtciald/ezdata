@@ -85,7 +85,7 @@ def test_one_sample_sign():
 
     pd.testing.assert_frame_equal(result, expected)
 
-def test_one_sample_sign_proportion():
+def test_one_sample_exact_proportion():
 
     dp = DataProcessor()
 
@@ -105,7 +105,7 @@ def test_one_sample_sign_proportion():
         index = ['Col1', 'Col2', 'Col3'],
     )
 
-    result = dp.test_one_sample_proportion(test_df, 'sign')
+    result = dp.test_one_sample_proportion(test_df, 'exact')
 
     result['test_statistic'] = result['test_statistic'].round(4)
     result['p_value'] = result['p_value'].round(4)
@@ -132,7 +132,7 @@ def test_independent_proportion_chi_sq():
         index = ['Col2', 'Col3'],
     )
 
-    result = dp.test_independent_proportion(test_df, 'chi_squared', group_col = 'Col1', target_cols = ['Col2', 'Col3'])
+    result = dp.test_independent_proportion(test_df, 'chi_square', group_col = 'Col1', target_cols = ['Col2', 'Col3'])
 
     result['test_statistic'] = result['test_statistic'].round(4)
     result['p_value'] = result['p_value'].round(4)
@@ -159,7 +159,7 @@ def test_independent_proportion_chi_sq_dummy_to_categorical():
         index = ['Col3'],
     )
 
-    result = dp.test_independent_proportion(test_df, 'chi_squared', group_col = ['Col1', 'Col2'], target_cols = 'Col3')
+    result = dp.test_independent_proportion(test_df, 'chi_square', group_col = ['Col1', 'Col2'], target_cols = 'Col3')
 
     result['test_statistic'] = result['test_statistic'].round(4)
     result['p_value'] = result['p_value'].round(4)
@@ -584,7 +584,7 @@ def test_dependent_proportion_cochran():
 test_one_sample_t()
 test_one_sample_wilcoxon()
 test_one_sample_sign()
-test_one_sample_sign_proportion()
+test_one_sample_exact_proportion()
 
 # Test independent methods
 test_independent_proportion_chi_sq()
