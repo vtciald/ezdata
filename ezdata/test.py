@@ -24,6 +24,11 @@ def test_one_sample(
         alpha (float, optional): The desired alpha. Defaults to 0.05.
         cols (Sequence[str] | str | ColumnSelector | None, optional): Column(s) to include. If None, includes all columns. Defaults to None.
 
+    Notes:
+        * 't': One-sample t-test (parametric). Difference between column and null.
+        * 'wilcoxon': One-sample Wilcoxon signed-rank test (non-parametric). Difference between column and null.
+        * 'sign': One-sample sign test (non-parametric). Difference (ignoring magnitude) between column and null.
+    
     Raises:
         ValueError: If string argument for `method` isn't recognized.
 
@@ -72,6 +77,10 @@ def test_one_sample_proportion(
         alpha (float, optional): The desired alpha. Defaults to 0.05.
         cols (Sequence[str] | str | ColumnSelector | None, optional): Column(s) to include. If None, includes all columns. Defaults to None.
 
+    Notes:
+        * 't': One-sample t-test (parametric). Difference between column and null.
+        * 'sign': One-sample sign test (non-parametric). Difference (ignoring magnitude) between column and null.
+    
     Raises:
         ValueError: If string argument for `method` isn't recognized.
 
@@ -111,11 +120,15 @@ def test_independent_proportion(
 
     Args:
         df (pd.DataFrame): The DataFrame.
-        method (str): The test method. Supported choices: 'chi_squared', 'fisher_exact'.
+        method (str): The test method. Supported choices: 'fisher_exact', 'chi_square'.
         group_col (Sequence[str] | str | ColumnSelector): Column(s) to use as the grouping variable. If one-hot encoded, will be converted to mutually exclusive categories.
         target_cols (Sequence[str] | str | ColumnSelector | None, optional): Column(s) to evaluate for differences on the basis of `group_col`. If None, includes all columns. Defaults to None.
         alpha (float, optional): The desired alpha. Defaults to 0.05.
 
+    Notes:
+        * 'fisher_exact': 'fisher_exact': Fisher's exact test (non-parametric). Difference between 2 groups (recommended when sample size < 20 and/or any expected cell count < 5).
+        * Chi-square: Chi-square test of independence (non-parametric). Difference among 2+ groups (recommended when sample size >= 20 and all expected cell counts > 5).
+    
     Raises:
         ValueError: If string argument for `method` isn't recognized.
 
@@ -133,7 +146,7 @@ def test_independent_proportion(
     df, group_col = prep.dummy_to_categorical(df, cols = group_col)
     target_cols = Selector.resolve(df, target_cols)
 
-    if method == 'chi_squared':
+    if method == 'chi_square':
         result = _independent_chi_sq(df, group_col, target_cols, alpha)
     
     elif method == 'fisher_exact':
@@ -161,6 +174,12 @@ def test_independent(
         target_cols (Sequence[str] | str | ColumnSelector | None, optional): Column(s) to evaluate for differences on the basis of `group_col`. If None, includes all columns. Defaults to None.
         alpha (float, optional): The desired alpha. Defaults to 0.05.
 
+    Notes:
+        * 't': Independent-samples t-test (parametric). Difference between 2 groups.
+        * 'mann_whitney': Mann-Whitney U test (non-parametric). Difference between 2 groups.
+        * 'anova': One-way ANOVA (parametric). Difference among 2+ groups.
+        * 'kruskal_wallis': Kruskal-Wallis H test (non-parametric). Difference among 2+ groups.
+    
     Raises:
         ValueError: If string argument for `method` isn't recognized.
 
@@ -212,8 +231,10 @@ def test_dependent(
         target_cols (Sequence[str] | Sequence[Sequence[str]] | ColumnSelector | PairSelector | None, optional): Column(s) to evaluate for differences on the basis of `group_col`. If None, includes all columns. Defaults to None.
         alpha (float, optional): The desired alpha. Defaults to 0.05.
 
-    Note:
-        If `target_cols` is a list or set of strings (or ColumnSelector), all combinations of columns will be tested.
+    Notes:
+        * 't': Paired-samples t-test (parametric). Difference between 2 columns.
+        * 'wilcoxon': Wilcoxon signed-rank test (non-parametric). Difference between 2 columns.
+        * If `target_cols` is a list or set of strings (or ColumnSelector), all combinations of columns will be tested.
 
     Raises:
         ValueError: If string argument for `method` isn't recognized.
@@ -238,7 +259,7 @@ def test_dependent(
         result = _dependent_wilcoxon(df, target_cols, alpha)
 
     else:
-        raise ValueError(f'Independent test method \'{method}\' is not recognized.')
+        raise ValueError(f'Dependent test method \'{method}\' is not recognized.')
 
     return result
 
@@ -257,8 +278,11 @@ def test_dependent_proportion(
         target_cols (Sequence[str] | Sequence[Sequence[str]] | ColumnSelector | PairSelector | None, optional): Column(s) to evaluate for differences on the basis of `group_col`. If None, includes all columns. Defaults to None.
         alpha (float, optional): The desired alpha. Defaults to 0.05.
 
-    Note:
-        If `target_cols` is a list or set of strings (or ColumnSelector), all combinations of columns will be tested.
+    Notes:
+        * 'mcnemar_exact': McNemar's exact test (non-parametric). Difference between 2 columns (recommended when sample size < 25).
+        * 'mcnemar_asymptotic': McNemar's asymptotic test (non-parametric). Difference between 2 columns with continuity correction (recommended when sample size >= 25).
+        * 'cochran': Cochran's Q test (non-parametric). Difference among 2+ columns.
+        * If `target_cols` is a list or set of strings (or ColumnSelector), all combinations of columns will be tested.
 
     Raises:
         ValueError: If string argument for `method` isn't recognized.
@@ -289,7 +313,7 @@ def test_dependent_proportion(
         result = _dependent_cochran(df, target_cols, alpha)
 
     else:
-        raise ValueError(f'Independent test method \'{method}\' is not recognized.')
+        raise ValueError(f'Dependent test method \'{method}\' is not recognized.')
 
     return result
 
@@ -991,6 +1015,8 @@ def _create_test_frame(
     )
 
     return result  
+
+# TODO: Remove one-sample proportion t. add exact (binomial) for smaller sample sizes and chi-square goodness of fit for larger sample sizes
 
 # TODO: Add other test methods...
 # test_regression(): linear, logistic
