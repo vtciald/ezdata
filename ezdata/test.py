@@ -2,7 +2,7 @@ import numpy as np
 import pandas as pd
 from scipy.stats import ttest_rel, wilcoxon, kruskal, mannwhitneyu, f_oneway, ttest_ind, chi2_contingency, fisher_exact, ttest_1samp, binomtest
 from . import prep
-from .selector import Selector, ColumnSelector, PairSelector
+from .selector import Selector, ColumnSelector, PairSelector, GroupSelector
 from collections.abc import Sequence
 from itertools import combinations
 from statsmodels.stats.contingency_tables import mcnemar, cochrans_q
@@ -78,7 +78,9 @@ def test_one_sample_proportion(
     Returns:
         pd.DataFrame: A DataFrame with indices matching the labels in `cols`.
             Columns include:
-            - 'prop_diff': The absolute difference between observed and null proportions.
+            - 'test_statistic': A statistic based on the `method` used.
+                * T statistic when `method = 't'`.
+                * The estimate of the proportion of successes. when `method = 'sign'`.
             - 'p_value': The calculated p value.
             - 'stat_sig': A boolean flag indicating statistical significance.
             - 'count': The number of valid non-nan observations.
@@ -244,7 +246,7 @@ def test_dependent_proportion(
     df: pd.DataFrame,
     method: str,
     *,
-    target_cols: Sequence[str] | Sequence[Sequence[str]] | ColumnSelector | PairSelector | None = None,
+    target_cols: Sequence[str] | Sequence[Sequence[str]] | ColumnSelector | PairSelector | GroupSelector | None = None,
     alpha: float = 0.05,
 ) -> pd.DataFrame:
     """Run an dependent-samples test.
@@ -272,19 +274,18 @@ def test_dependent_proportion(
             - 'count': The number of valid non-nan observations.
     """
 
-    
+    if method in {'mcnemar_exact', 'mcnemar_asymptotic'}:
+        exact = method == 'mcnemar_exact'
 
-    if method == 'mcnemar_exact':
-        target_cols = Selector.resolve_pair(df, target_cols)
-        result = _dependent_mcnemar(df, target_cols, alpha, exact = True)
+        if isinstance(target_cols, GroupSelector):
+            raise TypeError(f'Mcnemar\'s test requires pairs of columns but a GroupSelector was given.')
 
-    elif method == 'mcnemar_asymptotic':
-        target_cols = Selector.resolve_pair(df, target_cols)
-        result = _dependent_mcnemar(df, target_cols, alpha, exact = False)
+        else:
+            target_cols = Selector.resolve_pair(df, target_cols)
+            result = _dependent_mcnemar(df, target_cols, alpha, exact = exact)
     
     elif method == 'cochran':
-        raise NotImplementedError(f'Method \'{method}\' not yet implemented.')
-        target_cols = Selector.resolve_pair(df, target_cols) # TODO: groups of cols?? or just list of cols?
+        target_cols = Selector.resolve_group(df, target_cols)
         result = _dependent_cochran(df, target_cols, alpha)
 
     else:
@@ -294,17 +295,15 @@ def test_dependent_proportion(
 
 def _dependent_cochran(
    df: pd.DataFrame,
-   column_pairs: list[list[str]],
+   column_groups: list[list[str]],
    alpha: float,
-   exact: bool,
 ) -> pd.DataFrame:
     """Run a Cochran's Q test.
 
     Args:
         df (pd.DataFrame): The DataFrame.
-        column_pairs (list[tuple[str, str]]): Pairs of column labels to compare.
+        column_groups (list[tuple[str, str]]): Groups of column labels to test.
         alpha (float): The desired alpha level.
-        exact (bool): If true, the exact binomial distribution will be used. Otherwise, the chi2 approximation will be used.
 
     Returns:
         pd.DataFrame: A DataFrame with indices matching the labels in `target_cols`.
@@ -315,33 +314,26 @@ def _dependent_cochran(
             - 'count': The number of valid non-nan observations.
     """
     
-    index_tuples = []
+    index_strings = []
     counts = []
     test_statistics = []
     p_values = []
 
-    for col0, col1 in column_pairs:
-        table = pd.crosstab(df[col0], df[col1])
-        count = (df[col0].notna() & df[col1].notna()).sum()
-        result = mcnemar(table, exact)
+    for col_group in column_groups:
+        non_na = df[col_group].notna().all(axis = 1)
+        count = non_na.sum()
+        result = cochrans_q(df.loc[non_na, col_group].values)
 
-        # group_0, group_1
-        index_tuples.append((col0, col1))
-        counts.append(count)
-        test_statistics.append(result.statistic) # type: ignore
-        p_values.append(result.pvalue) # type: ignore
-
-        # group_1, group_0 (so multi-index can be accessed both ways)
-        index_tuples.append((col1, col0))      
+        index_strings.append(str(col_group))
         counts.append(count)
         test_statistics.append(result.statistic) # type: ignore
         p_values.append(result.pvalue) # type: ignore
 
     return _create_test_frame(
-        index_tuples,
+        index_strings,
         np.array(test_statistics),
         np.array(p_values),
-        np.array(counts), # type: ignore
+        np.array(counts), 
         alpha,
     )
 
@@ -394,7 +386,7 @@ def _dependent_mcnemar(
         index_tuples,
         np.array(test_statistics),
         np.array(p_values),
-        np.array(counts), # type: ignore
+        np.array(counts),
         alpha,
     )
 
@@ -1000,10 +992,7 @@ def _create_test_frame(
 
     return result  
 
-# TODO: Differentiate a pair match vs pair split Selector / method??
-
 # TODO: Add other test methods...
-# test_dependent_proportion(): mcnemar asymptotic, mcnemar exact binomial, cochran's Q
 # test_regression(): linear, logistic
 # Add 'bootstrap' method to tests
 

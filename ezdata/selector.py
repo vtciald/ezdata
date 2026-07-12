@@ -26,7 +26,7 @@ class Selector(ABC):
 
         Args:
             df (pd.DataFrame): The DataFrame.
-            selection (Sequence[str] | Sequence[Sequence[str]] | ColumnSelector | PairRootSelector | None): Sequence of string column labels, sequence of sequences containing string column labels, or an appropriate Selector.
+            selection (Sequence[str] | Sequence[Sequence[str]] | ColumnSelector | PairSelector | None): Sequence of string column labels, sequence of sequences containing string column labels, or an appropriate Selector.
 
         Returns:
             list[list[str]]: A list of lists containing string column labels.
@@ -66,13 +66,13 @@ class Selector(ABC):
     @staticmethod
     def resolve_group(
         df: pd.DataFrame,
-        selection:  Sequence[Sequence[str]] | 'PairSelector' | 'GroupSelector',
+        selection:  Sequence[str] | Sequence[Sequence[str]] | 'PairSelector' | 'GroupSelector' | 'ColumnSelector' | None,
     ) -> list[list[str]]:
         """Resolve column-group selection.
 
         Args:
             df (pd.DataFrame): The DataFrame.
-            selection (Sequence[Sequence[str]] | PairRootSelector | GroupRootSelector): Sequence of sequences containing string column labels or an appropriate Selector.
+            selection (Sequence[str] | Sequence[Sequence[str]] | PairSelector | GroupSelector | None): Sequence of sequences containing string column labels or an appropriate Selector.
 
         Returns:
             list[list[str]]: A list of lists containing string column labels.
@@ -83,17 +83,23 @@ class Selector(ABC):
         
         elif isinstance(selection, GroupSelector):
             return selection(df)
+        
+        elif isinstance(selection, ColumnSelector):
+            cols = selection(df)
+            return [cols]
     
         elif isinstance(selection, Sequence) and not isinstance(selection, str):
             cols, all_inner_len_2 = Selector._standardize_sequence(selection)
 
             if all_inner_len_2 is None: # None effectively indicates inner type is str
-                raise TypeError(
-                    f'Invalid argument for column-group selection: \'{selection}\'.'
-                )
+                return cast(list[list[str]], [cols])
 
             else:
                 return cols
+        
+        elif selection is None:
+            cols = df.columns.tolist()
+            return [cols]
 
         else:
             raise TypeError(
@@ -463,7 +469,7 @@ class PairSelector(Selector):
         suffix: str | None = None,
         pattern: re.Pattern | str | None = None,
     ) -> None:
-        """Initialize a PairRootSelector instance.
+        """Initialize a PairSelector instance.
 
         Selection parameters (e.g., `labels`, `prefix`, etc.) are used in conjunction with one another, taking the intersection of matching columns. In other words, only columns matching all selection criteria will be selected.
 

@@ -552,6 +552,34 @@ def test_dependent_proportion_mcnemar_asymptotic():
     
     pd.testing.assert_frame_equal(result, expected)
 
+def test_dependent_proportion_cochran():
+
+    dp = DataProcessor()
+
+    test_df = pd.DataFrame({
+        'Col1_pre': [np.nan, 1, 1, 1, 1, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 1, 1, 1, 0],
+        'Col1_post': [1, 0, 0, 0, 1, 0, 1, 0, 1, 0, 0, 1, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0],
+        'Col2_pre': [1, 1, 1, 1, 1, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 1, 1, 1, 0],
+        'Col2_post': [0, 0, 0, 0, 1, 0, 1, 0, 1, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+    })
+
+    expected = pd.DataFrame(
+        {
+            'test_statistic': [4.5714, 8.0667],
+            'p_value': [0.0325, 0.0045],
+            'stat_sig': [True, True],
+            'count': [31, 32],
+        },
+        index = ["['Col1_pre', 'Col1_post']", "['Col2_pre', 'Col2_post']"]
+    )
+
+    result = dp.test_dependent_proportion(test_df, 'cochran', target_cols = dp.select_pair_by_root(r'(pre|post)'))
+
+    result['test_statistic'] = result['test_statistic'].round(4)
+    result['p_value'] = result['p_value'].round(4)
+    
+    pd.testing.assert_frame_equal(result, expected)
+
 # Test one sample methods
 test_one_sample_t()
 test_one_sample_wilcoxon()
@@ -574,3 +602,4 @@ test_dependent_t_pair()
 test_dependent_wilcoxon()
 test_dependent_proportion_mcnemar_exact()
 test_dependent_proportion_mcnemar_asymptotic()
+test_dependent_proportion_cochran()
