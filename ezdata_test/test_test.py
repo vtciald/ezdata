@@ -132,7 +132,7 @@ def test_independent_proportion_chi_sq():
         index = ['Col2', 'Col3'],
     )
 
-    result = dp.test_independent_proportion(test_df, 'chi_square', group_col = 'Col1', target_cols = ['Col2', 'Col3'])
+    result = dp.test_independent_proportion(test_df, 'chi_square', iv = 'Col1', dv = ['Col2', 'Col3'])
 
     result['test_statistic'] = result['test_statistic'].round(4)
     result['p_value'] = result['p_value'].round(4)
@@ -159,7 +159,7 @@ def test_independent_proportion_chi_sq_dummy_to_categorical():
         index = ['Col3'],
     )
 
-    result = dp.test_independent_proportion(test_df, 'chi_square', group_col = ['Col1', 'Col2'], target_cols = 'Col3')
+    result = dp.test_independent_proportion(test_df, 'chi_square', iv = ['Col1', 'Col2'], dv = 'Col3')
 
     result['test_statistic'] = result['test_statistic'].round(4)
     result['p_value'] = result['p_value'].round(4)
@@ -185,7 +185,7 @@ def test_independent_proportion_fisher_exact():
         index = ['Col2'],
     )
 
-    result = dp.test_independent_proportion(test_df, 'fisher_exact', group_col = 'Col1', target_cols = 'Col2')
+    result = dp.test_independent_proportion(test_df, 'fisher_exact', iv = 'Col1', dv = 'Col2')
 
     result['test_statistic'] = result['test_statistic'].round(4)
     result['p_value'] = result['p_value'].round(4)
@@ -213,7 +213,7 @@ def test_independent_proportion_fisher_exact_error():
     )
 
     with pytest.raises(ValueError):
-        result = dp.test_independent_proportion(test_df, 'fisher_exact', group_col = 'Col1', target_cols = 'Col3')
+        result = dp.test_independent_proportion(test_df, 'fisher_exact', iv = 'Col1', dv = 'Col3')
 
 def test_independent_anova():
 
@@ -235,7 +235,7 @@ def test_independent_anova():
         index = ['Col1', 'Col2'],
     )
 
-    result = dp.test_independent(test_df, 'anova', target_cols = ['Col1', 'Col2'], group_col = 'Group')
+    result = dp.test_independent(test_df, 'anova', dv = ['Col1', 'Col2'], iv = 'Group')
 
     result['test_statistic'] = result['test_statistic'].round(4)
     result['p_value'] = result['p_value'].round(4)
@@ -267,7 +267,7 @@ def test_independent_t():
             ('Col2', 'B', 'C'),
             ('Col2', 'C', 'B'),
         ],
-        names = ['target_col', 'group_0', 'group_1'],
+        names = ['dv', 'group_0', 'group_1'],
     )
 
     expected = pd.DataFrame(
@@ -280,7 +280,7 @@ def test_independent_t():
         index = multi_index,
     )
 
-    result = dp.test_independent(test_df, 't', target_cols = ['Col1', 'Col2'], group_col = 'Group')
+    result = dp.test_independent(test_df, 't', dv = ['Col1', 'Col2'], iv = 'Group')
     
     result['test_statistic'] = result['test_statistic'].round(4)
     result['p_value'] = result['p_value'].round(4)
@@ -312,7 +312,7 @@ def test_independent_mann_whitney():
             ('Col2', 'B', 'C'),
             ('Col2', 'C', 'B'),
         ],
-        names = ['target_col', 'group_0', 'group_1'],
+        names = ['dv', 'group_0', 'group_1'],
     )
 
     expected = pd.DataFrame(
@@ -325,7 +325,7 @@ def test_independent_mann_whitney():
         index = multi_index,
     )
 
-    result = dp.test_independent(test_df, 'mann_whitney', target_cols = ['Col1', 'Col2'], group_col = 'Group')
+    result = dp.test_independent(test_df, 'mann_whitney', dv = ['Col1', 'Col2'], iv = 'Group')
     
     result['test_statistic'] = result['test_statistic'].round(4)
     result['p_value'] = result['p_value'].round(4)
@@ -352,7 +352,7 @@ def test_independent_kruskal_wallis():
         index = ['Col1', 'Col2'],
     )
 
-    result = dp.test_independent(test_df, 'kruskal_wallis', target_cols = ['Col1', 'Col2'], group_col = 'Group')
+    result = dp.test_independent(test_df, 'kruskal_wallis', dv = ['Col1', 'Col2'], iv = 'Group')
 
     result['test_statistic'] = result['test_statistic'].round(4)
     result['p_value'] = result['p_value'].round(4)
@@ -391,7 +391,7 @@ def test_dependent_t():
         index = multi_index,
     )
 
-    result = dp.test_dependent(test_df, 't', target_cols = ['Col_pre', 'Col_post', 'Col3'])
+    result = dp.test_dependent(test_df, 't', dv = ['Col_pre', 'Col_post', 'Col3'])
 
     result['test_statistic'] = result['test_statistic'].round(4)
     result['p_value'] = result['p_value'].round(4)
@@ -431,7 +431,7 @@ def test_dependent_t_pair():
         index = multi_index,
     )
 
-    result = dp.test_dependent(test_df, 't', target_cols = dp.select_pair_by_root(r'(pre|post)', prefix = 'Col'))
+    result = dp.test_dependent(test_df, 't', dv = dp.select_pair_by_root(r'(pre|post)', prefix = 'Col'))
 
     result['test_statistic'] = result['test_statistic'].round(4)
     result['p_value'] = result['p_value'].round(4)
@@ -469,7 +469,7 @@ def test_dependent_wilcoxon():
         index = multi_index,
     )
 
-    result = dp.test_dependent(test_df, 'wilcoxon', target_cols = dp.select_pair_by_root(r'(pre|post)'))
+    result = dp.test_dependent(test_df, 'wilcoxon', dv = dp.select_pair_by_root(r'(pre|post)'))
 
     result['test_statistic'] = result['test_statistic'].round(4)
     result['p_value'] = result['p_value'].round(4)
@@ -507,7 +507,7 @@ def test_dependent_proportion_mcnemar_exact():
         index = multi_index,
     )
 
-    result = dp.test_dependent_proportion(test_df, 'mcnemar_exact', target_cols = dp.select_pair_by_root(r'(pre|post)'))
+    result = dp.test_dependent_proportion(test_df, 'mcnemar_exact', dv = dp.select_pair_by_root(r'(pre|post)'))
 
     result['test_statistic'] = result['test_statistic'].round(4)
     result['p_value'] = result['p_value'].round(4)
@@ -545,7 +545,7 @@ def test_dependent_proportion_mcnemar_asymptotic():
         index = multi_index,
     )
 
-    result = dp.test_dependent_proportion(test_df, 'mcnemar_asymptotic', target_cols = dp.select_pair_by_root(r'(pre|post)'))
+    result = dp.test_dependent_proportion(test_df, 'mcnemar_asymptotic', dv = dp.select_pair_by_root(r'(pre|post)'))
 
     result['test_statistic'] = result['test_statistic'].round(4)
     result['p_value'] = result['p_value'].round(4)
@@ -573,7 +573,83 @@ def test_dependent_proportion_cochran():
         index = ["['Col1_pre', 'Col1_post']", "['Col2_pre', 'Col2_post']"]
     )
 
-    result = dp.test_dependent_proportion(test_df, 'cochran', target_cols = dp.select_pair_by_root(r'(pre|post)'))
+    result = dp.test_dependent_proportion(test_df, 'cochran', dv = dp.select_pair_by_root(r'(pre|post)'))
+
+    result['test_statistic'] = result['test_statistic'].round(4)
+    result['p_value'] = result['p_value'].round(4)
+    
+    pd.testing.assert_frame_equal(result, expected)
+
+def test_regression_linear():
+
+    dp = DataProcessor()
+
+    test_df = pd.DataFrame({
+        'iv1': [np.nan, 5.2, 10, 7.8, 32, 2, 3, 13.1, 15.4, 54, 17.0, 2, 13, 1.4, 3, 16, 23.1, 57.4, 32.0, 3.1, 7.5, 4.2, 8.9, 6.4, 9.1, 1.8],
+        'iv2': [0, 1, 0, 1, 1, 0, 0, 1, 1, 0, 1, 0, 1, 1, 0, 0, 1, 0, 1, 0, 0, 1, 1, 0, 1, 0],
+        'dv1': [14.2, 18.5, 12.1, 24.3, 21.0, 15.4, 19.8, 29.1, 33.5, 22.0, 31.4, 24.9, 52.1, 9.4, 44.5, 41.2, 36.8, 74.2, 48.0, 11.1, 16.5, 15.2, 22.9, 14.4, 21.1, 8.8],
+        'dv2': [1, 0, 1, 0, 0, 1, 1, 0, 0, 1, 0, 1, 0, 0, 1, 1, 0, 1, 0, 1, 1, 0, np.nan, 1, 0, 1], 
+    })
+
+    multi_index = pd.MultiIndex.from_tuples(
+        [
+            ('dv1', 'iv1'),
+            ('dv1', 'iv2'),
+            ('dv2', 'iv1'),
+            ('dv2', 'iv2'),
+        ],
+        names = ['dv', 'iv'],
+    )
+
+    expected = pd.DataFrame(
+        {
+            'test_statistic': [0.6068, 2.4375, 0.0000, -1.0000],
+            'p_value': [0.0023, 0.6470, 0.0020, 0.0000],
+            'stat_sig': [True, False, True, True],
+            'count': [25, 25, 24, 24],
+        },
+        index = multi_index,
+    )
+
+    result = dp.test_regression(test_df, 'linear', dv = ['dv1', 'dv2'], iv = ['iv1', 'iv2'])
+
+    result['test_statistic'] = result['test_statistic'].round(4)
+    result['p_value'] = result['p_value'].round(4)
+    
+    pd.testing.assert_frame_equal(result, expected)
+
+def test_regression_logistic():
+
+    dp = DataProcessor()
+
+    test_df = pd.DataFrame({
+        'iv1': [np.nan, 5.2, 10, 7.8, 32, 2, 3, 13.1, 15.4, 54, 17.0, 2, 13, 1.4, 3, 16, 23.1, 57.4, 32.0, 3.1, 7.5, 4.2, 8.9, 6.4, 9.1, 1.8],
+        'iv2': [0, 1, 0, 1, 1, 0, 0, 1, 1, 0, 1, 0, 1, 1, 0, 0, 1, 0, 1, 0, 0, 1, 1, 0, 1, 0],
+        'dv1': [0, 1, 1, 0, 1, 0, 0, 1, 0, 1, 1, 0, 1, 0, 1, 1, 1, 1, 1, 1, 1, 0, np.nan, 0, 0, 0],
+        'dv2': [0, 0, 0, 0, 1, 0, 0, 1, 0, 1, 1, 1, 1, 0, 1, 1, 1, 1, 0, 0, 1, 1, 1, 1, 0, 0],
+    })
+
+    multi_index = pd.MultiIndex.from_tuples(
+        [
+            ('dv1', 'iv1'),
+            ('dv1', 'iv2'),
+            ('dv2', 'iv1'),
+            ('dv2', 'iv2'),
+        ],
+        names = ['dv', 'iv'],
+    )
+
+    expected = pd.DataFrame(
+        {
+            'test_statistic': [0.2854, -1.6272, 0.0753, -0.4724],
+            'p_value': [0.0384, 0.2377, 0.1549, 0.6127],
+            'stat_sig': [True, False, False, False],
+            'count': [24, 24, 25, 25],
+        },
+        index = multi_index,
+    )
+
+    result = dp.test_regression(test_df, 'logistic', dv = ['dv1', 'dv2'], iv = ['iv1', 'iv2'])
 
     result['test_statistic'] = result['test_statistic'].round(4)
     result['p_value'] = result['p_value'].round(4)
@@ -603,3 +679,7 @@ test_dependent_wilcoxon()
 test_dependent_proportion_mcnemar_exact()
 test_dependent_proportion_mcnemar_asymptotic()
 test_dependent_proportion_cochran()
+
+# Test regression
+test_regression_linear()
+test_regression_logistic()

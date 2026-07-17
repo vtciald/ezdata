@@ -6,6 +6,7 @@ from .selector import Selector, ColumnSelector, PairSelector, GroupSelector
 from collections.abc import Sequence
 from itertools import combinations
 from statsmodels.stats.contingency_tables import mcnemar, cochrans_q
+import statsmodels.api as sm
 
 def test_one_sample(
     df: pd.DataFrame,
@@ -37,7 +38,7 @@ def test_one_sample(
             Columns include:
             - 'test_statistic': A statistic based on the `method` used.
                 * T statistic when `method = 't'`.
-                * The estimate of the proportion of successes. when `method = 'sign'`.
+                * The estimate of the proportion of successes when `method = 'sign'`.
                 * The sum of the ranks of the differences above or below zero, whichever is smaller when `method = 'wilcoxon'.
             - 'p_value': The calculated p value.
             - 'stat_sig': A boolean flag indicating statistical significance.
@@ -107,8 +108,8 @@ def test_independent_proportion(
     df: pd.DataFrame,
     method: str,
     *,
-    group_col: Sequence[str] | str | ColumnSelector,
-    target_cols: Sequence[str] | str | ColumnSelector | None = None,
+    iv: Sequence[str] | str | ColumnSelector,
+    dv: Sequence[str] | str | ColumnSelector | None = None,
     alpha: float = 0.05,
 ) -> pd.DataFrame:
     """Run an independent-samples test.
@@ -116,8 +117,8 @@ def test_independent_proportion(
     Args:
         df (pd.DataFrame): The DataFrame.
         method (str): The test method. Supported choices: 'fisher_exact', 'chi_square'.
-        group_col (Sequence[str] | str | ColumnSelector): Column(s) to use as the grouping variable. If one-hot encoded, will be converted to mutually exclusive categories.
-        target_cols (Sequence[str] | str | ColumnSelector | None, optional): Column(s) to evaluate for differences on the basis of `group_col`. If None, includes all columns. Defaults to None.
+        iv (Sequence[str] | str | ColumnSelector): Column(s) to use as the grouping variable. If one-hot encoded, will be converted to mutually exclusive categories.
+        dv (Sequence[str] | str | ColumnSelector | None, optional): Column(s) to evaluate for differences on the basis of `iv`. If None, includes all columns. Defaults to None.
         alpha (float, optional): The desired alpha. Defaults to 0.05.
 
     Notes:
@@ -128,7 +129,7 @@ def test_independent_proportion(
         ValueError: If string argument for `method` isn't recognized.
 
     Returns:
-        pd.DataFrame: A DataFrame with indices matching the labels in `target_cols`.
+        pd.DataFrame: A DataFrame with indices matching the labels in `dv`.
             Columns include:
             - 'test_statistic': A statistic based on the `method` used.
                 * The Chi-squared test statistic when `method = 'chi_squared'`.
@@ -138,14 +139,14 @@ def test_independent_proportion(
             - 'count': The number of valid non-nan observations.
     """
 
-    df, group_col = prep.dummy_to_categorical(df, cols = group_col)
-    target_cols = Selector.resolve(df, target_cols)
+    df, iv = prep.dummy_to_categorical(df, cols = iv)
+    dv = Selector.resolve(df, dv)
 
     if method == 'chi_square':
-        result = _independent_chi_sq(df, group_col, target_cols, alpha)
+        result = _independent_chi_sq(df, iv, dv, alpha)
     
     elif method == 'fisher_exact':
-        result = _independent_fisher_exact(df, group_col, target_cols, alpha)
+        result = _independent_fisher_exact(df, iv, dv, alpha)
 
     else:
         raise ValueError(f'Independent test method \'{method}\' is not recognized.')
@@ -156,8 +157,8 @@ def test_independent(
     df: pd.DataFrame,
     method: str,
     *,
-    group_col: Sequence[str] | str | ColumnSelector,
-    target_cols: Sequence[str] | str | ColumnSelector | None = None,
+    iv: Sequence[str] | str | ColumnSelector,
+    dv: Sequence[str] | str | ColumnSelector | None = None,
     alpha: float = 0.05,
 ) -> pd.DataFrame:
     """Run an independent-samples test.
@@ -165,8 +166,8 @@ def test_independent(
     Args:
         df (pd.DataFrame): The DataFrame.
         method (str): The test method. Supported choices: 't', 'mann_whitney', 'anova', 'kruskal_wallis'.
-        group_col (Sequence[str] | str | ColumnSelector): Column(s) to use as the grouping variable. If one-hot encoded, will be converted to mutually exclusive categories.
-        target_cols (Sequence[str] | str | ColumnSelector | None, optional): Column(s) to evaluate for differences on the basis of `group_col`. If None, includes all columns. Defaults to None.
+        iv (Sequence[str] | str | ColumnSelector): Column(s) to use as the grouping variable. If one-hot encoded, will be converted to mutually exclusive categories.
+        dv (Sequence[str] | str | ColumnSelector | None, optional): Column(s) to evaluate for differences on the basis of `iv`. If None, includes all columns. Defaults to None.
         alpha (float, optional): The desired alpha. Defaults to 0.05.
 
     Notes:
@@ -179,7 +180,7 @@ def test_independent(
         ValueError: If string argument for `method` isn't recognized.
 
     Returns:
-        pd.DataFrame: A DataFrame with indices matching the labels in `target_cols`.
+        pd.DataFrame: A DataFrame with indices matching the labels in `dv`.
             Columns include:
             - 'test_statistic': A statistic based on the `method` used.
                 * T statistic when `method = 't'`.
@@ -191,20 +192,20 @@ def test_independent(
             - 'count': The number of valid non-nan observations.
     """
 
-    df, group_col = prep.dummy_to_categorical(df, cols = group_col)
-    target_cols = Selector.resolve(df, target_cols)
+    df, iv = prep.dummy_to_categorical(df, cols = iv)
+    dv = Selector.resolve(df, dv)
 
     if method == 't':
-        result = _independent_t(df, group_col, target_cols, alpha)
+        result = _independent_t(df, iv, dv, alpha)
     
     elif method == 'mann_whitney':
-        result = _independent_mann_whitney_u(df, group_col, target_cols, alpha)
+        result = _independent_mann_whitney_u(df, iv, dv, alpha)
 
     elif method == 'anova':
-        result = _independent_one_way_anova(df, group_col, target_cols, alpha)
+        result = _independent_one_way_anova(df, iv, dv, alpha)
 
     elif method == 'kruskal_wallis':
-        result = _independent_kruskal_wallis_h(df, group_col, target_cols, alpha)
+        result = _independent_kruskal_wallis_h(df, iv, dv, alpha)
 
     else:
         raise ValueError(f'Independent test method \'{method}\' is not recognized.')
@@ -215,7 +216,7 @@ def test_dependent(
     df: pd.DataFrame,
     method: str,
     *,
-    target_cols: Sequence[str] | Sequence[Sequence[str]] | ColumnSelector | PairSelector | None = None,
+    dv: Sequence[str] | Sequence[Sequence[str]] | ColumnSelector | PairSelector | None = None,
     alpha: float = 0.05,
 ) -> pd.DataFrame:
     """Run an dependent-samples test.
@@ -223,19 +224,19 @@ def test_dependent(
     Args:
         df (pd.DataFrame): The DataFrame.
         method (str): The test method. Supported choices: 't', 'wilcoxon'
-        target_cols (Sequence[str] | Sequence[Sequence[str]] | ColumnSelector | PairSelector | None, optional): Column(s) to evaluate for differences on the basis of `group_col`. If None, includes all columns. Defaults to None.
+        dv (Sequence[str] | Sequence[Sequence[str]] | ColumnSelector | PairSelector | None, optional): Column(s) to evaluate for differences on the basis of `iv`. If None, includes all columns. Defaults to None.
         alpha (float, optional): The desired alpha. Defaults to 0.05.
 
     Notes:
         * 't': Paired-samples t-test (parametric). Difference between 2 columns.
         * 'wilcoxon': Wilcoxon signed-rank test (non-parametric). Difference between 2 columns.
-        * If `target_cols` is a list or set of strings (or ColumnSelector), all combinations of columns will be tested.
+        * If `dv` is a list or set of strings (or ColumnSelector), all combinations of columns will be tested.
 
     Raises:
         ValueError: If string argument for `method` isn't recognized.
 
     Returns:
-        pd.DataFrame: A DataFrame with indices matching the labels in `target_cols`.
+        pd.DataFrame: A DataFrame with indices matching the labels in `dv`.
             Columns include:
             - 'test_statistic': A statistic based on the `method` used.
                 * T statistic when `method = 't'`.
@@ -245,13 +246,13 @@ def test_dependent(
             - 'count': The number of valid non-nan observations.
     """
 
-    target_cols = Selector.resolve_pair(df, target_cols)
+    dv = Selector.resolve_pair(df, dv)
 
     if method == 't':
-        result = _dependent_t(df, target_cols, alpha)
+        result = _dependent_t(df, dv, alpha)
     
     elif method == 'wilcoxon':
-        result = _dependent_wilcoxon(df, target_cols, alpha)
+        result = _dependent_wilcoxon(df, dv, alpha)
 
     else:
         raise ValueError(f'Dependent test method \'{method}\' is not recognized.')
@@ -262,7 +263,7 @@ def test_dependent_proportion(
     df: pd.DataFrame,
     method: str,
     *,
-    target_cols: Sequence[str] | Sequence[Sequence[str]] | ColumnSelector | PairSelector | GroupSelector | None = None,
+    dv: Sequence[str] | Sequence[Sequence[str]] | ColumnSelector | PairSelector | GroupSelector | None = None,
     alpha: float = 0.05,
 ) -> pd.DataFrame:
     """Run an dependent-samples test.
@@ -270,20 +271,20 @@ def test_dependent_proportion(
     Args:
         df (pd.DataFrame): The DataFrame.
         method (str): The test method. Supported choices: 'mcnemar_exact', 'mcnemar_asymptotic', 'cochran'.
-        target_cols (Sequence[str] | Sequence[Sequence[str]] | ColumnSelector | PairSelector | None, optional): Column(s) to evaluate for differences on the basis of `group_col`. If None, includes all columns. Defaults to None.
+        dv (Sequence[str] | Sequence[Sequence[str]] | ColumnSelector | PairSelector | None, optional): Column(s) to evaluate for differences on the basis of `iv`. If None, includes all columns. Defaults to None.
         alpha (float, optional): The desired alpha. Defaults to 0.05.
 
     Notes:
         * 'mcnemar_exact': McNemar's exact test (non-parametric). Difference between 2 columns (recommended when sample size < 25).
         * 'mcnemar_asymptotic': McNemar's asymptotic test (non-parametric). Difference between 2 columns with continuity correction (recommended when sample size >= 25).
         * 'cochran': Cochran's Q test (non-parametric). Difference among 2+ columns.
-        * If `target_cols` is a list or set of strings (or ColumnSelector), all combinations of columns will be tested.
+        * If `dv` is a list or set of strings (or ColumnSelector), all combinations of columns will be tested.
 
     Raises:
         ValueError: If string argument for `method` isn't recognized.
 
     Returns:
-        pd.DataFrame: A DataFrame with indices matching the labels in `target_cols`.
+        pd.DataFrame: A DataFrame with indices matching the labels in `dv`.
             Columns include:
             - 'test_statistic': A statistic based on the `method` used.
                 * T statistic when `method = 't'`.
@@ -296,21 +297,146 @@ def test_dependent_proportion(
     if method in {'mcnemar_exact', 'mcnemar_asymptotic'}:
         exact = method == 'mcnemar_exact'
 
-        if isinstance(target_cols, GroupSelector):
+        if isinstance(dv, GroupSelector):
             raise TypeError(f'Mcnemar\'s test requires pairs of columns but a GroupSelector was given.')
 
         else:
-            target_cols = Selector.resolve_pair(df, target_cols)
-            result = _dependent_mcnemar(df, target_cols, alpha, exact = exact)
+            dv = Selector.resolve_pair(df, dv)
+            result = _dependent_mcnemar(df, dv, alpha, exact = exact)
     
     elif method == 'cochran':
-        target_cols = Selector.resolve_group(df, target_cols)
-        result = _dependent_cochran(df, target_cols, alpha)
+        dv = Selector.resolve_group(df, dv)
+        result = _dependent_cochran(df, dv, alpha)
 
     else:
         raise ValueError(f'Dependent test method \'{method}\' is not recognized.')
 
     return result
+
+def test_regression(
+    df: pd.DataFrame,
+    method: str,
+    *,
+    iv: Sequence[str] | str | ColumnSelector,
+    dv: Sequence[str] | str | ColumnSelector | None = None,
+    alpha: float = 0.05,
+    print_summary: bool = False,
+    
+) -> pd.DataFrame:
+    """Run a regression.
+
+    If multiple columns are included for `dv`, will run multiple separate models.
+
+    Args:
+        df (pd.DataFrame): The DataFrame.
+        method (str): The test method. Supported choices: 'linear', 'logistic'.
+        iv (Sequence[str] | str | ColumnSelector): Column(s) to use as the dependent variable(s). It is assumed that a constant is not yet added.
+        dv (Sequence[str] | str | ColumnSelector | None, optional): Column(s) to use as the dependent variable(s). If None, includes all columns. Defaults to None.
+        alpha (float, optional): The desired alpha. Defaults to 0.05.
+        print_summary (bool, optional): If true, prints the model summary after fit. Defaults to False.
+
+    Notes:
+        * 'linear': Ordinary Least Squares (OLS) regression. Predict an interval- or ratio-scale column.
+        * 'logistic': Logistic regression. Predict a binary column.
+    
+    Raises:
+        ValueError: If string argument for `method` isn't recognized.
+
+    Returns:
+        pd.DataFrame: A DataFrame with indices matching the columns specified in the column-selection parameters.
+            Columns include:
+            - 'test_statistic': A statistic based on the `method` used.
+                * Beta when `method = 'linear'`.
+                * Log odds ratio when when `method = 'logistic'`.
+            - 'p_value': The calculated p value.
+            - 'stat_sig': A boolean flag indicating statistical significance.
+            - 'count': The number of valid non-nan observations.
+    """
+
+    iv = Selector.resolve(df, iv)
+    dv = Selector.resolve(df, dv)
+
+    if method in {'linear', 'logistic'}:
+        result = _regression(df, method, iv, dv, alpha, print_summary)
+
+    else:
+        raise ValueError(f'Regression method \'{method}\' is not recognized.')
+
+    return result
+
+def _regression(
+    df: pd.DataFrame,
+    method: str,
+    iv: Sequence[str],
+    dv: Sequence[str],
+    alpha: float,
+    print_summary: bool,
+) -> pd.DataFrame:
+    """Run a regression.
+
+    If multiple columns are included for `dv`, will run multiple separate models.
+
+    Args:
+        df (pd.DataFrame): The DataFrame.
+        method (str): The test method. Supported choices: 'linear', 'logistic'.
+        iv (Sequence[str]): Column(s) to use as the dependent variable(s). It is assumed that a constant is not yet added.
+        dv (Sequence[str]): Column(s) to use as the dependent variable(s). If None, includes all columns. Defaults to None.
+        alpha (float): The desired alpha. Defaults to 0.05.
+        print_summary (bool): If true, prints the model summary after fit. Defaults to False.
+
+    Notes:
+        * 'linear': Ordinary Least Squares (OLS) regression. Predict an interval- or ratio-scale column.
+        * 'logistic': Logistic regression. Predict a binary column.
+
+    Returns:
+        pd.DataFrame: A DataFrame with indices matching the columns specified in the column-selection parameters.
+            Columns include:
+            - 'test_statistic': A statistic based on the `method` used.
+                * Beta when `method = 'linear'`.
+                * Log odds ratio when when `method = 'logistic'`.
+            - 'p_value': The calculated p value.
+            - 'stat_sig': A boolean flag indicating statistical significance.
+            - 'count': The number of valid non-nan observations.
+    """
+
+    X = sm.add_constant(df[iv])
+
+    counts = []
+    index_tuples = []
+    test_statistics = []
+    p_values = []
+
+    for dv_col in dv:
+        y = df[dv_col]
+
+        if method == 'linear':
+            model = sm.OLS(y, X, missing = 'drop')
+
+        elif method == 'logistic':
+            model = sm.Logit(y, X, missing = 'drop')
+
+        result = model.fit(disp = 0)
+
+        if print_summary:
+            print(result.summary())
+
+        for iv_name in result.params.index:
+            if iv_name != 'const':
+                index_tuples.append((dv_col, iv_name))
+                test_statistics.append(result.params[iv_name])
+                p_values.append(result.pvalues[iv_name])
+                counts.append(result.nobs)
+
+    return _create_test_frame(
+        index_tuples,
+        np.array(test_statistics),
+        np.array(p_values),
+        np.array(counts),
+        alpha,
+        ['dv', 'iv'],
+    )
+
+
 
 def _dependent_cochran(
    df: pd.DataFrame,
@@ -325,7 +451,7 @@ def _dependent_cochran(
         alpha (float): The desired alpha level.
 
     Returns:
-        pd.DataFrame: A DataFrame with indices matching the labels in `target_cols`.
+        pd.DataFrame: A DataFrame with indices matching the labels in `dv`.
             Columns include:
             - 'test_statistic': Cochran's Q test statistic.
             - 'p_value': The calculated p value.
@@ -371,7 +497,7 @@ def _dependent_mcnemar(
         exact (bool): If true, the exact binomial distribution will be used. Otherwise, the chi2 approximation will be used.
 
     Returns:
-        pd.DataFrame: A DataFrame with indices matching the labels in `target_cols`.
+        pd.DataFrame: A DataFrame with indices matching the labels in `dv`.
             Columns include:
             - 'test_statistic': The Chi-squared test statistic when `exact = False` otherwise the minimum of discordant-pair counts.
             - 'p_value': The calculated p value.
@@ -407,6 +533,7 @@ def _dependent_mcnemar(
         np.array(p_values),
         np.array(counts),
         alpha,
+        ['group_0', 'group_1'],
     )
 
 def _dependent_t(
@@ -422,7 +549,7 @@ def _dependent_t(
         alpha (float): The desired alpha level.
 
     Returns:
-        pd.DataFrame: A DataFrame with indices matching the labels in `target_cols`.
+        pd.DataFrame: A DataFrame with indices matching the labels in `dv`.
             Columns include:
             - 'test_statistic': The T statistic.
             - 'p_value': The calculated p value.
@@ -457,6 +584,7 @@ def _dependent_t(
         np.array(p_values),
         np.array(counts), # type: ignore
         alpha,
+        ['group_0', 'group_1'],
     )
 
 def _dependent_wilcoxon(
@@ -472,7 +600,7 @@ def _dependent_wilcoxon(
         alpha (float): The desired alpha level.
 
     Returns:
-        pd.DataFrame: A DataFrame with indices matching the labels in `target_cols`.
+        pd.DataFrame: A DataFrame with indices matching the labels in `dv`.
             Columns include:
             - 'test_statistic': The T statistic.
             - 'p_value': The calculated p value.
@@ -513,24 +641,25 @@ def _dependent_wilcoxon(
         np.array(p_values),
         np.array(counts), # type: ignore
         alpha,
+        ['group_0', 'group_1'],
     )
 
 def _independent_kruskal_wallis_h(
    df: pd.DataFrame,
-   group_col: str,
-   target_cols: list[str],
+   iv: str,
+   dv: list[str],
    alpha: float 
 ) -> pd.DataFrame:
     """Run a Kruskal-Wallis H test.
 
     Args:
         df (pd.DataFrame): The DataFrame.
-        group_col (str): The grouping column label.
-        target_cols (list[str]): The labels of columns to test independence with `group_col`.
+        iv (str): The grouping column label.
+        dv (list[str]): The labels of columns to test independence with `iv`.
         alpha (float): The desired alpha level.
 
     Returns:
-        pd.DataFrame: A DataFrame with indices matching the labels in `target_cols`.
+        pd.DataFrame: A DataFrame with indices matching the labels in `dv`.
             Columns include:
             - 'test_statistic': The H statistic.
             - 'p_value': The calculated p value.
@@ -538,18 +667,18 @@ def _independent_kruskal_wallis_h(
             - 'count': The number of valid non-nan observations.
     """
     
-    counts = df.loc[df[group_col].notna(), target_cols].agg('count', axis = 0).values
+    counts = df.loc[df[iv].notna(), dv].agg('count', axis = 0).values
     group_data = []
 
-    for group in df[group_col].unique():
+    for group in df[iv].unique():
         if group == np.nan or pd.isna(group): continue
-        group_filter = df.loc[df[group_col] == group, target_cols]
+        group_filter = df.loc[df[iv] == group, dv]
         group_data.append(group_filter.values)
 
     result = kruskal(*group_data, nan_policy = 'omit') # type: ignore
 
     return _create_test_frame(
-        target_cols,
+        dv,
         np.array(result.statistic),
         np.array(result.pvalue),
         np.array(counts), # type: ignore
@@ -558,20 +687,20 @@ def _independent_kruskal_wallis_h(
 
 def _independent_mann_whitney_u(
    df: pd.DataFrame,
-   group_col: str,
-   target_cols: list[str],
+   iv: str,
+   dv: list[str],
    alpha: float 
 ) -> pd.DataFrame:
     """Run a Mann-Whitney U test.
 
     Args:
         df (pd.DataFrame): The DataFrame.
-        group_col (str): The grouping column label.
-        target_cols (list[str]): The labels of columns to test independence with `group_col`.
+        iv (str): The grouping column label.
+        dv (list[str]): The labels of columns to test independence with `iv`.
         alpha (float): The desired alpha level.
 
     Returns:
-        pd.DataFrame: A DataFrame with multi-index indices, (target_col, group_0, group_1).
+        pd.DataFrame: A DataFrame with multi-index indices, (dv, group_0, group_1).
             Columns include:
             - 'test_statistic': The U statistic.
             - 'p_value': The calculated p value.
@@ -579,7 +708,7 @@ def _independent_mann_whitney_u(
             - 'count': The number of valid non-nan observations.
     """
     
-    unique_groups = [group for group in df[group_col].unique() if pd.notna(group)]
+    unique_groups = [group for group in df[iv].unique() if pd.notna(group)]
     pairs = list(combinations(unique_groups, 2))
 
     index_tuples = []
@@ -587,10 +716,10 @@ def _independent_mann_whitney_u(
     p_values = []
     counts = []
 
-    for target_col in target_cols:
+    for dv_col in dv:
         for group0, group1 in pairs:
-            group0_filter = df.loc[df[group_col] == group0, target_col].dropna() # type: ignore
-            group1_filter = df.loc[df[group_col] == group1, target_col].dropna() # type: ignore
+            group0_filter = df.loc[df[iv] == group0, dv_col].dropna() # type: ignore
+            group1_filter = df.loc[df[iv] == group1, dv_col].dropna() # type: ignore
             count = len(group0_filter) + len(group1_filter)
 
             result = mannwhitneyu(
@@ -601,13 +730,13 @@ def _independent_mann_whitney_u(
             ) 
             
             # group_0, group_1
-            index_tuples.append((target_col, group0, group1))
+            index_tuples.append((dv_col, group0, group1))
             counts.append(count)
             test_statistics.append(result.statistic) # type: ignore
             p_values.append(result.pvalue) # type: ignore
 
             # group_1, group_0 (so multi-index can be accessed both ways)
-            index_tuples.append((target_col, group1, group0))
+            index_tuples.append((dv_col, group1, group0))
             counts.append(count)  
             u_reversed = (len(group0_filter) * len(group1_filter)) - result.statistic          
             test_statistics.append(u_reversed) # type: ignore
@@ -619,24 +748,25 @@ def _independent_mann_whitney_u(
         np.array(p_values),
         np.array(counts),
         alpha,
+        ['dv', 'group_0', 'group_1'],
     )
 
 def _independent_one_way_anova(
    df: pd.DataFrame,
-   group_col: str,
-   target_cols: list[str],
+   iv: str,
+   dv: list[str],
    alpha: float 
 ) -> pd.DataFrame:
     """Run a one-way ANOVA.
 
     Args:
         df (pd.DataFrame): The DataFrame.
-        group_col (str): The grouping column label.
-        target_cols (list[str]): The labels of columns to test independence with `group_col`.
+        iv (str): The grouping column label.
+        dv (list[str]): The labels of columns to test independence with `iv`.
         alpha (float): The desired alpha level.
 
     Returns:
-        pd.DataFrame: A DataFrame with indices matching the labels in `target_cols`.
+        pd.DataFrame: A DataFrame with indices matching the labels in `dv`.
             Columns include:
             - 'test_statistic': The F statistic.
             - 'p_value': The calculated p value.
@@ -644,18 +774,18 @@ def _independent_one_way_anova(
             - 'count': The number of valid non-nan observations.
     """
     
-    counts = df.loc[df[group_col].notna(), target_cols].agg('count', axis = 0).values
+    counts = df.loc[df[iv].notna(), dv].agg('count', axis = 0).values
     group_data = []
 
-    for group in df[group_col].unique():
+    for group in df[iv].unique():
         if group == np.nan or pd.isna(group): continue
-        group_filter = df.loc[df[group_col] == group, target_cols]
+        group_filter = df.loc[df[iv] == group, dv]
         group_data.append(group_filter.values)
 
     result = f_oneway(*group_data, nan_policy = 'omit') # type: ignore
 
     return _create_test_frame(
-        target_cols,
+        dv,
         np.array(result.statistic),
         np.array(result.pvalue),
         np.array(counts),
@@ -664,20 +794,20 @@ def _independent_one_way_anova(
 
 def _independent_t(
    df: pd.DataFrame,
-   group_col: str,
-   target_cols: list[str],
+   iv: str,
+   dv: list[str],
    alpha: float 
 ) -> pd.DataFrame:
     """Run an independent-samples t test.
 
     Args:
         df (pd.DataFrame): The DataFrame.
-        group_col (str): The grouping column label.
-        target_cols (list[str]): The labels of columns to test independence with `group_col`.
+        iv (str): The grouping column label.
+        dv (list[str]): The labels of columns to test independence with `iv`.
         alpha (float): The desired alpha level.
 
     Returns:
-        pd.DataFrame: A DataFrame with multi-index indices, (target_col, group_0, group_1).
+        pd.DataFrame: A DataFrame with multi-index indices, (dv, group_0, group_1).
             Columns include:
             - 'test_statistic': The T statistic.
             - 'p_value': The calculated p value.
@@ -685,7 +815,7 @@ def _independent_t(
             - 'count': The number of valid non-nan observations.
     """
 
-    unique_groups = [group for group in df[group_col].unique() if pd.notna(group)]
+    unique_groups = [group for group in df[iv].unique() if pd.notna(group)]
     pairs = list(combinations(unique_groups, 2))
 
     index_tuples = []
@@ -693,22 +823,22 @@ def _independent_t(
     p_values = []
     counts = []
 
-    for target_col in target_cols:
+    for dv_col in dv:
         for group0, group1 in pairs:
-            group0_filter = df.loc[df[group_col] == group0, target_col].dropna() # type: ignore
-            group1_filter = df.loc[df[group_col] == group1, target_col].dropna() # type: ignore
+            group0_filter = df.loc[df[iv] == group0, dv_col].dropna() # type: ignore
+            group1_filter = df.loc[df[iv] == group1, dv_col].dropna() # type: ignore
             count = len(group0_filter) + len(group1_filter)
 
             result = ttest_ind(group0_filter, group1_filter, nan_policy = 'omit')
 
             # group_0, group_1
-            index_tuples.append((target_col, group0, group1))
+            index_tuples.append((dv_col, group0, group1))
             counts.append(count)
             test_statistics.append(result.statistic) # type: ignore
             p_values.append(result.pvalue) # type: ignore
 
             # group_1, group_0 (so multi-index can be accessed both ways)
-            index_tuples.append((target_col, group1, group0))
+            index_tuples.append((dv_col, group1, group0))
             counts.append(count)            
             test_statistics.append(np.nan if pd.isna(result.statistic) else -result.statistic) # type: ignore
             p_values.append(result.pvalue) # type: ignore
@@ -719,26 +849,27 @@ def _independent_t(
         np.array(p_values),
         np.array(counts),
         alpha,
+        ['dv', 'group_0', 'group_1'],
     )
 
 def _independent_chi_sq(
     df: pd.DataFrame,
-    group_col: str,
-    target_cols: list[str],
+    iv: str,
+    dv: list[str],
     alpha: float
 ) -> pd.DataFrame:
     """Run a Chi-squared test of independence.
 
-    Runs a separate test between each pair of `group_col` and one of the `target_cols`.
+    Runs a separate test between each pair of `iv` and one of the `dv`.
 
     Args:
         df (pd.DataFrame): The DataFrame.
-        group_col (str): The grouping column label.
-        target_cols (list[str]): The labels of columns to test independence with `group_col`.
+        iv (str): The grouping column label.
+        dv (list[str]): The labels of columns to test independence with `iv`.
         alpha (float): The desired alpha level.
 
     Returns:
-        pd.DataFrame: A DataFrame with indices matching the labels in `target_cols`.
+        pd.DataFrame: A DataFrame with indices matching the labels in `dv`.
             Columns include:
             - 'test_statistic': The Chi-squared test statistic.
             - 'p_value': The calculated p value.
@@ -750,9 +881,9 @@ def _independent_chi_sq(
     p_values = []
     counts = []
 
-    for target_col in target_cols:
-        count = (df[group_col].notna() & df[target_col].notna()).sum()
-        contingency = pd.crosstab(df[group_col].values, df[target_col].values)
+    for dv_col in dv:
+        count = (df[iv].notna() & df[dv_col].notna()).sum()
+        contingency = pd.crosstab(df[iv].values, df[dv_col].values)
         result = chi2_contingency(contingency.values)
 
         test_statistics.append(result.statistic) # type: ignore
@@ -760,7 +891,7 @@ def _independent_chi_sq(
         counts.append(count)
     
     return _create_test_frame(
-        target_cols,
+        dv,
         np.array(test_statistics),
         np.array(p_values),
         np.array(counts),
@@ -769,22 +900,22 @@ def _independent_chi_sq(
 
 def _independent_fisher_exact(
     df: pd.DataFrame,
-    group_col: str,
-    target_cols: list[str],
+    iv: str,
+    dv: list[str],
     alpha: float
 ) -> pd.DataFrame:
     """Run Fisher's Exact Test of independence.
 
-    Runs a separate test between each pair of `group_col` and one of the `target_cols`. Requires that each column have 2 unique values (ignoring NaN).
+    Runs a separate test between each pair of `iv` and one of the `dv`. Requires that each column have 2 unique values (ignoring NaN).
 
     Args:
         df (pd.DataFrame): The DataFrame.
-        group_col (str): The grouping column label.
-        target_cols (list[str]): The labels of columns to test independence with `group_col`.
+        iv (str): The grouping column label.
+        dv (list[str]): The labels of columns to test independence with `iv`.
         alpha (float): The desired alpha level.
 
     Returns:
-        pd.DataFrame: A DataFrame with indices matching the labels in `target_cols`.
+        pd.DataFrame: A DataFrame with indices matching the labels in `dv`.
             Columns include:
             - 'test_statistic': The prior odds ratio.
             - 'p_value': The calculated p value.
@@ -796,14 +927,14 @@ def _independent_fisher_exact(
     p_values = []
     counts = []
 
-    for target_col in target_cols:
-        count = (df[group_col].notna() & df[target_col].notna()).sum()
-        contingency = pd.crosstab(df[group_col].values, df[target_col].values)
+    for dv_col in dv:
+        count = (df[iv].notna() & df[dv_col].notna()).sum()
+        contingency = pd.crosstab(df[iv].values, df[dv_col].values)
 
         if contingency.shape != (2, 2):
                 raise ValueError(
                     f'Fisher\'s Exact Test requires a (2, 2) table. '
-                    f'{group_col} vs {target_col} produced a {contingency.shape} table.'
+                    f'{iv} vs {dv_col} produced a {contingency.shape} table.'
                 )
 
         result = fisher_exact(contingency.values)
@@ -813,7 +944,7 @@ def _independent_fisher_exact(
         counts.append(count)
     
     return _create_test_frame(
-        target_cols,
+        dv,
         np.array(test_statistics),
         np.array(p_values),
         np.array(counts),
@@ -1020,16 +1151,18 @@ def _create_test_frame(
     p_values: np.ndarray,
     counts: np.ndarray,
     alpha: float,
+    multi_labels: list[str] | None = None,
 ) -> pd.DataFrame:
     """Package test results into a DataFrame.
 
     Args:
-        indices (list[str] | tuple): The labels associated with each column. If a list of tuples, will create a multi-index frame (target_col, group_0, group_1).
+        indices (list[str] | tuple): The labels associated with each column. If a list of tuples, will create a multi-index frame.
         test_statistics (np.ndarray): The array of test statistics.
         p_values (np.ndarray): The array of p values.
         counts (np.ndarray): The array of column non-nan counts.
         alpha (float): The desired alpha level.
         statistic_name (str): The name of the kind of values in `test_statistics`.
+        multi_labels (list[str] | None, optional): The labels for the index levels (for a multi-index DataFrame). Must match the length of interior elements of indices. Defaults to None
 
     Returns:
         pd.DataFrame: A DataFrame with indices matching the labels in `cols` and columns `statistic_name`, 'p_value', 'stat_sig', 'count'.
@@ -1042,15 +1175,10 @@ def _create_test_frame(
         'count': counts.astype(int),
     }
 
-    if isinstance(indices[0], tuple):
-        names = ['group_0', 'group_1']
-
-        if len(indices[0]) > 2:
-            names = ['target_col', 'group_0', 'group_1']
-            
+    if isinstance(indices[0], tuple):          
         multi_index = pd.MultiIndex.from_tuples(
             indices, # type: ignore
-            names = names,
+            names = multi_labels,
         )
 
         frame_index = multi_index
@@ -1068,7 +1196,9 @@ def _create_test_frame(
 # TODO: Add other test methods...
 # test_regression(): linear, logistic
 
-# TODO: Update column selection resolution to ensure the default (when target_cols = None) doesn't include the group_col
+# TODO: Update docstrings to be consistent with how df results come back (e.g., with multi index different scenarios)
+
+# TODO: Update column selection resolution to ensure the default (when dv = None) doesn't include the iv
 
 # TODO: Add p-value correction methods...bonferroni, holm-bonferroni, benjamini-hochberg
 
