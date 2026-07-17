@@ -121,8 +121,8 @@ def test_independent_proportion(
         alpha (float, optional): The desired alpha. Defaults to 0.05.
 
     Notes:
-        * 'fisher_exact': 'fisher_exact': Fisher's exact test (non-parametric). Difference between 2 groups (recommended when sample size < 20 and/or any expected cell count < 5).
-        * Chi-square: Chi-square test of independence (non-parametric). Difference among 2+ groups (recommended when sample size >= 20 and all expected cell counts > 5).
+        * 'fisher_exact': Fisher's exact test (non-parametric). Difference between 2 groups (recommended when sample size < 20 and/or any expected cell count < 5).
+        * 'chi_square': Chi-square test of independence (non-parametric). Difference among 2+ groups (recommended when sample size >= 20 and all expected cell counts > 5).
     
     Raises:
         ValueError: If string argument for `method` isn't recognized.
@@ -164,7 +164,7 @@ def test_independent(
 
     Args:
         df (pd.DataFrame): The DataFrame.
-        method (str): The test method. Supported choices: 't', 'mann_whitney', 'anova', 'kruskal_wallis'
+        method (str): The test method. Supported choices: 't', 'mann_whitney', 'anova', 'kruskal_wallis'.
         group_col (Sequence[str] | str | ColumnSelector): Column(s) to use as the grouping variable. If one-hot encoded, will be converted to mutually exclusive categories.
         target_cols (Sequence[str] | str | ColumnSelector | None, optional): Column(s) to evaluate for differences on the basis of `group_col`. If None, includes all columns. Defaults to None.
         alpha (float, optional): The desired alpha. Defaults to 0.05.
@@ -1065,11 +1065,8 @@ def _create_test_frame(
 
     return result  
 
-# TODO: Remove one-sample proportion t. add exact (binomial)
-
 # TODO: Add other test methods...
 # test_regression(): linear, logistic
-# Add 'bootstrap' method to tests
 
 # TODO: Update column selection resolution to ensure the default (when target_cols = None) doesn't include the group_col
 

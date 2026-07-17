@@ -166,6 +166,7 @@ def remove_verbal_anchors(
     df: pd.DataFrame,
     *,
     cols: Sequence[str] | str | ColumnSelector | None = None,
+    new_col_prefix: str | None = None,
 ) -> pd.DataFrame:
     """Extract leading digits from string values in a DataFrame.
 
@@ -174,6 +175,7 @@ def remove_verbal_anchors(
     Args:
         df (pd.DataFrame): The DataFrame.
         cols (Sequence[str] | str | Selector | None, optional): Column(s) to include. If None, includes all columns. Defaults to None.
+        new_col_prefix (str | None, optional): A prefix to add to new columns with the potentially-recoded values. If None, will not create new columns. Defaults to None.
 
     Returns:
         pd.DataFrame: The updated DataFrame.
@@ -188,6 +190,7 @@ def remove_verbal_anchors(
         str_cols,
         'values',
         PATTERN_CAPTURE_LEADING_INT,
+        new_col_prefix = new_col_prefix,
     )
 
     for col in str_cols:
@@ -203,7 +206,7 @@ def filter_straightliners(
 ) -> pd.DataFrame:
     """Filter DataFrame values based on the required minimum number of unique values in a row.
 
-    Replaces all values in a row that fails to meet the requirement with NaN.
+    Replaces values that fail to meet the requirement with NaN.
 
     Args:
         df (pd.DataFrame): The DataFrame.
