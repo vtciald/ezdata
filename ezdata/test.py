@@ -14,7 +14,7 @@ def test_one_sample(
     *,
     null: float = 0.0,
     alpha: float = 0.05,
-    cols: Sequence[str] | str | ColumnSelector | None = None,
+    dv: Sequence[str] | str | ColumnSelector | None = None,
 ) -> pd.DataFrame:
     """Run a one-sample test.
 
@@ -23,7 +23,7 @@ def test_one_sample(
         method (str): The test method. Supported choices: 't', 'wilcoxon', 'sign'.
         null (float, optional): The value representing the central tendency of the null hypothesis. Defaults to 0.
         alpha (float, optional): The desired alpha. Defaults to 0.05.
-        cols (Sequence[str] | str | ColumnSelector | None, optional): Column(s) to include. If None, includes all columns. Defaults to None.
+        dv (Sequence[str] | str | ColumnSelector | None, optional): Column(s) to include. If None, includes all columns. Defaults to None.
 
     Notes:
         * 't': One-sample t-test (parametric). Difference between column and null.
@@ -34,7 +34,7 @@ def test_one_sample(
         ValueError: If string argument for `method` isn't recognized.
 
     Returns:
-        pd.DataFrame: A DataFrame with indices matching the columns specified in the column-selection parameters.
+        pd.DataFrame: A DataFrame with indices matching the labels in `dv`.
             Columns include:
             - 'test_statistic': A statistic based on the `method` used.
                 * T statistic when `method = 't'`.
@@ -45,16 +45,16 @@ def test_one_sample(
             - 'count': The number of valid non-nan observations.
     """
 
-    cols = Selector.resolve(df, cols)
+    dv = Selector.resolve(df, dv)
 
     if method == 't':
-        result = _one_sample_t(df, cols, null, alpha)
+        result = _one_sample_t(df, dv, null, alpha)
 
     elif method == 'wilcoxon':
-        result = _one_sample_wilcoxon(df, cols, null, alpha)
+        result = _one_sample_wilcoxon(df, dv, null, alpha)
     
     elif method == 'sign':
-        result = _one_sample_sign(df, cols, null, alpha)
+        result = _one_sample_sign(df, dv, null, alpha)
 
     else:
         raise ValueError(f'One-sample test method \'{method}\' is not recognized.')
@@ -67,7 +67,7 @@ def test_one_sample_proportion(
     *,
     null: float = 0.5,
     alpha: float = 0.05,
-    cols: Sequence[str] | str | ColumnSelector | None = None,
+    dv: Sequence[str] | str | ColumnSelector | None = None,
 ) -> pd.DataFrame:
     """Run a one-sample test.
 
@@ -76,7 +76,7 @@ def test_one_sample_proportion(
         method (str): The test method. Supported choices: 'exact'.
         null (float, optional): The value representing the central tendency of the null hypothesis. Defaults to 0.5.
         alpha (float, optional): The desired alpha. Defaults to 0.05.
-        cols (Sequence[str] | str | ColumnSelector | None, optional): Column(s) to include. If None, includes all columns. Defaults to None.
+        dv (Sequence[str] | str | ColumnSelector | None, optional): Column(s) to include. If None, includes all columns. Defaults to None.
 
     Notes:
         * 'exact': One-sample exact binomial test (non-parametric). Difference between column and null.
@@ -85,7 +85,7 @@ def test_one_sample_proportion(
         ValueError: If string argument for `method` isn't recognized.
 
     Returns:
-        pd.DataFrame: A DataFrame with indices matching the labels in `cols`.
+        pd.DataFrame: A DataFrame with indices matching the labels in `dv`.
             Columns include:
             - 'test_statistic': A statistic based on the `method` used.
                 * The estimate of the proportion of successes when `method = 'exact'`.
@@ -94,10 +94,10 @@ def test_one_sample_proportion(
             - 'count': The number of valid non-nan observations.
     """
 
-    cols = Selector.resolve(df, cols)
+    dv = Selector.resolve(df, dv)
 
     if method == 'exact':
-        result = _one_sample_binomial(df, cols, null, alpha)
+        result = _one_sample_binomial(df, dv, null, alpha)
 
     else:
         raise ValueError(f'One-sample test method \'{method}\' is not recognized.')
@@ -180,7 +180,7 @@ def test_independent(
         ValueError: If string argument for `method` isn't recognized.
 
     Returns:
-        pd.DataFrame: A DataFrame with indices matching the labels in `dv`.
+        pd.DataFrame: A DataFrame. The index structure varies based on the `method`.
             Columns include:
             - 'test_statistic': A statistic based on the `method` used.
                 * T statistic when `method = 't'`.
@@ -236,7 +236,7 @@ def test_dependent(
         ValueError: If string argument for `method` isn't recognized.
 
     Returns:
-        pd.DataFrame: A DataFrame with indices matching the labels in `dv`.
+        pd.DataFrame: A DataFrame with multi-index indices, ('group_0', 'group_1')
             Columns include:
             - 'test_statistic': A statistic based on the `method` used.
                 * T statistic when `method = 't'`.
@@ -284,7 +284,7 @@ def test_dependent_proportion(
         ValueError: If string argument for `method` isn't recognized.
 
     Returns:
-        pd.DataFrame: A DataFrame with indices matching the labels in `dv`.
+        pd.DataFrame: A DataFrame with multi-index indices. The structure of these indices varies based on the `method`.
             Columns include:
             - 'test_statistic': A statistic based on the `method` used.
                 * T statistic when `method = 't'`.
@@ -343,7 +343,7 @@ def test_regression(
         ValueError: If string argument for `method` isn't recognized.
 
     Returns:
-        pd.DataFrame: A DataFrame with indices matching the columns specified in the column-selection parameters.
+        pd.DataFrame: A DataFrame with multi-index indices, ('dv', 'iv').
             Columns include:
             - 'test_statistic': A statistic based on the `method` used.
                 * Beta when `method = 'linear'`.
@@ -389,7 +389,7 @@ def _regression(
         * 'logistic': Logistic regression. Predict a binary column.
 
     Returns:
-        pd.DataFrame: A DataFrame with indices matching the columns specified in the column-selection parameters.
+        pd.DataFrame: A DataFrame with multi-index indices, ('dv', 'iv').
             Columns include:
             - 'test_statistic': A statistic based on the `method` used.
                 * Beta when `method = 'linear'`.
@@ -451,7 +451,7 @@ def _dependent_cochran(
         alpha (float): The desired alpha level.
 
     Returns:
-        pd.DataFrame: A DataFrame with indices matching the labels in `dv`.
+        pd.DataFrame: A DataFrame with indices that are strings of the column list (e.g., `"['Col1_pre', 'Col1_post']"`, `"['Col2_pre', 'Col2_post']"`).
             Columns include:
             - 'test_statistic': Cochran's Q test statistic.
             - 'p_value': The calculated p value.
@@ -497,7 +497,7 @@ def _dependent_mcnemar(
         exact (bool): If true, the exact binomial distribution will be used. Otherwise, the chi2 approximation will be used.
 
     Returns:
-        pd.DataFrame: A DataFrame with indices matching the labels in `dv`.
+        pd.DataFrame: A DataFrame with multi-index indices, ('group_0', 'group_1').
             Columns include:
             - 'test_statistic': The Chi-squared test statistic when `exact = False` otherwise the minimum of discordant-pair counts.
             - 'p_value': The calculated p value.
@@ -549,7 +549,7 @@ def _dependent_t(
         alpha (float): The desired alpha level.
 
     Returns:
-        pd.DataFrame: A DataFrame with indices matching the labels in `dv`.
+        pd.DataFrame: A DataFrame with multi-index indices, ('group_0', 'group_1').
             Columns include:
             - 'test_statistic': The T statistic.
             - 'p_value': The calculated p value.
@@ -600,7 +600,7 @@ def _dependent_wilcoxon(
         alpha (float): The desired alpha level.
 
     Returns:
-        pd.DataFrame: A DataFrame with indices matching the labels in `dv`.
+        pd.DataFrame: A DataFrame with multi-index indices, ('group_0', 'group_1').
             Columns include:
             - 'test_statistic': The T statistic.
             - 'p_value': The calculated p value.
@@ -953,7 +953,7 @@ def _independent_fisher_exact(
 
 def _one_sample_t(
     df: pd.DataFrame,
-    cols: list[str],
+    dv: list[str],
     null: float,
     alpha: float,
 ) -> pd.DataFrame:
@@ -961,12 +961,12 @@ def _one_sample_t(
 
     Args:
         df (pd.DataFrame): The DataFrame.
-        cols (list[str]): The columns on which to operate.
+        dv (list[str]): The columns on which to operate.
         null (float, optional): The population mean under the null hypothesis. Defaults to 0.
         alpha (float): The desired alpha level.
 
     Returns:
-        pd.DataFrame: A DataFrame with indices matching the labels in `cols`.
+        pd.DataFrame: A DataFrame with indices matching the labels in `dv`.
             Columns include:
             - 'test_statistic': The t statistic.
             - 'p_value': The calculated p value.
@@ -974,17 +974,17 @@ def _one_sample_t(
             - 'count': The number of valid non-nan observations.
     """
 
-    counts = df[cols].agg('count', axis = 0)
+    counts = df[dv].agg('count', axis = 0)
 
     result = ttest_1samp(
-        df[cols].to_numpy(),
+        df[dv].to_numpy(),
         popmean = null,
         alternative = 'two-sided',
         nan_policy = 'omit'
     )
     
     return _create_test_frame(
-        cols,
+        dv,
         np.array(result.statistic), # type: ignore
         np.array(result.pvalue), # type: ignore
         np.array(counts),
@@ -993,7 +993,7 @@ def _one_sample_t(
 
 def _one_sample_sign(
     df: pd.DataFrame,
-    cols: list[str],
+    dv: list[str],
     null: float,
     alpha: float,
 ) -> pd.DataFrame:
@@ -1001,12 +1001,12 @@ def _one_sample_sign(
 
     Args:
         df (pd.DataFrame): The DataFrame.
-        cols (list[str]): The columns on which to operate.
+        dv (list[str]): The columns on which to operate.
         null (float): The population median under the null hypothesis.
         alpha (float): The desired alpha level.
 
     Returns:
-        pd.DataFrame: A DataFrame with indices matching the labels in `cols`.
+        pd.DataFrame: A DataFrame with indices matching the labels in `dv`.
             Columns include:
             - 'test_statistic': The estimate of the proportion positive differences.
             - 'p_value': The calculated p value.
@@ -1018,7 +1018,7 @@ def _one_sample_sign(
     p_values = []
     counts = []
 
-    for col in cols:
+    for col in dv:
         data = df[col].dropna()
         diffs = data - null
         positives = np.sum(diffs > 0)
@@ -1041,7 +1041,7 @@ def _one_sample_sign(
             counts.append(len(data))
     
     return _create_test_frame(
-        cols,
+        dv,
         np.array(test_statistics),
         np.array(p_values),
         np.array(counts),
@@ -1050,7 +1050,7 @@ def _one_sample_sign(
 
 def _one_sample_binomial(
     df: pd.DataFrame,
-    cols: list[str],
+    dv: list[str],
     null: float,
     alpha: float,
 ) -> pd.DataFrame:
@@ -1058,7 +1058,7 @@ def _one_sample_binomial(
 
     Args:
         df (pd.DataFrame): The DataFrame.
-        cols (list[str]): The columns on which to operate.
+        dv (list[str]): The columns on which to operate.
         null (float, optional): The population median under the null hypothesis. Defaults to 0.
         alpha (float): The desired alpha level.
 
@@ -1075,7 +1075,7 @@ def _one_sample_binomial(
     p_values = []
     counts = []
 
-    for col in cols:
+    for col in dv:
         data = df[col].dropna()
         successes = np.sum(data)
         total_trials = len(data)
@@ -1097,7 +1097,7 @@ def _one_sample_binomial(
             counts.append(len(data))
     
     return _create_test_frame(
-        cols,
+        dv,
         np.array(test_statistics),
         np.array(p_values),
         np.array(counts),
@@ -1106,7 +1106,7 @@ def _one_sample_binomial(
 
 def _one_sample_wilcoxon(
     df: pd.DataFrame,
-    cols: list[str],
+    dv: list[str],
     null: float,
     alpha: float,
 ) -> pd.DataFrame:
@@ -1114,12 +1114,12 @@ def _one_sample_wilcoxon(
 
     Args:
         df (pd.DataFrame): The DataFrame.
-        cols (list[str]): The columns on which to operate.
+        dv (list[str]): The columns on which to operate.
         null (float, optional): The population median under the null hypothesis. Defaults to 0.
         alpha (float): The desired alpha level.
 
     Returns:
-        pd.DataFrame: A DataFrame with indices matching the labels in `cols`.
+        pd.DataFrame: A DataFrame with indices matching the labels in `dv`.
             Columns include:
             - 'test_statistic': The sum of the ranks of the differences above or below zero, whichever is smaller.
             - 'p_value': The calculated p value.
@@ -1127,10 +1127,10 @@ def _one_sample_wilcoxon(
             - 'count': The number of valid non-nan observations.
     """
 
-    counts = df[cols].agg('count', axis = 0)
+    counts = df[dv].agg('count', axis = 0)
 
     result = wilcoxon(
-        df[cols].to_numpy() - null,
+        df[dv].to_numpy() - null,
         alternative = 'two-sided',
         zero_method = 'wilcox',
         method = 'auto',
@@ -1138,7 +1138,7 @@ def _one_sample_wilcoxon(
     )
     
     return _create_test_frame(
-        cols,
+        dv,
         np.array(result.statistic),
         np.array(result.pvalue),
         np.array(counts),
@@ -1165,7 +1165,7 @@ def _create_test_frame(
         multi_labels (list[str] | None, optional): The labels for the index levels (for a multi-index DataFrame). Must match the length of interior elements of indices. Defaults to None
 
     Returns:
-        pd.DataFrame: A DataFrame with indices matching the labels in `cols` and columns `statistic_name`, 'p_value', 'stat_sig', 'count'.
+        pd.DataFrame: A DataFrame with indices matching `indices` and columns `statistic_name`, 'p_value', 'stat_sig', 'count'.
     """
     
     data_dict = {
@@ -1192,11 +1192,6 @@ def _create_test_frame(
     )
 
     return result  
-
-# TODO: Add other test methods...
-# test_regression(): linear, logistic
-
-# TODO: Update docstrings to be consistent with how df results come back (e.g., with multi index different scenarios)
 
 # TODO: Update column selection resolution to ensure the default (when dv = None) doesn't include the iv
 
