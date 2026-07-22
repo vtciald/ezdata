@@ -194,7 +194,11 @@ def remove_verbal_anchors(
     )
 
     for col in str_cols:
-        df[col] = pd.to_numeric(df[col], errors='coerce').astype('Int64')
+        if new_col_prefix: 
+            col = new_col_prefix + col
+            
+        if (new_col_prefix and col.startswith(new_col_prefix)) or (new_col_prefix is None):
+            df[col] = pd.to_numeric(df[col], errors='coerce').astype('Int64')
 
     return df
 

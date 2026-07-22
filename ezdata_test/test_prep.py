@@ -123,6 +123,40 @@ def test_remove_verbal_anchors():
 
     pd.testing.assert_frame_equal(result, expected)
 
+def test_remove_verbal_anchors_new_prefix():
+
+    dp = DataProcessor()
+
+    test_df = pd.DataFrame({
+        'Col1': ['1 - Not at all', 2, 3, 4, '5 - Totally'],
+        'Col2': ['1: Something low', '2', '3', '4', '10: Something high'],
+        'Col3': ['1 (Something else low)', 2, 3, 4, '5 (Something else high'],
+    }).astype({
+        'Col1': 'object',
+        'Col2': 'object',
+        'Col3': 'object',
+    })
+
+    expected = pd.DataFrame({
+        'Col1': ['1 - Not at all', 2, 3, 4, '5 - Totally'],
+        'Col2': ['1: Something low', '2', '3', '4', '10: Something high'],
+        'Col3': ['1 (Something else low)', 2, 3, 4, '5 (Something else high'],
+        'new_Col1': [1, 2, 3, 4, 5],
+        'new_Col2': [1, 2, 3, 4, 10],
+        'new_Col3': [1, 2, 3, 4, 5],
+    }).astype({
+        'Col1': 'object',
+        'Col2': 'object',
+        'Col3': 'object',
+        'new_Col1': 'Int64',
+        'new_Col2': 'Int64',
+        'new_Col3': 'Int64',
+    })
+
+    result = dp.remove_verbal_anchors(test_df, new_col_prefix = 'new_')
+
+    pd.testing.assert_frame_equal(result, expected)
+
 def test_remove_verbal_anchors_cols():
 
     dp = DataProcessor()
@@ -1085,6 +1119,7 @@ test_remove_cols()
 # Removing verbal anchors from values
 test_remove_verbal_anchors()
 test_remove_verbal_anchors_cols()
+test_remove_verbal_anchors_new_prefix()
 
 # Filtering straightliners
 test_filter_straightliners()

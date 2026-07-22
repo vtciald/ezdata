@@ -1193,6 +1193,8 @@ def _create_test_frame(
 
     return result  
 
+# TODO: add parameter to control whether the levels are repeated in multi-index. set to False by default
+
 # TODO: Update column selection resolution to ensure the default (when dv = None) doesn't include the iv
 
 # TODO: Add p-value correction methods...bonferroni, holm-bonferroni, benjamini-hochberg
