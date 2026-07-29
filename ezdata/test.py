@@ -399,7 +399,7 @@ def _regression(
             - 'count': The number of valid non-nan observations.
     """
 
-    X = sm.add_constant(df[iv])
+    X = sm.add_constant(df[iv].astype(float))
 
     counts = []
     index_tuples = []
@@ -407,7 +407,7 @@ def _regression(
     p_values = []
 
     for dv_col in dv:
-        y = df[dv_col]
+        y = df[dv_col].astype(float)
 
         if method == 'linear':
             model = sm.OLS(y, X, missing = 'drop')
@@ -467,7 +467,7 @@ def _dependent_cochran(
     for col_group in column_groups:
         non_na = df[col_group].notna().all(axis = 1)
         count = non_na.sum()
-        result = cochrans_q(df.loc[non_na, col_group].values)
+        result = cochrans_q(df.loc[non_na, col_group].astype(float).values)
 
         index_strings.append(str(col_group))
         counts.append(count)
@@ -564,7 +564,12 @@ def _dependent_t(
 
     for col0, col1 in column_pairs:
         count = (df[col0].notna() & df[col1].notna()).sum()
-        result = ttest_rel(df[col0], df[col1], axis = 0, nan_policy = 'omit')
+        result = ttest_rel(
+            df[col0].astype(float),
+            df[col1].astype(float),
+            axis = 0,
+            nan_policy = 'omit'
+        )
 
         # group_0, group_1
         index_tuples.append((col0, col1))
@@ -616,8 +621,8 @@ def _dependent_wilcoxon(
     for col0, col1 in column_pairs:
         count = (df[col0].notna() & df[col1].notna()).sum()
         result = wilcoxon(
-            df[col0],
-            df[col1],
+            df[col0].astype(float),
+            df[col1].astype(float),
             zero_method = 'wilcox',
             method = 'auto',
             nan_policy = 'omit', # type: ignore
@@ -672,7 +677,7 @@ def _independent_kruskal_wallis_h(
 
     for group in df[iv].unique():
         if group == np.nan or pd.isna(group): continue
-        group_filter = df.loc[df[iv] == group, dv]
+        group_filter = df.loc[df[iv] == group, dv].astype(float)
         group_data.append(group_filter.values)
 
     result = kruskal(*group_data, nan_policy = 'omit') # type: ignore
@@ -718,8 +723,8 @@ def _independent_mann_whitney_u(
 
     for dv_col in dv:
         for group0, group1 in pairs:
-            group0_filter = df.loc[df[iv] == group0, dv_col].dropna() # type: ignore
-            group1_filter = df.loc[df[iv] == group1, dv_col].dropna() # type: ignore
+            group0_filter = df.loc[df[iv] == group0, dv_col].astype(float).dropna() # type: ignore
+            group1_filter = df.loc[df[iv] == group1, dv_col].astype(float).dropna() # type: ignore
             count = len(group0_filter) + len(group1_filter)
 
             result = mannwhitneyu(
@@ -779,7 +784,7 @@ def _independent_one_way_anova(
 
     for group in df[iv].unique():
         if group == np.nan or pd.isna(group): continue
-        group_filter = df.loc[df[iv] == group, dv]
+        group_filter = df.loc[df[iv] == group, dv].astype(float)
         group_data.append(group_filter.values)
 
     result = f_oneway(*group_data, nan_policy = 'omit') # type: ignore
@@ -825,8 +830,8 @@ def _independent_t(
 
     for dv_col in dv:
         for group0, group1 in pairs:
-            group0_filter = df.loc[df[iv] == group0, dv_col].dropna() # type: ignore
-            group1_filter = df.loc[df[iv] == group1, dv_col].dropna() # type: ignore
+            group0_filter = df.loc[df[iv] == group0, dv_col].astype(float).dropna() # type: ignore
+            group1_filter = df.loc[df[iv] == group1, dv_col].astype(float).dropna() # type: ignore
             count = len(group0_filter) + len(group1_filter)
 
             result = ttest_ind(group0_filter, group1_filter, nan_policy = 'omit')
@@ -977,7 +982,7 @@ def _one_sample_t(
     counts = df[dv].agg('count', axis = 0)
 
     result = ttest_1samp(
-        df[dv].to_numpy(),
+        df[dv].astype(float).to_numpy(),
         popmean = null,
         alternative = 'two-sided',
         nan_policy = 'omit'
@@ -1019,7 +1024,7 @@ def _one_sample_sign(
     counts = []
 
     for col in dv:
-        data = df[col].dropna()
+        data = df[col].dropna().astype(int)
         diffs = data - null
         positives = np.sum(diffs > 0)
         total_trials = np.sum(diffs != 0)
@@ -1076,7 +1081,7 @@ def _one_sample_binomial(
     counts = []
 
     for col in dv:
-        data = df[col].dropna()
+        data = df[col].dropna().astype(int)
         successes = np.sum(data)
         total_trials = len(data)
 
@@ -1130,7 +1135,7 @@ def _one_sample_wilcoxon(
     counts = df[dv].agg('count', axis = 0)
 
     result = wilcoxon(
-        df[dv].to_numpy() - null,
+        df[dv].astype(float).to_numpy() - null,
         alternative = 'two-sided',
         zero_method = 'wilcox',
         method = 'auto',
@@ -1194,6 +1199,8 @@ def _create_test_frame(
     return result  
 
 # TODO: add parameter to control whether the levels are repeated in multi-index. set to False by default
+
+# TODO: add logit regression for ordinal outcomes?
 
 # TODO: Update column selection resolution to ensure the default (when dv = None) doesn't include the iv
 
