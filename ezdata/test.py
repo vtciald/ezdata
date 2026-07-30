@@ -515,14 +515,7 @@ def _dependent_mcnemar(
         count = (df[col0].notna() & df[col1].notna()).sum()
         result = mcnemar(table, exact)
 
-        # group_0, group_1
         index_tuples.append((col0, col1))
-        counts.append(count)
-        test_statistics.append(result.statistic) # type: ignore
-        p_values.append(result.pvalue) # type: ignore
-
-        # group_1, group_0 (so multi-index can be accessed both ways)
-        index_tuples.append((col1, col0))      
         counts.append(count)
         test_statistics.append(result.statistic) # type: ignore
         p_values.append(result.pvalue) # type: ignore
@@ -571,16 +564,9 @@ def _dependent_t(
             nan_policy = 'omit'
         )
 
-        # group_0, group_1
         index_tuples.append((col0, col1))
         counts.append(count)
         test_statistics.append(result.statistic) # type: ignore
-        p_values.append(result.pvalue) # type: ignore
-
-        # group_1, group_0 (so multi-index can be accessed both ways)
-        index_tuples.append((col1, col0))      
-        counts.append(count)
-        test_statistics.append(np.nan if pd.isna(result.statistic) else -result.statistic) # type: ignore
         p_values.append(result.pvalue) # type: ignore
 
     return _create_test_frame(
@@ -628,14 +614,7 @@ def _dependent_wilcoxon(
             nan_policy = 'omit', # type: ignore
         )
 
-        # group_0, group_1
         index_tuples.append((col0, col1))
-        counts.append(count)
-        test_statistics.append(result.statistic) # type: ignore
-        p_values.append(result.pvalue) # type: ignore
-
-        # group_1, group_0 (so multi-index can be accessed both ways)
-        index_tuples.append((col1, col0))      
         counts.append(count)
         test_statistics.append(result.statistic) # type: ignore
         p_values.append(result.pvalue) # type: ignore
@@ -734,17 +713,9 @@ def _independent_mann_whitney_u(
                 nan_policy = 'omit' # type: ignore
             ) 
             
-            # group_0, group_1
             index_tuples.append((dv_col, group0, group1))
             counts.append(count)
             test_statistics.append(result.statistic) # type: ignore
-            p_values.append(result.pvalue) # type: ignore
-
-            # group_1, group_0 (so multi-index can be accessed both ways)
-            index_tuples.append((dv_col, group1, group0))
-            counts.append(count)  
-            u_reversed = (len(group0_filter) * len(group1_filter)) - result.statistic          
-            test_statistics.append(u_reversed) # type: ignore
             p_values.append(result.pvalue) # type: ignore
 
     return _create_test_frame(
@@ -836,16 +807,9 @@ def _independent_t(
 
             result = ttest_ind(group0_filter, group1_filter, nan_policy = 'omit')
 
-            # group_0, group_1
             index_tuples.append((dv_col, group0, group1))
             counts.append(count)
             test_statistics.append(result.statistic) # type: ignore
-            p_values.append(result.pvalue) # type: ignore
-
-            # group_1, group_0 (so multi-index can be accessed both ways)
-            index_tuples.append((dv_col, group1, group0))
-            counts.append(count)            
-            test_statistics.append(np.nan if pd.isna(result.statistic) else -result.statistic) # type: ignore
             p_values.append(result.pvalue) # type: ignore
 
     return _create_test_frame(
@@ -1197,8 +1161,6 @@ def _create_test_frame(
     )
 
     return result  
-
-# TODO: add parameter to control whether the levels are repeated in multi-index. set to False by default
 
 # TODO: add logit regression for ordinal outcomes?
 

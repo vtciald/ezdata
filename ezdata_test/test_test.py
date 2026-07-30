@@ -255,27 +255,21 @@ def test_independent_t():
     multi_index = pd.MultiIndex.from_tuples(
         [
             ('Col1', 'A', 'B'),
-            ('Col1', 'B', 'A'),
             ('Col1', 'A', 'C'),
-            ('Col1', 'C', 'A'),
             ('Col1', 'B', 'C'),
-            ('Col1', 'C', 'B'),
             ('Col2', 'A', 'B'),
-            ('Col2', 'B', 'A'),
             ('Col2', 'A', 'C'),
-            ('Col2', 'C', 'A'),
             ('Col2', 'B', 'C'),
-            ('Col2', 'C', 'B'),
         ],
         names = ['dv', 'group_0', 'group_1'],
     )
 
     expected = pd.DataFrame(
         {
-            'test_statistic': [-1.3207, 1.3207, -1.4374, 1.4374, -0.1630, 0.1630, 2.4767, -2.4767, 2.1200, -2.1200, -1.4579, 1.4579],
-            'p_value': [0.2112, 0.2112, 0.1762, 0.1762, 0.8732, 0.8732, 0.0278, 0.0278, 0.0538, 0.0538, 0.1705, 0.1705],
-            'stat_sig': [False, False, False, False, False, False, True, True, False, False, False, False],
-            'count': [14, 14, 14, 14, 14, 14, 15, 15, 15, 15, 14, 14],
+            'test_statistic': [-1.3207, -1.4374, -0.1630, 2.4767, 2.1200, -1.4579],
+            'p_value': [0.2112, 0.1762, 0.8732, 0.0278, 0.0538, 0.1705],
+            'stat_sig': [False, False, False, True, False, False],
+            'count': [14, 14, 14, 15, 15, 14],
         },
         index = multi_index,
     )
@@ -300,27 +294,21 @@ def test_independent_mann_whitney():
     multi_index = pd.MultiIndex.from_tuples(
         [
             ('Col1', 'A', 'B'),
-            ('Col1', 'B', 'A'),
             ('Col1', 'A', 'C'),
-            ('Col1', 'C', 'A'),
             ('Col1', 'B', 'C'),
-            ('Col1', 'C', 'B'),
             ('Col2', 'A', 'B'),
-            ('Col2', 'B', 'A'),
             ('Col2', 'A', 'C'),
-            ('Col2', 'C', 'A'),
             ('Col2', 'B', 'C'),
-            ('Col2', 'C', 'B'),
         ],
         names = ['dv', 'group_0', 'group_1'],
     )
 
     expected = pd.DataFrame(
         {
-            'test_statistic': [8.5, 40.5, 7.0, 42.0, 15.5, 33.5, 46.5, 9.5, 38.0, 18.0, 16.0, 33.0],
-            'p_value': [0.0474, 0.0474, 0.0293, 0.0293, 0.2764, 0.2764, 0.0369, 0.0369, 0.2712, 0.2712, 0.3056, 0.3056],
-            'stat_sig': [True, True, True, True, False, False, True, True, False, False, False, False],
-            'count': [14, 14, 14, 14, 14, 14, 15, 15, 15, 15, 14, 14],
+            'test_statistic': [8.5, 7.0, 15.5, 46.5, 38.0, 16.0],
+            'p_value': [0.0474, 0.0293, 0.2764, 0.0369, 0.2712, 0.3056],
+            'stat_sig': [True, True, False, True, False, False],
+            'count': [14, 14, 14, 15, 15, 14],
         },
         index = multi_index,
     )
@@ -372,21 +360,18 @@ def test_dependent_t():
     multi_index = pd.MultiIndex.from_tuples(
         [
             ('Col_pre', 'Col_post'),
-            ('Col_post', 'Col_pre'),
             ('Col_pre', 'Col3'),
-            ('Col3', 'Col_pre'),
             ('Col_post', 'Col3'),
-            ('Col3', 'Col_post'),
         ],
         names = ['group_0', 'group_1'],
     )
 
     expected = pd.DataFrame(
         {
-            'test_statistic': [-0.6396, 0.6396, 2.0604, -2.0604, 2.4497, -2.4497],
-            'p_value': [0.5294, 0.5294, 0.0520, 0.0520, 0.0227, 0.0227],
-            'stat_sig': [False, False, False, False, True, True],
-            'count': [22, 22, 22, 22, 23, 23],
+            'test_statistic': [-0.6396, 2.0604, 2.4497],
+            'p_value': [0.5294, 0.0520, 0.0227],
+            'stat_sig': [False, False, True],
+            'count': [22, 22, 23],
         },
         index = multi_index,
     )
@@ -414,19 +399,17 @@ def test_dependent_t_pair():
     multi_index = pd.MultiIndex.from_tuples(
         [
             ('Col1_pre', 'Col1_post'),
-            ('Col1_post', 'Col1_pre'),
             ('Col2_pre', 'Col2_post'),
-            ('Col2_post', 'Col2_pre'),
         ],
         names = ['group_0', 'group_1'],
     )
 
     expected = pd.DataFrame(
         {
-            'test_statistic': [-0.6396, 0.6396, -0.6396, 0.6396],
-            'p_value': [0.5294, 0.5294, 0.5294, 0.5294],
-            'stat_sig': [False, False, False, False],
-            'count': [22, 22, 22, 22],
+            'test_statistic': [-0.6396, -0.6396],
+            'p_value': [0.5294, 0.5294],
+            'stat_sig': [False, False],
+            'count': [22, 22],
         },
         index = multi_index,
     )
@@ -452,19 +435,17 @@ def test_dependent_wilcoxon():
     multi_index = pd.MultiIndex.from_tuples(
         [
             ('Col1_pre', 'Col1_post'),
-            ('Col1_post', 'Col1_pre'),
             ('Col_pre', 'Col_post'),
-            ('Col_post', 'Col_pre'),
         ],
         names = ['group_0', 'group_1'],
     )
 
     expected = pd.DataFrame(
         {
-            'test_statistic': [49.0, 49.0, 36.0, 36.0],
-            'p_value': [0.0641, 0.0641, 0.0100, 0.0100],
-            'stat_sig': [False, False, True, True],
-            'count': [22, 22, 23, 23],
+            'test_statistic': [49.0, 36.0],
+            'p_value': [0.0641, 0.0100],
+            'stat_sig': [False, True],
+            'count': [22, 23],
         },
         index = multi_index,
     )
@@ -490,19 +471,17 @@ def test_dependent_proportion_mcnemar_exact():
     multi_index = pd.MultiIndex.from_tuples(
         [
             ('Col1_pre', 'Col1_post'),
-            ('Col1_post', 'Col1_pre'),
             ('Col2_pre', 'Col2_post'),
-            ('Col2_post', 'Col2_pre'),
         ],
         names = ['group_0', 'group_1'],
     )
 
     expected = pd.DataFrame(
         {
-            'test_statistic': [3.0, 3.0, 2.0, 2.0],
-            'p_value': [0.0574, 0.0574, 0.0074, 0.0074],
-            'stat_sig': [False, False, True, True],
-            'count': [31, 31, 32, 32],
+            'test_statistic': [3.0, 2.0],
+            'p_value': [0.0574, 0.0074],
+            'stat_sig': [False, True],
+            'count': [31, 32],
         },
         index = multi_index,
     )
@@ -528,19 +507,17 @@ def test_dependent_proportion_mcnemar_asymptotic():
     multi_index = pd.MultiIndex.from_tuples(
         [
             ('Col1_pre', 'Col1_post'),
-            ('Col1_post', 'Col1_pre'),
             ('Col2_pre', 'Col2_post'),
-            ('Col2_post', 'Col2_pre'),
         ],
         names = ['group_0', 'group_1'],
     )
 
     expected = pd.DataFrame(
         {
-            'test_statistic': [3.5, 3.5, 6.6667, 6.6667],
-            'p_value': [0.0614, 0.0614, 0.0098, 0.0098],
-            'stat_sig': [False, False, True, True],
-            'count': [31, 31, 32, 32],
+            'test_statistic': [3.5, 6.6667],
+            'p_value': [0.0614, 0.0098],
+            'stat_sig': [False, True],
+            'count': [31, 32],
         },
         index = multi_index,
     )
