@@ -6,6 +6,7 @@ from .selector import Selector, ColumnSelector, PairSelector, GroupSelector
 from collections.abc import Sequence
 from itertools import combinations
 from statsmodels.stats.contingency_tables import mcnemar, cochrans_q
+from statsmodels.miscmodels.ordinal_model import OrderedModel
 import statsmodels.api as sm
 
 def test_one_sample(
@@ -329,7 +330,7 @@ def test_regression(
 
     Args:
         df (pd.DataFrame): The DataFrame.
-        method (str): The test method. Supported choices: 'linear', 'logistic'.
+        method (str): The test method. Supported choices: 'linear', 'logistic', 'logit'.
         iv (Sequence[str] | str | ColumnSelector): Column(s) to use as the dependent variable(s). It is assumed that a constant is not yet added.
         dv (Sequence[str] | str | ColumnSelector | None, optional): Column(s) to use as the dependent variable(s). If None, includes all columns. Defaults to None.
         alpha (float, optional): The desired alpha. Defaults to 0.05.
@@ -338,6 +339,7 @@ def test_regression(
     Notes:
         * 'linear': Ordinary Least Squares (OLS) regression. Predict an interval- or ratio-scale column.
         * 'logistic': Logistic regression. Predict a binary column.
+        * 'logit': Logit regression. Predict an ordinal column.
     
     Raises:
         ValueError: If string argument for `method` isn't recognized.
@@ -348,6 +350,7 @@ def test_regression(
             - 'test_statistic': A statistic based on the `method` used.
                 * Beta when `method = 'linear'`.
                 * Log odds ratio when when `method = 'logistic'`.
+                * Log odds ratio when `method = 'logit'`.
             - 'p_value': The calculated p value.
             - 'stat_sig': A boolean flag indicating statistical significance.
             - 'count': The number of valid non-nan observations.
@@ -356,7 +359,7 @@ def test_regression(
     iv = Selector.resolve(df, iv)
     dv = Selector.resolve(df, dv)
 
-    if method in {'linear', 'logistic'}:
+    if method in {'linear', 'logistic', 'logit'}:
         result = _regression(df, method, iv, dv, alpha, print_summary)
 
     else:
@@ -378,7 +381,7 @@ def _regression(
 
     Args:
         df (pd.DataFrame): The DataFrame.
-        method (str): The test method. Supported choices: 'linear', 'logistic'.
+        method (str): The test method. Supported choices: 'linear', 'logistic', 'logit'.
         iv (Sequence[str]): Column(s) to use as the dependent variable(s). It is assumed that a constant is not yet added.
         dv (Sequence[str]): Column(s) to use as the dependent variable(s). If None, includes all columns. Defaults to None.
         alpha (float): The desired alpha. Defaults to 0.05.
@@ -387,6 +390,7 @@ def _regression(
     Notes:
         * 'linear': Ordinary Least Squares (OLS) regression. Predict an interval- or ratio-scale column.
         * 'logistic': Logistic regression. Predict a binary column.
+        * 'logit': Logit regression. Predict an ordinal column.
 
     Returns:
         pd.DataFrame: A DataFrame with multi-index indices, ('dv', 'iv').
@@ -394,26 +398,33 @@ def _regression(
             - 'test_statistic': A statistic based on the `method` used.
                 * Beta when `method = 'linear'`.
                 * Log odds ratio when when `method = 'logistic'`.
+                * Log odds ratio when `method = 'logit'`.
             - 'p_value': The calculated p value.
             - 'stat_sig': A boolean flag indicating statistical significance.
             - 'count': The number of valid non-nan observations.
     """
-
-    X = sm.add_constant(df[iv].astype(float))
 
     counts = []
     index_tuples = []
     test_statistics = []
     p_values = []
 
+    iv_set = set(iv)
+
     for dv_col in dv:
         y = df[dv_col].astype(float)
 
         if method == 'linear':
+            X = sm.add_constant(df[iv].astype(float))
             model = sm.OLS(y, X, missing = 'drop')
 
         elif method == 'logistic':
+            X = sm.add_constant(df[iv].astype(float))
             model = sm.Logit(y, X, missing = 'drop')
+
+        elif method == 'logit':
+            X = df[iv].astype(float)
+            model = OrderedModel(y, X, missing = 'drop', distr = 'logit')
 
         result = model.fit(disp = 0)
 
@@ -421,7 +432,7 @@ def _regression(
             print(result.summary())
 
         for iv_name in result.params.index:
-            if iv_name != 'const':
+            if iv_name in iv_set:
                 index_tuples.append((dv_col, iv_name))
                 test_statistics.append(result.params[iv_name])
                 p_values.append(result.pvalues[iv_name])
@@ -435,8 +446,6 @@ def _regression(
         alpha,
         ['dv', 'iv'],
     )
-
-
 
 def _dependent_cochran(
    df: pd.DataFrame,
@@ -1130,7 +1139,6 @@ def _create_test_frame(
         p_values (np.ndarray): The array of p values.
         counts (np.ndarray): The array of column non-nan counts.
         alpha (float): The desired alpha level.
-        statistic_name (str): The name of the kind of values in `test_statistics`.
         multi_labels (list[str] | None, optional): The labels for the index levels (for a multi-index DataFrame). Must match the length of interior elements of indices. Defaults to None
 
     Returns:
@@ -1161,8 +1169,6 @@ def _create_test_frame(
     )
 
     return result  
-
-# TODO: add logit regression for ordinal outcomes?
 
 # TODO: Update column selection resolution to ensure the default (when dv = None) doesn't include the iv
 

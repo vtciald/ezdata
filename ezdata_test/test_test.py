@@ -633,6 +633,44 @@ def test_regression_logistic():
     
     pd.testing.assert_frame_equal(result, expected)
 
+def test_regression_logit():
+
+    dp = DataProcessor()
+
+    test_df = pd.DataFrame({
+        'iv1': [np.nan, 5.2, 10, 7.8, 32, 2, 3, 13.1, 15.4, 54, 17.0, 2, 13, 1.4, 3, 16, 23.1, 57.4, 32.0, 3.1, 7.5, 4.2, 8.9, 6.4, 9.1, 1.8],
+        'iv2': [0, 1, 0, 1, 1, 0, 0, 1, 1, 0, 1, 0, 1, 1, 0, 0, 1, 0, 1, 0, 0, 1, 1, 0, 1, 0],
+        'dv1': [1, 2, 1, 0, 2, 0, 0, 1, 0, 2, 2, 0, 1, 0, 1, 2, 2, 2, 2, 1, 1, 0, np.nan, 0, 0, 0],
+        'dv2': [0, 0, 1, 0, 2, 1, 0, 2, 0, 2, 2, 1, 2, 0, 1, 2, 2, 2, 0, 0, 1, 1, 2, 1, 0, 0],
+    })
+
+    multi_index = pd.MultiIndex.from_tuples(
+        [
+            ('dv1', 'iv1'),
+            ('dv1', 'iv2'),
+            ('dv2', 'iv1'),
+            ('dv2', 'iv2'),
+        ],
+        names = ['dv', 'iv'],
+    )
+
+    expected = pd.DataFrame(
+        {
+            'test_statistic': [0.3304, -1.5496, 0.1284, -0.5436],
+            'p_value': [0.0064, 0.2099, 0.0515, 0.5423],
+            'stat_sig': [True, False, False, False],
+            'count': [24, 24, 25, 25],
+        },
+        index = multi_index,
+    )
+
+    result = dp.test_regression(test_df, 'logit', dv = ['dv1', 'dv2'], iv = ['iv1', 'iv2'])
+
+    result['test_statistic'] = result['test_statistic'].round(4)
+    result['p_value'] = result['p_value'].round(4)
+    
+    pd.testing.assert_frame_equal(result, expected)
+
 # Test one sample methods
 test_one_sample_t()
 test_one_sample_wilcoxon()
@@ -660,3 +698,4 @@ test_dependent_proportion_cochran()
 # Test regression
 test_regression_linear()
 test_regression_logistic()
+test_regression_logit()
