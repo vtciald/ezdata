@@ -1000,8 +1000,8 @@ def _one_sample_sign(
     for col in dv:
         data = df[col].dropna().astype(int)
         diffs = data - null
-        positives = np.sum(diffs > null)
-        total_trials = np.sum(diffs != null)
+        positives = np.sum(diffs > 0)
+        total_trials = np.sum(diffs != 0)
         counts.append(total_trials)
 
         if total_trials == 0:
@@ -1168,8 +1168,6 @@ def _create_test_frame(
     )
 
     return result  
-
-# TODO: Consider consolidating _one_sample_sign and _one_sample_binomail (and are there others that are redundant?)
 
 # TODO: Update column selection resolution to ensure the default (when dv = None) doesn't include the iv
 
