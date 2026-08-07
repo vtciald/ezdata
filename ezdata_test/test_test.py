@@ -46,7 +46,7 @@ def test_one_sample_wilcoxon():
             'test_statistic': [0.0, 4.0, 2.0],
             'p_value': [0.125, 1.0, 0.0312],
             'stat_sig': [False, False, True],
-            'count': [8, 8, 8],
+            'count': [4, 4, 8],
         },
         index = ['Col1', 'Col2', 'Col3'],
     )
@@ -73,7 +73,7 @@ def test_one_sample_sign():
             'test_statistic': [1.00, 0.500, 0.875],
             'p_value': [0.125, 1.0, 0.0703],
             'stat_sig': [False, False, False],
-            'count': [8, 8, 8],
+            'count': [4, 4, 8],
         },
         index = ['Col1', 'Col2', 'Col3'],
     )
@@ -445,7 +445,7 @@ def test_dependent_wilcoxon():
             'test_statistic': [49.0, 36.0],
             'p_value': [0.0641, 0.0100],
             'stat_sig': [False, True],
-            'count': [22, 23],
+            'count': [19, 20],
         },
         index = multi_index,
     )
@@ -481,7 +481,7 @@ def test_dependent_proportion_mcnemar_exact():
             'test_statistic': [3.0, 2.0],
             'p_value': [0.0574, 0.0074],
             'stat_sig': [False, True],
-            'count': [31, 32],
+            'count': [14, 15],
         },
         index = multi_index,
     )
@@ -517,7 +517,7 @@ def test_dependent_proportion_mcnemar_asymptotic():
             'test_statistic': [3.5, 6.6667],
             'p_value': [0.0614, 0.0098],
             'stat_sig': [False, True],
-            'count': [31, 32],
+            'count': [14, 15],
         },
         index = multi_index,
     )
@@ -545,7 +545,7 @@ def test_dependent_proportion_cochran():
             'test_statistic': [4.5714, 8.0667],
             'p_value': [0.0325, 0.0045],
             'stat_sig': [True, True],
-            'count': [31, 32],
+            'count': [14, 15],
         },
         index = ["['Col1_pre', 'Col1_post']", "['Col2_pre', 'Col2_post']"]
     )

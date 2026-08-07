@@ -475,7 +475,8 @@ def _dependent_cochran(
 
     for col_group in column_groups:
         non_na = df[col_group].notna().all(axis = 1)
-        count = non_na.sum()
+        non_tie_row = df[col_group].nunique(axis = 1) != 1
+        count = (non_na & non_tie_row).sum()
         result = cochrans_q(df.loc[non_na, col_group].astype(float).values)
 
         index_strings.append(str(col_group))
@@ -521,7 +522,7 @@ def _dependent_mcnemar(
 
     for col0, col1 in column_pairs:
         table = pd.crosstab(df[col0], df[col1])
-        count = (df[col0].notna() & df[col1].notna()).sum()
+        count = (df[col0].notna() & df[col1].notna() & (df[col0] != df[col1])).sum()
         result = mcnemar(table, exact)
 
         index_tuples.append((col0, col1))
@@ -614,7 +615,7 @@ def _dependent_wilcoxon(
     p_values = []
 
     for col0, col1 in column_pairs:
-        count = (df[col0].notna() & df[col1].notna()).sum()
+        count = (df[col0].notna() & df[col1].notna() & (df[col0] != df[col1])).sum()
         result = wilcoxon(
             df[col0].astype(float),
             df[col1].astype(float),
@@ -999,13 +1000,13 @@ def _one_sample_sign(
     for col in dv:
         data = df[col].dropna().astype(int)
         diffs = data - null
-        positives = np.sum(diffs > 0)
-        total_trials = np.sum(diffs != 0)
+        positives = np.sum(diffs > null)
+        total_trials = np.sum(diffs != null)
+        counts.append(total_trials)
 
         if total_trials == 0:
             test_statistics.append(np.nan)
             p_values.append(np.nan)
-            counts.append(len(data))
         
         else:
             result = binomtest(
@@ -1016,7 +1017,6 @@ def _one_sample_sign(
 
             test_statistics.append(result.statistic)
             p_values.append(result.pvalue)
-            counts.append(len(data))
     
     return _create_test_frame(
         dv,
@@ -1057,11 +1057,11 @@ def _one_sample_binomial(
         data = df[col].dropna().astype(int)
         successes = np.sum(data)
         total_trials = len(data)
+        counts.append(len(data))
 
         if total_trials == 0:
             test_statistics.append(np.nan)
             p_values.append(np.nan)
-            counts.append(len(data))
         
         else:
             result = binomtest(
@@ -1072,7 +1072,6 @@ def _one_sample_binomial(
 
             test_statistics.append(result.statistic)
             p_values.append(result.pvalue)
-            counts.append(len(data))
     
     return _create_test_frame(
         dv,
@@ -1105,7 +1104,7 @@ def _one_sample_wilcoxon(
             - 'count': The number of valid non-nan observations.
     """
 
-    counts = df[dv].agg('count', axis = 0)
+    counts = ((df[dv] != null) & (df[dv].notna())).sum()
 
     result = wilcoxon(
         df[dv].astype(float).to_numpy() - null,
@@ -1170,8 +1169,8 @@ def _create_test_frame(
 
     return result  
 
+# TODO: Consider consolidating _one_sample_sign and _one_sample_binomail (and are there others that are redundant?)
+
 # TODO: Update column selection resolution to ensure the default (when dv = None) doesn't include the iv
 
 # TODO: Add p-value correction methods...bonferroni, holm-bonferroni, benjamini-hochberg
-
-# TODO: Consider adding test of normality (and maybe leverage alongside sample size when method is unspecified in higher-level funcs?)
