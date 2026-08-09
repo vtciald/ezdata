@@ -7,6 +7,7 @@ from collections.abc import Sequence
 from itertools import combinations
 from statsmodels.stats.contingency_tables import mcnemar, cochrans_q
 from statsmodels.miscmodels.ordinal_model import OrderedModel
+from statsmodels.stats.multitest import multipletests
 import statsmodels.api as sm
 
 def test_one_sample(
@@ -366,6 +367,70 @@ def test_regression(
         raise ValueError(f'Regression method \'{method}\' is not recognized.')
 
     return result
+
+def p_correct(
+    df: pd.DataFrame,
+    method: str,
+    *,
+    alpha: float = 0.05, 
+) -> pd.DataFrame:
+    """Correct p values.
+
+    Args:
+        df (pd.DataFrame): A DataFrame containing a column 'p_value'.
+        method (str): The p-value correction method. Can be one of 'bonferroni' (or 'bf'), 'holm_bonferroni' (or 'hb'), 'benjamini_hochberg' (or 'bh'), 'benjamini_yekutieli' (or 'by').
+        alpha (float, optional): The desired alpha. Defaults to 0.05.
+
+    Notes:
+        * 'bonferroni': One-step Bonferroni correction for family-wise error rate (FWER).
+        * 'holm_bonferroni': Step-down method with Bonferroni adjustments for FWER. More powerful than 'bonferroni'.
+        * 'benjamini_hochberg': Correction for false-discovery rate (FDR). For tests that are independent or positively correlated.
+        * 'benjamini_yekutieli': Correction for false-discovery rate (FDR). For tests that are negatively correlated.
+
+    Raises:
+            ValueError: If string argument for `method` isn't recognized.
+            ValueError: If 'p_value' column is not found in `df`.
+
+    Returns:
+        pd.DataFrame: A copy of `df` with columns added:
+            - 'p_value_bf' and 'stat_sig_bf' when `method = 'bonferroni'`.
+            - 'p_value_hb' and 'stat_sig_hb' when `method = 'holm_bonferroni'`.
+            - 'p_value_bh' and 'stat_sig_bh' when `method = 'benjamini_hochberg'`.
+            - 'p_value_by' and 'stat_sig_by' when `method = 'benjamini_yekutieli'`.
+    """
+
+    method_map = {
+        'bonferroni': ('bonferroni', '_bf'),
+        'bf': ('bonferroni', '_bf'),
+        'holm_bonferroni' : ('holm', '_hb'),
+        'hb' : ('holm', '_hb'),
+        'benjamini_hochberg' : ('fdr_bh', '_bh'),
+        'bh' : ('fdr_bh', '_bh'),
+        'benjamini_yekutieli' : ('fdr_by', '_by'),
+        'by' : ('fdr_by', '_by'),
+    }
+    if method not in method_map:
+        raise ValueError(f'P-value correction method \'{method}\' is not recognized.')
+
+    elif 'p_value' not in df.columns:
+        raise ValueError(f'Column \'p_value\' not found in DataFrame.')
+    
+    method, method_suffix = method_map[method.lower()]
+
+    df = df.copy()
+
+    stat_sig_corrected, p_value_corrected, _, _ = multipletests(
+        df['p_value'],
+        alpha = alpha,
+        method = method,
+        is_sorted = False,
+        returnsorted = False
+    )
+
+    df['p_value' + method_suffix] = p_value_corrected
+    df['stat_sig' + method_suffix] = stat_sig_corrected
+
+    return df
 
 def _regression(
     df: pd.DataFrame,

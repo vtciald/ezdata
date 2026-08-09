@@ -195,3 +195,4 @@ class DataProcessor:
     test_dependent = staticmethod(test.test_dependent)
     test_dependent_proportion = staticmethod(test.test_dependent_proportion)
     test_regression = staticmethod(test.test_regression)
+    p_correct = staticmethod(test.p_correct)

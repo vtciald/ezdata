@@ -671,6 +671,44 @@ def test_regression_logit():
     
     pd.testing.assert_frame_equal(result, expected)
 
+def test_p_correct():
+
+    dp = DataProcessor()
+
+    test_df = pd.DataFrame(
+        {
+            'p_value': [0.0331, 0.7318, 0.0497, 0.0012, 0.0153],
+        },
+        index = ['Col1', 'Col2', 'Col3', 'Col4', 'Col5'],
+    )
+
+    expected = pd.DataFrame(
+        {
+            'p_value': [0.0331, 0.7318, 0.0497, 0.0012, 0.0153],
+            'p_value_bf': [0.1655, 1.0000, 0.2485, 0.0060, 0.0765],
+            'stat_sig_bf': [False, False, False, True, False],
+            'p_value_hb': [0.0993, 0.7318, 0.0994, 0.0060, 0.0612],
+            'stat_sig_hb': [False, False, False, True, False],
+            'p_value_bh': [0.0552, 0.7318, 0.0621, 0.0060, 0.0382],
+            'stat_sig_bh': [False, False, False, True, True],
+            'p_value_by': [0.1260, 1.0000, 0.1419, 0.0137, 0.0873],
+            'stat_sig_by': [False, False, False, True, False],
+        },
+        index = ['Col1', 'Col2', 'Col3', 'Col4', 'Col5'],
+    )
+
+    result = dp.p_correct(test_df, method = 'bf')
+    result = dp.p_correct(result, method = 'hb')
+    result = dp.p_correct(result, method = 'bh')
+    result = dp.p_correct(result, method = 'by')
+
+    result['p_value_bf'] = result['p_value_bf'].round(4)
+    result['p_value_hb'] = result['p_value_hb'].round(4)
+    result['p_value_bh'] = result['p_value_bh'].round(4)
+    result['p_value_by'] = result['p_value_by'].round(4)
+    
+    pd.testing.assert_frame_equal(result, expected)
+
 # Test one sample methods
 test_one_sample_t()
 test_one_sample_wilcoxon()
@@ -699,3 +737,6 @@ test_dependent_proportion_cochran()
 test_regression_linear()
 test_regression_logistic()
 test_regression_logit()
+
+# Test p-value correction methods
+test_p_correct()
