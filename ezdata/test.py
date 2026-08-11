@@ -234,7 +234,7 @@ def test_dependent(
     Notes:
         * 't': Paired-samples t-test (parametric). Difference between 2 columns.
         * 'wilcoxon': Wilcoxon signed-rank test (non-parametric). Difference between 2 columns.
-        * If `dv` is a list or set of strings (or ColumnSelector), all combinations of columns will be tested.
+        * If `dv` is a sequence of strings (or ColumnSelector), all combinations of columns will be tested.
 
     Raises:
         ValueError: If string argument for `method` isn't recognized.
@@ -282,7 +282,7 @@ def test_dependent_proportion(
         * 'mcnemar_exact': McNemar's exact test (non-parametric). Difference between 2 columns (recommended when sample size < 25).
         * 'mcnemar_asymptotic': McNemar's asymptotic test (non-parametric). Difference between 2 columns with continuity correction (recommended when sample size >= 25).
         * 'cochran': Cochran's Q test (non-parametric). Difference among 2+ columns.
-        * If `dv` is a list or set of strings (or ColumnSelector), all combinations of columns will be tested.
+        * If `dv` is a sequence of strings (or ColumnSelector), all combinations of columns will be tested.
 
     Raises:
         ValueError: If string argument for `method` isn't recognized.
@@ -334,7 +334,7 @@ def test_regression(
     Args:
         df (pd.DataFrame): The DataFrame.
         method (str): The test method. Supported choices: 'linear', 'logistic', 'logit'.
-        iv (Sequence[str] | str | ColumnSelector): Column(s) to use as the dependent variable(s). It is assumed that a constant is not yet added.
+        iv (Sequence[str] | str | ColumnSelector): Column(s) to use as the independent variable(s). It is assumed that a constant is not yet added.
         dv (Sequence[str] | str | ColumnSelector | None, optional): Column(s) to use as the dependent variable(s). If None, includes all columns. Defaults to None.
         alpha (float, optional): The desired alpha. Defaults to 0.05.
         print_summary (bool, optional): If true, prints the model summary after fit. Defaults to False.
@@ -392,8 +392,8 @@ def p_correct(
         * 'benjamini_yekutieli': Correction for false-discovery rate (FDR). For tests that are negatively correlated.
 
     Raises:
-            ValueError: If string argument for `method` isn't recognized.
-            ValueError: If 'p_value' column is not found in `df`.
+        ValueError: If string argument for `method` isn't recognized.
+        ValueError: If 'p_value' column is not found in `df`.
 
     Returns:
         pd.DataFrame: A copy of `df` with columns added:
@@ -451,7 +451,7 @@ def _regression(
     Args:
         df (pd.DataFrame): The DataFrame.
         method (str): The test method. Supported choices: 'linear', 'logistic', 'logit'.
-        iv (Sequence[str]): Column(s) to use as the dependent variable(s). It is assumed that a constant is not yet added.
+        iv (Sequence[str]): Column(s) to use as the independent variable(s). It is assumed that a constant is not yet added.
         dv (Sequence[str]): Column(s) to use as the dependent variable(s). If None, includes all columns. Defaults to None.
         alpha (float): The desired alpha. Defaults to 0.05.
         print_summary (bool): If true, prints the model summary after fit. Defaults to False.
