@@ -143,6 +143,7 @@ def test_independent_proportion(
 
     df, iv = prep.dummy_to_categorical(df, cols = iv)
     dv = Selector.resolve(df, dv)
+    dv = [col for col in dv if col != iv]
 
     if method == 'chi_square':
         result = _independent_chi_sq(df, iv, dv, alpha)
@@ -196,6 +197,7 @@ def test_independent(
 
     df, iv = prep.dummy_to_categorical(df, cols = iv)
     dv = Selector.resolve(df, dv)
+    dv = [col for col in dv if col != iv]
 
     if method == 't':
         result = _independent_t(df, iv, dv, alpha)
@@ -359,6 +361,8 @@ def test_regression(
 
     iv = Selector.resolve(df, iv)
     dv = Selector.resolve(df, dv)
+    iv_set = set(iv)
+    dv = [col for col in dv if col not in iv_set]
 
     if method in {'linear', 'logistic', 'logit'}:
         result = _regression(df, method, iv, dv, alpha, print_summary)
@@ -1232,6 +1236,4 @@ def _create_test_frame(
         index = frame_index
     )
 
-    return result  
-
-# TODO: Update column selection resolution to ensure the default (when dv = None) doesn't include the iv
+    return result

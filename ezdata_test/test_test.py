@@ -709,6 +709,109 @@ def test_p_correct():
     
     pd.testing.assert_frame_equal(result, expected)
 
+def test_regression_dv_collision():
+
+    dp = DataProcessor()
+
+    test_df = pd.DataFrame({
+        'iv1': [np.nan, 5.2, 10, 7.8, 32, 2, 3, 13.1, 15.4, 54, 17.0, 2, 13, 1.4, 3, 16, 23.1, 57.4, 32.0, 3.1, 7.5, 4.2, 8.9, 6.4, 9.1, 1.8],
+        'iv2': [0, 1, 0, 1, 1, 0, 0, 1, 1, 0, 1, 0, 1, 1, 0, 0, 1, 0, 1, 0, 0, 1, 1, 0, 1, 0],
+        'dv1': [14.2, 18.5, 12.1, 24.3, 21.0, 15.4, 19.8, 29.1, 33.5, 22.0, 31.4, 24.9, 52.1, 9.4, 44.5, 41.2, 36.8, 74.2, 48.0, 11.1, 16.5, 15.2, 22.9, 14.4, 21.1, 8.8],
+        'dv2': [1, 0, 1, 0, 0, 1, 1, 0, 0, 1, 0, 1, 0, 0, 1, 1, 0, 1, 0, 1, 1, 0, np.nan, 1, 0, 1], 
+    })
+
+    multi_index = pd.MultiIndex.from_tuples(
+        [
+            ('dv1', 'iv1'),
+            ('dv1', 'iv2'),
+            ('dv2', 'iv1'),
+            ('dv2', 'iv2'),
+        ],
+        names = ['dv', 'iv'],
+    )
+
+    expected = pd.DataFrame(
+        {
+            'test_statistic': [0.6068, 2.4375, 0.0000, -1.0000],
+            'p_value': [0.0023, 0.6470, 0.0020, 0.0000],
+            'stat_sig': [True, False, True, True],
+            'count': [25, 25, 24, 24],
+        },
+        index = multi_index,
+    )
+
+    result = dp.test_regression(test_df, 'linear', dv = None, iv = ['iv1', 'iv2'])
+
+    result['test_statistic'] = result['test_statistic'].round(4)
+    result['p_value'] = result['p_value'].round(4)
+    
+    pd.testing.assert_frame_equal(result, expected)
+
+def test_independent_proportion_dv_collision():
+
+    dp = DataProcessor()
+
+    test_df = pd.DataFrame({
+        'Col1': [1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 1, 1, 1, 0],
+        'Col2': [1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0],
+    })
+
+    expected = pd.DataFrame(
+        {
+            'test_statistic': [2.6667],
+            'p_value': [0.6145],
+            'stat_sig': [False],
+            'count': [16],
+        },
+        index = ['Col2'],
+    )
+
+    result = dp.test_independent_proportion(test_df, 'fisher_exact', iv = 'Col1', dv = None)
+
+    result['test_statistic'] = result['test_statistic'].round(4)
+    result['p_value'] = result['p_value'].round(4)
+    
+    pd.testing.assert_frame_equal(result, expected)
+
+def test_independent_dv_collision():
+
+    dp = DataProcessor()
+
+    test_df = pd.DataFrame({
+        'Col1': [10, 42, 64, 75, 2, 635, 78, 8, 53, 74, np.nan, 86, 86, 43, 31, 75, 86, 63, 42, 4, 57, 698, 34],
+        'Col2': [43, 64, 85, 243, 745, 9, 97, 46, 53, 42, 765, 86, 96, 680, 53, 75, 500, 43, 75, 85, 45, 34, 65],
+        'Group': [np.nan, 'A', 'B', 'C', 'A', 'B', 'C', 'A', 'B', 'C', 'A', 'B', 'C', 'A', 'B', 'C', 'A', 'B', 'C', 'A', 'B', 'C', 'A']
+    })
+
+    multi_index = pd.MultiIndex.from_tuples(
+        [
+            ('Col1', 'A', 'B'),
+            ('Col1', 'A', 'C'),
+            ('Col1', 'B', 'C'),
+            ('Col2', 'A', 'B'),
+            ('Col2', 'A', 'C'),
+            ('Col2', 'B', 'C'),
+        ],
+        names = ['dv', 'group_0', 'group_1'],
+    )
+
+    expected = pd.DataFrame(
+        {
+            'test_statistic': [-1.3207, -1.4374, -0.1630, 2.4767, 2.1200, -1.4579],
+            'p_value': [0.2112, 0.1762, 0.8732, 0.0278, 0.0538, 0.1705],
+            'stat_sig': [False, False, False, True, False, False],
+            'count': [14, 14, 14, 15, 15, 14],
+        },
+        index = multi_index,
+    )
+
+    result = dp.test_independent(test_df, 't', dv = None, iv = 'Group')
+    
+    result['test_statistic'] = result['test_statistic'].round(4)
+    result['p_value'] = result['p_value'].round(4)
+    
+    pd.testing.assert_frame_equal(result, expected)
+
 # Test one sample methods
 test_one_sample_t()
 test_one_sample_wilcoxon()
@@ -740,3 +843,8 @@ test_regression_logit()
 
 # Test p-value correction methods
 test_p_correct()
+
+# Test iv-dv collision
+test_regression_dv_collision()
+test_independent_proportion_dv_collision()
+test_independent_dv_collision()
