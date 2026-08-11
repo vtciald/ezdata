@@ -216,15 +216,20 @@ class Selector(ABC):
     def _assign_labels(
         self,
         labels: Sequence[str] | str | None,
+        *,
+        exclude: bool = False,
     ) -> None:
         """Assign labels arg to attribute.
 
         Args:
             labels (Sequence[str] | str | None): The labels argument.
+            exclude (bool): If true, assigns to the exclude property. Otherwise assigns to the target property. Defaults to False.
 
         Raises:
             TypeError: If labels is an invalid type.
         """
+
+        attribute_name = 'exclude_labels' if exclude else 'labels'
         
         if isinstance(labels, Sequence):
             for label in labels:
@@ -233,14 +238,14 @@ class Selector(ABC):
                         f'Invalid type for labels argument: \'{labels}\' (\'{label}\'). '
                         'Must be a string, sequence of strings, or None.'
                     )
-                
-            self.labels = set(labels)
+
+            setattr(self, attribute_name, set(labels))
 
         elif isinstance(labels, str):
-            self.labels = set([labels])
+            setattr(self, attribute_name, set([labels]))
 
         elif labels is None:
-            self.labels = None
+            setattr(self, attribute_name, None)
 
         else:
             raise TypeError(
@@ -251,21 +256,26 @@ class Selector(ABC):
     def _assign_prefix(
         self,
         prefix: str | None = None,
+        *,
+        exclude: bool = False,
     ) -> None:
         """Assign prefix arg to attribute.
 
         Args:
             prefix (str | None): The prefix argument.
+            exclude (bool): If true, assigns to the exclude property. Otherwise assigns to the target property. Defaults to False.
 
         Raises:
             TypeError: If prefix is an invalid type.
         """
+
+        attribute_name = 'exclude_prefix' if exclude else 'prefix'
         
         if isinstance(prefix, str):
-            self.prefix = prefix
+            setattr(self, attribute_name, prefix)
 
         elif prefix is None:
-            self.prefix = None
+            setattr(self, attribute_name, None)
 
         else:
             raise TypeError(
@@ -276,21 +286,26 @@ class Selector(ABC):
     def _assign_suffix(
         self,
         suffix: str | None = None,
+        *,
+        exclude: bool = False,
     ) -> None:
         """Assign suffix arg to attribute.
 
         Args:
             suffix (str | None): The suffix argument.
+            exclude (bool): If true, assigns to the exclude property. Otherwise assigns to the target property. Defaults to False.
 
         Raises:
             TypeError: If suffix is an invalid type.
         """
+
+        attribute_name = 'exclude_suffix' if exclude else 'suffix'
         
         if isinstance(suffix, str):
-            self.suffix = suffix
+            setattr(self, attribute_name, suffix)
 
         elif suffix is None:
-            self.suffix = None
+            setattr(self, attribute_name, None)
 
         else:
             raise TypeError(
@@ -301,24 +316,29 @@ class Selector(ABC):
     def _assign_pattern(
         self,
         pattern: re.Pattern | str | None = None,
+        *,
+        exclude: bool = False,
     ) -> None:
         """Assign pattern arg to attribute.
 
         Args:
             pattern (str | re.Pattern | None): The pattern argument.
+            exclude (bool): If true, assigns to the exclude property. Otherwise assigns to the target property. Defaults to False.
 
         Raises:
             TypeError: If pattern is an invalid type.
         """
+
+        attribute_name = 'exclude_pattern' if exclude else 'pattern'
         
         if isinstance(pattern, str):
-            self.pattern = re.compile(pattern)
+            setattr(self, attribute_name, re.compile(pattern))
 
         elif isinstance(pattern, re.Pattern):
-            self.pattern = pattern
+            setattr(self, attribute_name, pattern)
 
         elif pattern is None:
-            self.pattern = None
+            setattr(self, attribute_name, None)
 
         else:
             raise TypeError(
@@ -369,18 +389,14 @@ class Selector(ABC):
             dict[str, list[str]]: _description_
         """
         
-        all_cols = df.columns.tolist()
-        
         group_dict = {}
+        filtered_cols = self._filter_cols(df)
+
         
-        for col in all_cols:
+        for col in filtered_cols:
             match_result = re.search(self.group_pattern, col) # type: ignore
 
-            if ((self.labels is None or col in self.labels)
-            and (self.prefix is None or col.startswith(self.prefix))
-            and (self.suffix is None or col.endswith(self.suffix))
-            and (self.pattern is None or re.search(self.pattern, col))
-            and (match_result)):
+            if (match_result):
                 
                 if match:
                     key = match_result.group()
@@ -396,6 +412,56 @@ class Selector(ABC):
 
         return group_dict
 
+    def _filter_cols(
+        self, 
+        df: pd.DataFrame,
+    ) -> list[str]:
+        """Filter DataFrame columns.
+
+        Args:
+            df (pd.DataFrame): The DataFrame
+
+        Returns:
+            list[str]: The list of desired column labels.
+        """
+
+        matched_cols = df.columns.tolist()
+
+        labels = getattr(self, 'labels', None)
+        prefix = getattr(self, 'prefix', None)
+        suffix = getattr(self, 'suffix', None)
+        pattern = getattr(self, 'pattern', None)
+        exclude_labels = getattr(self, 'exclude_labels', None)
+        exclude_prefix = getattr(self, 'exclude_prefix', None)
+        exclude_suffix = getattr(self, 'exclude_suffix', None)
+        exclude_pattern = getattr(self, 'exclude_pattern', None)
+
+        if labels is not None:
+            matched_cols = [col for col in matched_cols if col in labels]
+
+        if prefix is not None:
+            matched_cols = [col for col in matched_cols if col.startswith(prefix)]
+
+        if suffix is not None:
+            matched_cols = [col for col in matched_cols if col.endswith(suffix)]
+
+        if pattern is not None:
+            matched_cols = [col for col in matched_cols if re.search(pattern, col)]
+
+        if exclude_labels is not None:
+            matched_cols = [col for col in matched_cols if col not in exclude_labels]
+
+        if exclude_prefix is not None:
+            matched_cols = [col for col in matched_cols if not col.startswith(exclude_prefix)]
+
+        if exclude_suffix is not None:
+            matched_cols = [col for col in matched_cols if not col.endswith(exclude_suffix)]
+
+        if exclude_pattern is not None:
+            matched_cols = [col for col in matched_cols if not re.search(exclude_pattern, col)]
+
+        return matched_cols
+
 class ColumnSelector(Selector):
     """Create a ColumnSelector object to select columns.
     """
@@ -407,6 +473,10 @@ class ColumnSelector(Selector):
         prefix: str | None = None,
         suffix: str | None = None,
         pattern: re.Pattern | str | None = None,
+        exclude_labels: Sequence[str] | str | None = None,
+        exclude_prefix: str | None = None,
+        exclude_suffix: str | None = None,
+        exclude_pattern: re.Pattern | str | None = None,
     ) -> None:
         """Initialize a ColumnSelector instance.
 
@@ -417,6 +487,10 @@ class ColumnSelector(Selector):
             prefix (str | None, optional): The prefix of columns to select. Defaults to None.
             suffix (str | None, optional): The suffix of columns to select. Defaults to None.
             pattern (str | re.Pattern | None, optional): A regex pattern describing columns to select. Defaults to None.
+            exclude_labels (Sequence[str] | str | None, optional): Full column labels to omit. Defaults to None.
+            exclude_prefix (str | None, optional): The prefix of columns to omit. Defaults to None.
+            exclude_suffix (str | None, optional): The suffix of columns to omit. Defaults to None.
+            exclude_pattern (str | re.Pattern | None, optional): A regex pattern describing columns to omit. Defaults to None.
 
         Note:
             If all selection arguments are None, all columns will be selected.
@@ -426,6 +500,10 @@ class ColumnSelector(Selector):
         self._assign_prefix(prefix)
         self._assign_suffix(suffix)
         self._assign_pattern(pattern)
+        self._assign_labels(exclude_labels, exclude = True)
+        self._assign_prefix(exclude_prefix, exclude = True)
+        self._assign_suffix(exclude_suffix, exclude = True)
+        self._assign_pattern(exclude_pattern, exclude = True)
     
     def __call__(
         self,
@@ -440,18 +518,7 @@ class ColumnSelector(Selector):
             list[str]: The list of selected column labels.
         """
         
-        all_cols = df.columns.tolist()
-        
-        if self.labels is None and self.prefix is None and self.suffix is None and self.pattern is None:
-            return all_cols
-        
-        matched_cols = [
-            col for col in all_cols
-            if (self.labels is None or col in self.labels)
-            and (self.prefix is None or col.startswith(self.prefix))
-            and (self.suffix is None or col.endswith(self.suffix))
-            and (self.pattern is None or re.search(self.pattern, col))
-        ]
+        matched_cols = self._filter_cols(df)
 
         return matched_cols
     
@@ -468,6 +535,10 @@ class PairSelector(Selector):
         prefix: str | None = None,
         suffix: str | None = None,
         pattern: re.Pattern | str | None = None,
+        exclude_labels: Sequence[str] | str | None = None,
+        exclude_prefix: str | None = None,
+        exclude_suffix: str | None = None,
+        exclude_pattern: re.Pattern | str | None = None,
     ) -> None:
         """Initialize a PairSelector instance.
 
@@ -480,6 +551,10 @@ class PairSelector(Selector):
             prefix (str | None, optional): The prefix of columns to select. Defaults to None.
             suffix (str | None, optional): The suffix of columns to select. Defaults to None.
             pattern (str | re.Pattern | None, optional): A regex pattern describing columns to select. Defaults to None.
+            exclude_labels (Sequence[str] | str | None, optional): Full column labels to omit. Defaults to None.
+            exclude_prefix (str | None, optional): The prefix of columns to omit. Defaults to None.
+            exclude_suffix (str | None, optional): The suffix of columns to omit. Defaults to None.
+            exclude_pattern (str | re.Pattern | None, optional): A regex pattern describing columns to omit. Defaults to None.
         """
 
         self.match = match
@@ -488,6 +563,10 @@ class PairSelector(Selector):
         self._assign_suffix(suffix)
         self._assign_pattern(pattern)
         self._assign_group_pattern(group_pattern)
+        self._assign_labels(exclude_labels, exclude = True)
+        self._assign_prefix(exclude_prefix, exclude = True)
+        self._assign_suffix(exclude_suffix, exclude = True)
+        self._assign_pattern(exclude_pattern, exclude = True)
     
     def __call__(
         self,
@@ -527,6 +606,10 @@ class GroupSelector(Selector):
         prefix: str | None = None,
         suffix: str | None = None,
         pattern: re.Pattern | str | None = None,
+        exclude_labels: Sequence[str] | str | None = None,
+        exclude_prefix: str | None = None,
+        exclude_suffix: str | None = None,
+        exclude_pattern: re.Pattern | str | None = None,
     ) -> None:
         """Initialize a GroupSelector instance.
 
@@ -539,6 +622,10 @@ class GroupSelector(Selector):
             prefix (str | None, optional): The prefix of columns to select. Defaults to None.
             suffix (str | None, optional): The suffix of columns to select. Defaults to None.
             pattern (str | re.Pattern | None, optional): A regex pattern describing columns to select. Defaults to None.
+            exclude_labels (Sequence[str] | str | None, optional): Full column labels to omit. Defaults to None.
+            exclude_prefix (str | None, optional): The prefix of columns to omit. Defaults to None.
+            exclude_suffix (str | None, optional): The suffix of columns to omit. Defaults to None.
+            exclude_pattern (str | re.Pattern | None, optional): A regex pattern describing columns to omit. Defaults to None.
         """
 
         self.match = match
@@ -547,6 +634,10 @@ class GroupSelector(Selector):
         self._assign_suffix(suffix)
         self._assign_pattern(pattern)
         self._assign_group_pattern(group_pattern)
+        self._assign_labels(exclude_labels, exclude = True)
+        self._assign_prefix(exclude_prefix, exclude = True)
+        self._assign_suffix(exclude_suffix, exclude = True)
+        self._assign_pattern(exclude_pattern, exclude = True)
     
     def __call__(
         self,

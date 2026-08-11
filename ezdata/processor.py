@@ -19,6 +19,10 @@ class DataProcessor:
         prefix: str | None = None,
         suffix: str | None = None,
         pattern: re.Pattern | str | None = None,
+        exclude_labels: Sequence[str] | str | None = None,
+        exclude_prefix: str | None = None,
+        exclude_suffix: str | None = None,
+        exclude_pattern: re.Pattern | str | None = None,
     ) -> ColumnSelector:
         """Create a ColumnSelector instance.
 
@@ -29,6 +33,10 @@ class DataProcessor:
             prefix (str | None, optional): The prefix of columns to select. Defaults to None.
             suffix (str | None, optional): The suffix of columns to select. Defaults to None.
             pattern (str | re.Pattern | None, optional): A regex pattern describing columns to select. Defaults to None.
+            exclude_labels (Sequence[str] | str | None, optional): Full column labels to omit. Defaults to None.
+            exclude_prefix (str | None, optional): The prefix of columns to omit. Defaults to None.
+            exclude_suffix (str | None, optional): The suffix of columns to omit. Defaults to None.
+            exclude_pattern (str | re.Pattern | None, optional): A regex pattern describing columns to omit. Defaults to None.
 
         Note:
             If all selection arguments are None, all columns will be selected.
@@ -38,7 +46,11 @@ class DataProcessor:
             labels = labels,
             prefix = prefix,
             suffix = suffix,
-            pattern = pattern
+            pattern = pattern,
+            exclude_labels = exclude_labels,
+            exclude_prefix = exclude_prefix,
+            exclude_suffix = exclude_suffix,
+            exclude_pattern = exclude_pattern,
         )
     
     def select_pair_by_root(
@@ -48,6 +60,10 @@ class DataProcessor:
         prefix: str | None = None,
         suffix: str | None = None,
         pattern: re.Pattern | str | None = None,
+        exclude_labels: Sequence[str] | str | None = None,
+        exclude_prefix: str | None = None,
+        exclude_suffix: str | None = None,
+        exclude_pattern: re.Pattern | str | None = None,
     ) -> PairSelector:
         """Create a PairSelector instance.
 
@@ -61,6 +77,10 @@ class DataProcessor:
             prefix (str | None, optional): The prefix of columns to select. Defaults to None.
             suffix (str | None, optional): The suffix of columns to select. Defaults to None.
             pattern (str | re.Pattern | None, optional): A regex pattern describing columns to select. Defaults to None.
+            exclude_labels (Sequence[str] | str | None, optional): Full column labels to omit. Defaults to None.
+            exclude_prefix (str | None, optional): The prefix of columns to omit. Defaults to None.
+            exclude_suffix (str | None, optional): The suffix of columns to omit. Defaults to None.
+            exclude_pattern (str | re.Pattern | None, optional): A regex pattern describing columns to omit. Defaults to None.
         """
 
         return PairSelector(
@@ -69,7 +89,11 @@ class DataProcessor:
             labels = labels,
             prefix = prefix,
             suffix = suffix,
-            pattern = pattern
+            pattern = pattern,
+            exclude_labels = exclude_labels,
+            exclude_prefix = exclude_prefix,
+            exclude_suffix = exclude_suffix,
+            exclude_pattern = exclude_pattern,
         )
     
     def select_pair_by_match(
@@ -79,6 +103,10 @@ class DataProcessor:
         prefix: str | None = None,
         suffix: str | None = None,
         pattern: re.Pattern | str | None = None,
+        exclude_labels: Sequence[str] | str | None = None,
+        exclude_prefix: str | None = None,
+        exclude_suffix: str | None = None,
+        exclude_pattern: re.Pattern | str | None = None,
     ) -> PairSelector:
         """Create a PairSelector instance.
 
@@ -92,6 +120,10 @@ class DataProcessor:
             prefix (str | None, optional): The prefix of columns to select. Defaults to None.
             suffix (str | None, optional): The suffix of columns to select. Defaults to None.
             pattern (str | re.Pattern | None, optional): A regex pattern describing columns to select. Defaults to None.
+            exclude_labels (Sequence[str] | str | None, optional): Full column labels to omit. Defaults to None.
+            exclude_prefix (str | None, optional): The prefix of columns to omit. Defaults to None.
+            exclude_suffix (str | None, optional): The suffix of columns to omit. Defaults to None.
+            exclude_pattern (str | re.Pattern | None, optional): A regex pattern describing columns to omit. Defaults to None.
         """
 
         return PairSelector(
@@ -100,7 +132,11 @@ class DataProcessor:
             labels = labels,
             prefix = prefix,
             suffix = suffix,
-            pattern = pattern
+            pattern = pattern,
+            exclude_labels = exclude_labels,
+            exclude_prefix = exclude_prefix,
+            exclude_suffix = exclude_suffix,
+            exclude_pattern = exclude_pattern,
         )
     
     def select_group_by_root(
@@ -110,6 +146,10 @@ class DataProcessor:
         prefix: str | None = None,
         suffix: str | None = None,
         pattern: re.Pattern | str | None = None,
+        exclude_labels: Sequence[str] | str | None = None,
+        exclude_prefix: str | None = None,
+        exclude_suffix: str | None = None,
+        exclude_pattern: re.Pattern | str | None = None,
     ) -> GroupSelector:
         """Create a GroupSelector instance.
 
@@ -123,6 +163,10 @@ class DataProcessor:
             prefix (str | None, optional): The prefix of columns to select. Defaults to None.
             suffix (str | None, optional): The suffix of columns to select. Defaults to None.
             pattern (str | re.Pattern | None, optional): A regex pattern describing columns to select. Defaults to None.
+            exclude_labels (Sequence[str] | str | None, optional): Full column labels to omit. Defaults to None.
+            exclude_prefix (str | None, optional): The prefix of columns to omit. Defaults to None.
+            exclude_suffix (str | None, optional): The suffix of columns to omit. Defaults to None.
+            exclude_pattern (str | re.Pattern | None, optional): A regex pattern describing columns to omit. Defaults to None.
         """
 
         return GroupSelector(
@@ -131,7 +175,11 @@ class DataProcessor:
             labels = labels,
             prefix = prefix,
             suffix = suffix,
-            pattern = pattern
+            pattern = pattern,
+            exclude_labels = exclude_labels,
+            exclude_prefix = exclude_prefix,
+            exclude_suffix = exclude_suffix,
+            exclude_pattern = exclude_pattern,
         )
 
     def select_group_by_match(
@@ -141,6 +189,10 @@ class DataProcessor:
         prefix: str | None = None,
         suffix: str | None = None,
         pattern: re.Pattern | str | None = None,
+        exclude_labels: Sequence[str] | str | None = None,
+        exclude_prefix: str | None = None,
+        exclude_suffix: str | None = None,
+        exclude_pattern: re.Pattern | str | None = None,
     ) -> GroupSelector:
         """Initialize a GroupSelector instance.
 
@@ -154,6 +206,10 @@ class DataProcessor:
             prefix (str | None, optional): The prefix of columns to select. Defaults to None.
             suffix (str | None, optional): The suffix of columns to select. Defaults to None.
             pattern (str | re.Pattern | None, optional): A regex pattern describing columns to select. Defaults to None.
+            exclude_labels (Sequence[str] | str | None, optional): Full column labels to omit. Defaults to None.
+            exclude_prefix (str | None, optional): The prefix of columns to omit. Defaults to None.
+            exclude_suffix (str | None, optional): The suffix of columns to omit. Defaults to None.
+            exclude_pattern (str | re.Pattern | None, optional): A regex pattern describing columns to omit. Defaults to None.
         """
 
         return GroupSelector(
@@ -162,7 +218,11 @@ class DataProcessor:
             labels = labels,
             prefix = prefix,
             suffix = suffix,
-            pattern = pattern
+            pattern = pattern,
+            exclude_labels = exclude_labels,
+            exclude_prefix = exclude_prefix,
+            exclude_suffix = exclude_suffix,
+            exclude_pattern = exclude_pattern,
         )
 
     # Constants from prep.py

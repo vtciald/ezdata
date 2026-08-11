@@ -649,6 +649,78 @@ def test_resolve_selection_tuple():
 
     assert sorted(expected_cols) == sorted(result_cols)
 
+def test_resolve_selection_exclude_labels():
+
+    dp = DataProcessor()
+
+    test_df = pd.DataFrame({
+        'Test_col_one': [1, 2, 3],
+        'Test_col2': [4, 5, 6],
+        'test_col3': [7, 8, 9],
+        'Col4_test': [10, 11, 12],
+        'Col5_test': [13, 14, 15],
+        'Col6': [16, 17, 18],
+    })
+
+    expected_cols = ['Test_col_one', 'test_col3']
+    result_cols = Selector.resolve(test_df, dp.select(labels = ['Test_col_one', 'test_col3'], exclude_labels = 'test_col3'))
+
+    assert sorted(expected_cols) == sorted(result_cols)
+
+def test_resolve_selection_exclude_prefix():
+
+    dp = DataProcessor()
+
+    test_df = pd.DataFrame({
+        'Test_col_one': [1, 2, 3],
+        'Test_col2': [4, 5, 6],
+        'test_col3': [7, 8, 9],
+        'Col4_test': [10, 11, 12],
+        'Col5_test': [13, 14, 15],
+        'Col6': [16, 17, 18],
+    })
+
+    expected_cols = ['Test_col_one', 'Test_col2', 'test_col3']
+    result_cols = Selector.resolve(test_df, dp.select(exclude_prefix = 'Col'))
+
+    assert sorted(expected_cols) == sorted(result_cols)
+
+def test_resolve_selection_exclude_suffix():
+
+    dp = DataProcessor()
+
+    test_df = pd.DataFrame({
+        'Test_col_one': [1, 2, 3],
+        'Test_col2': [4, 5, 6],
+        'test_col3': [7, 8, 9],
+        'Col4_test': [10, 11, 12],
+        'Col5_test': [13, 14, 15],
+        'Col6': [16, 17, 18],
+    })
+
+    expected_cols = ['Test_col_one', 'Test_col2', 'test_col3', 'Col6']
+    result_cols = Selector.resolve(test_df, dp.select(exclude_suffix = 'test'))
+
+    assert sorted(expected_cols) == sorted(result_cols)
+
+def test_resolve_selection_exclude_pattern():
+
+    dp = DataProcessor()
+
+    test_df = pd.DataFrame({
+        'Test_col_one': [1, 2, 3],
+        'Test_col2': [4, 5, 6],
+        'test_col3': [7, 8, 9],
+        'Col4_test': [10, 11, 12],
+        'Col5_test': [13, 14, 15],
+        'Col6': [16, 17, 18],
+    })
+
+    expected_cols = ['Test_col_one']
+    result_cols = Selector.resolve(test_df, dp.select(exclude_pattern = r'ol\d'))
+
+    assert sorted(expected_cols) == sorted(result_cols)
+
 def test_rename_cols():
 
     dp = DataProcessor()
@@ -1176,3 +1248,9 @@ test_resolve_selection_pair_match()
 test_resolve_selection_group_root()
 test_resolve_selection_group_match()
 test_resolve_selection_group_error()
+
+# Test exclusions in column resolution
+test_resolve_selection_exclude_labels()
+test_resolve_selection_exclude_prefix()
+test_resolve_selection_exclude_suffix()
+test_resolve_selection_exclude_pattern()
