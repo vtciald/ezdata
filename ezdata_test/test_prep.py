@@ -80,7 +80,7 @@ def test_clean_df_cols_regex():
 
     pd.testing.assert_frame_equal(result, expected)
 
-def test_remove_cols():
+def test_drop_cols():
 
     dp = DataProcessor()
 
@@ -95,7 +95,7 @@ def test_remove_cols():
         'Col2': [25, 50]
     })
 
-    result = dp.remove_cols(test_df, dp.select(pattern = dp.PATTERN_ALIDA_OTHER_OE))
+    result = dp.drop_cols(test_df, dp.select(pattern = dp.PATTERN_ALIDA_OTHER_OE))
 
     pd.testing.assert_frame_equal(result, expected)
 
@@ -1186,7 +1186,7 @@ test_clean_df_cols()
 test_clean_df_cols_regex()
 
 # Removing columns from dfs
-test_remove_cols()
+test_drop_cols()
 
 # Removing verbal anchors from values
 test_remove_verbal_anchors()

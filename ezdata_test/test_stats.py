@@ -508,7 +508,7 @@ def test_compute_ci_bootstrap_bca():
         index = ['Col1', 'Col2'],
     )
 
-    result = dp.calc_ci(test_df, method = 'bootstrap_bca')
+    result = dp.calc_ci(test_df, method = 'bootstrap_bca', random_state = 0)
     result = result.round(4)
 
     pd.testing.assert_frame_equal(result, expected)
@@ -532,7 +532,7 @@ def test_compute_ci_bootstrap_basic():
         index = ['Col1', 'Col2'],
     )
 
-    result = dp.calc_ci(test_df, method = 'bootstrap_basic')
+    result = dp.calc_ci(test_df, method = 'bootstrap_basic', random_state = 0)
     result = result.round(4)
 
     pd.testing.assert_frame_equal(result, expected)
@@ -556,7 +556,7 @@ def test_compute_ci_bootstrap_percentile():
         index = ['Col1', 'Col2'],
     )
 
-    result = dp.calc_ci(test_df, method = 'bootstrap_percentile')
+    result = dp.calc_ci(test_df, method = 'bootstrap_percentile', random_state = 0)
     result = result.round(4)
 
     pd.testing.assert_frame_equal(result, expected)
@@ -580,7 +580,7 @@ def test_compute_ci_bootstrap_bca_median():
         index = ['Col1', 'Col2'],
     )
 
-    result = dp.calc_ci(test_df, method = 'bootstrap_bca', metric = 'median')
+    result = dp.calc_ci(test_df, method = 'bootstrap_bca', metric = 'median', random_state = 0)
     result = result.round(4)
 
     pd.testing.assert_frame_equal(result, expected)

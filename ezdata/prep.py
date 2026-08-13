@@ -19,11 +19,11 @@ _FIX_CHAR_MAP = str.maketrans({
     '\u202f': ' '
 })
 
-PATTERN_ALIDA_OTHER_OE = re.compile(r'other.*_0$', re.IGNORECASE)
+PATTERN_ALIDA_OTHER_OE = re.compile(r'(_NotAnswerText|other.*_0$|^(?P<base>.+_)(?P=base)other.*)', re.IGNORECASE)
 PATTERN_CAPTURE_LEADING_INT = re.compile(r'^(\d+)', re.IGNORECASE)
 _PATTERN_BIN_METHOD = re.compile(r'(?P<kind>i|q)(?P<number>\d+\.?\d*)', re.IGNORECASE)
 
-def remove_cols(
+def drop_cols(
     df: pd.DataFrame, 
     cols: Sequence[str] | str | ColumnSelector,
 ) -> pd.DataFrame:

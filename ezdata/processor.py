@@ -232,7 +232,7 @@ class DataProcessor:
     clean_arg = staticmethod(prep.clean_arg)
     clean_df = staticmethod(prep.clean_df)
     rename_cols = staticmethod(prep.rename_cols)
-    remove_cols = staticmethod(prep.remove_cols)
+    drop_cols = staticmethod(prep.drop_cols)
     recode_vals = staticmethod(prep.recode_vals)
     remove_verbal_anchors = staticmethod(prep.remove_verbal_anchors)
     bin = staticmethod(prep.bin)
@@ -256,3 +256,6 @@ class DataProcessor:
     test_dependent_proportion = staticmethod(test.test_dependent_proportion)
     test_regression = staticmethod(test.test_regression)
     p_correct = staticmethod(test.p_correct)
+
+    # Functions from reduction.py
+    reduce_pca = staticmethod(reduction.reduce_pca)
