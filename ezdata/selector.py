@@ -397,7 +397,6 @@ class Selector(ABC):
             match_result = re.search(self.group_pattern, col) # type: ignore
 
             if (match_result):
-                
                 if match:
                     key = match_result.group()
 

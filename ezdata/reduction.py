@@ -13,7 +13,7 @@ def reduce_pca(
     n_iter: int = 4,
     rescale_with_mean: bool = True,
     rescale_with_std: bool = True,
-    random_state: int = 0,
+    random_state: int | None = None,
     print_summary: bool = False,
 ) -> pd.DataFrame:
     """Add PCA components to DataFrame.
@@ -25,7 +25,7 @@ def reduce_pca(
         n_iter (int, optional): The number of iterations used for computing the SVD. Defaults to 4.
         rescale_with_mean (bool, optional): If true, subtracts each column's mean from their values. Defaults to True.
         rescale_with_std (bool, optional): If true, divides each column by its standard deviation. Defaults to True.
-        random_state (int, optional): A random-number-generator seed. Defaults to 0.
+        random_state (int | None, optional): A random-number-generator seed. Defaults to None.
         print_summary (bool, optional): If true, prints the eigenvalue summary after fit. Defaults to False.
 
     Returns:
@@ -62,5 +62,3 @@ def reduce_pca(
         print(pca.eigenvalues_summary)
 
     return df
-
-# TODO: update random_state.... shouldn't default to 0 but a None-like

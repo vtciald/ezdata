@@ -107,7 +107,7 @@ def calc_ci(
     method: str,
     *,
     alpha: float = 0.05,
-    random_state: int = 0,
+    random_state: int | None = None,
     metric: str = 'mean',
     cols: Sequence[str] | str | ColumnSelector | None = None,
 ) -> pd.DataFrame:
@@ -122,7 +122,7 @@ def calc_ci(
             * Proportion: 'wald', 'wilson', 'agresti_coull', 'clopper_pearson' (or 'beta'), 'jeffreys'
             * Bootstrap: 'bootstrap_bca', 'bootstrap_percentile', 'bootstrap_basic'
         alpha (float, optional): The desired alpha. Defaults to 0.05.
-        random_state (int, optional): A random-number-generator seed, relevant for bootstrapping. Defaults to 0.
+        random_state (int, optional): A random-number-generator seed, relevant for bootstrapping. Defaults to None.
         metric (str, optional): The measure of central tendency to craft the interval around, relevant for bootstrapping. Supported choices: 'mean', 'median'. Defaults to 'mean'.
         cols (Sequence[str] | str | ColumnSelector | None, optional): Column(s) to include. If None, includes all columns. Defaults to None.
         
@@ -316,7 +316,7 @@ def _calc_ci_bootstrap(
     cols: list[str],
     alpha: float,
     method: str,
-    random_state: int,
+    random_state: int | None,
     metric: str,
 ) -> pd.DataFrame:
     """Calculate bootstrap confidence intervals.
@@ -326,7 +326,7 @@ def _calc_ci_bootstrap(
         cols (list[str]): The columns on which to operate.
         alpha (float): The desired alpha.
         method (str): The CI-calculation method. Supported choices: 'bootstrap_bca', 'bootstrap_percentile', 'bootstrap_basic'.
-        random_state (int): A random-number-generator seed.
+        random_state (int | None): A random-number-generator seed.
         metric (str): The measure of central tendency to craft the interval around. Supported choices: 'mean', 'median'.
         
     Returns:
