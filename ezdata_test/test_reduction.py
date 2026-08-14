@@ -51,13 +51,67 @@ def test_reduce_pca_nan():
         'pca_component_1': [np.nan, -0.6573, np.nan, 0.0953, -1.2665, 0.7932, 1.5290, -0.4937],
     })
 
-    result = dp.reduce_pca(test_df, cols = dp.select(prefix = 'col'), n_components = 2, random_state = 0)    
+    with pytest.warns(UserWarning):
+        result = dp.reduce_pca(test_df, cols = dp.select(prefix = 'col'), n_components = 2, random_state = 0)    
 
     result['pca_component_0'] = result['pca_component_0'].round(4)
     result['pca_component_1'] = result['pca_component_1'].round(4)
 
     pd.testing.assert_frame_equal(result, expected)
 
+def test_reduce_mca():
+
+    dp = DataProcessor()
+
+    test_df = pd.DataFrame({
+        'col1': ['a', 'b', 'c', 'b', 'b', 'c', 'a', 'a', 'a', 'b', 'c', 'a', 'c'],
+        'col2': [0, 1, 0, 1, 1, 0, 1, 0, 1, 1, 0, 0, 0],
+        'col3': [0, 1, 1, 1, 0, 0, 1, 0, 0, 1, 0, 0, 0],
+        'ignore_col': [4, 5, 1, 1, 0, 7, 1, 0, 0, 2, 0, 3, 0],
+    })
+
+    expected = pd.DataFrame({
+        'col1': ['a', 'b', 'c', 'b', 'b', 'c', 'a', 'a', 'a', 'b', 'c', 'a', 'c'],
+        'col2': [0, 1, 0, 1, 1, 0, 1, 0, 1, 1, 0, 0, 0],
+        'col3': [0, 1, 1, 1, 0, 0, 1, 0, 0, 1, 0, 0, 0],
+        'ignore_col': [4, 5, 1, 1, 0, 7, 1, 0, 0, 2, 0, 3, 0],
+        'mca_component_0': [-0.5524, 1.0756, -0.3295, 1.0756, 0.6653, -0.7398, 0.3622, -0.5524, -0.0481, 1.0756, -0.7398, -0.5524, -0.7398],
+        'mca_component_1': [-0.6511, 0.219, 0.7865, 0.219, 0.0522, 0.6197, -0.6174, -0.6511, -0.7842, 0.219, 0.6197, -0.6511, 0.6197],
+    })
+
+    result = dp.reduce_mca(test_df, cols = dp.select(prefix = 'col'), n_components = 2, random_state = 0)
+
+    result['mca_component_0'] = result['mca_component_0'].round(4)
+    result['mca_component_1'] = result['mca_component_1'].round(4)
+    
+    pd.testing.assert_frame_equal(result, expected)
+
+def test_reduce_mca_numeric():
+
+    dp = DataProcessor()
+
+    test_df = pd.DataFrame({
+        'col1': ['a', 'b', 'c', 'b', 'b', 'c', 'a', 'a', 'a', 'b', 'c', 'a', 'c'],
+        'col2': [0, 1, 0, 1, 1, 0, 1, 0, 1, 1, 0, 0, 0],
+        'col3': [0, 1, 1, 1, 0, 0, 1, 0, 0, 1, 0, 0, 0],
+        'ignore_col': [4, 5, 1, 1, 0, 7, 1, 0, 0, 2, 0, 3, 0],
+    })
+
+    expected = pd.DataFrame({
+        'col1': ['a', 'b', 'c', 'b', 'b', 'c', 'a', 'a', 'a', 'b', 'c', 'a', 'c'],
+        'col2': [0, 1, 0, 1, 1, 0, 1, 0, 1, 1, 0, 0, 0],
+        'col3': [0, 1, 1, 1, 0, 0, 1, 0, 0, 1, 0, 0, 0],
+        'ignore_col': [4, 5, 1, 1, 0, 7, 1, 0, 0, 2, 0, 3, 0],
+        'mca_component_0': [-0.5524, 1.0756, -0.3295, 1.0756, 0.6653, -0.7398, 0.3622, -0.5524, -0.0481, 1.0756, -0.7398, -0.5524, -0.7398],
+        'mca_component_1': [-0.6511, 0.219, 0.7865, 0.219, 0.0522, 0.6197, -0.6174, -0.6511, -0.7842, 0.219, 0.6197, -0.6511, 0.6197],
+    })
+
+    with pytest.warns(UserWarning):
+        result = dp.reduce_mca(test_df, cols = dp.select(pattern = 'col'), n_components = 2, random_state = 0)
+
+
 # Test reduction
 test_reduce_pca()
 test_reduce_pca_nan()
+test_reduce_mca()
+test_reduce_mca_numeric()

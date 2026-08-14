@@ -259,3 +259,4 @@ class DataProcessor:
 
     # Functions from reduction.py
     reduce_pca = staticmethod(reduction.reduce_pca)
+    reduce_mca = staticmethod(reduction.reduce_mca)
