@@ -324,6 +324,7 @@ def test_regression(
     iv: Sequence[str] | str | ColumnSelector,
     dv: Sequence[str] | str | ColumnSelector | None = None,
     alpha: float = 0.05,
+    interactions: Sequence[str] | Sequence[Sequence[str]] | ColumnSelector | PairSelector | None = None,
     print_summary: bool = False,
     
 ) -> pd.DataFrame:
@@ -333,16 +334,17 @@ def test_regression(
 
     Args:
         df (pd.DataFrame): The DataFrame.
-        method (str): The test method. Supported choices: 'linear', 'logistic', 'logit'.
+        method (str): The test method. Supported choices: 'linear', 'logistic', 'ordered_logistic'.
         iv (Sequence[str] | str | ColumnSelector): Column(s) to use as the independent variable(s). It is assumed that a constant is not yet added.
         dv (Sequence[str] | str | ColumnSelector | None, optional): Column(s) to use as the dependent variable(s). If None, includes all columns. Defaults to None.
         alpha (float, optional): The desired alpha. Defaults to 0.05.
+        interactions (Sequence[str] | Sequence[Sequence[str]] | ColumnSelector | PairSelector | None): Interaction terms to compute. If given, mean-centers `iv` columns. Defaults to None.
         print_summary (bool, optional): If true, prints the model summary after fit. Defaults to False.
 
     Notes:
         * 'linear': Ordinary Least Squares (OLS) regression. Predict an interval- or ratio-scale column.
         * 'logistic': Logistic regression. Predict a binary column.
-        * 'logit': Logit regression. Predict an ordinal column.
+        * 'ordered_logistic': Ordered logistic regression. Predict an ordinal column.
     
     Raises:
         ValueError: If string argument for `method` isn't recognized.
@@ -353,7 +355,7 @@ def test_regression(
             - 'test_statistic': A statistic based on the `method` used.
                 * Beta when `method = 'linear'`.
                 * Log odds ratio when when `method = 'logistic'`.
-                * Log odds ratio when `method = 'logit'`.
+                * Log odds ratio when `method = 'ordered_logistic'`.
             - 'p_value': The calculated p value.
             - 'stat_sig': A boolean flag indicating statistical significance.
             - 'count': The number of valid non-nan observations.
@@ -361,11 +363,15 @@ def test_regression(
 
     iv = Selector.resolve(df, iv)
     dv = Selector.resolve(df, dv)
+
+    if interactions is not None:
+        interactions = Selector.resolve_pair(df, interactions)
+
     iv_set = set(iv)
     dv = [col for col in dv if col not in iv_set]
 
-    if method in {'linear', 'logistic', 'logit'}:
-        result = _regression(df, method, iv, dv, alpha, print_summary)
+    if method in {'linear', 'logistic', 'ordered_logistic'}:
+        result = _regression(df, method, iv, dv, alpha, interactions, print_summary)
 
     else:
         raise ValueError(f'Regression method \'{method}\' is not recognized.')
@@ -439,9 +445,10 @@ def p_correct(
 def _regression(
     df: pd.DataFrame,
     method: str,
-    iv: Sequence[str],
-    dv: Sequence[str],
+    iv: list[str],
+    dv: list[str],
     alpha: float,
+    interactions: list[list[str]] | None,
     print_summary: bool,
 ) -> pd.DataFrame:
     """Run a regression.
@@ -450,16 +457,17 @@ def _regression(
 
     Args:
         df (pd.DataFrame): The DataFrame.
-        method (str): The test method. Supported choices: 'linear', 'logistic', 'logit'.
+        method (str): The test method. Supported choices: 'linear', 'logistic', 'ordered_logistic'.
         iv (Sequence[str]): Column(s) to use as the independent variable(s). It is assumed that a constant is not yet added.
-        dv (Sequence[str]): Column(s) to use as the dependent variable(s). If None, includes all columns. Defaults to None.
-        alpha (float): The desired alpha. Defaults to 0.05.
-        print_summary (bool): If true, prints the model summary after fit. Defaults to False.
+        dv (Sequence[str]): Column(s) to use as the dependent variable(s). If None, includes all columns.
+        alpha (float): The desired alpha.
+        interactions (Sequence[Sequence[str]] | None): Interaction terms to compute. If given, mean-centers `iv` columns.
+        print_summary (bool): If true, prints the model summary after fit.
 
     Notes:
         * 'linear': Ordinary Least Squares (OLS) regression. Predict an interval- or ratio-scale column.
         * 'logistic': Logistic regression. Predict a binary column.
-        * 'logit': Logit regression. Predict an ordinal column.
+        * 'ordered_logistic': Ordered logistic regression. Predict an ordinal column.
 
     Returns:
         pd.DataFrame: A DataFrame with multi-index indices, ('dv', 'iv').
@@ -467,7 +475,7 @@ def _regression(
             - 'test_statistic': A statistic based on the `method` used.
                 * Beta when `method = 'linear'`.
                 * Log odds ratio when when `method = 'logistic'`.
-                * Log odds ratio when `method = 'logit'`.
+                * Log odds ratio when `method = 'ordered_logistic'`.
             - 'p_value': The calculated p value.
             - 'stat_sig': A boolean flag indicating statistical significance.
             - 'count': The number of valid non-nan observations.
@@ -477,6 +485,20 @@ def _regression(
     index_tuples = []
     test_statistics = []
     p_values = []
+
+    if interactions:
+        df = df.copy()
+        iv = iv.copy()
+
+        for col in iv:
+            if df[col].dropna().nunique() > 2:
+                df[col] = df[col] - df[col].mean()
+
+        for col0, col1 in interactions:
+            interaction_col = f'{col0}:{col1}'
+            df[interaction_col] = df[col0] * df[col1]
+
+            iv.append(interaction_col)
 
     iv_set = set(iv)
 
@@ -491,9 +513,9 @@ def _regression(
             X = sm.add_constant(df[iv].astype(float))
             model = sm.Logit(y, X, missing = 'drop')
 
-        elif method == 'logit':
+        elif method == 'ordered_logistic':
             X = df[iv].astype(float)
-            model = OrderedModel(y, X, missing = 'drop', distr = 'logit')
+            model = OrderedModel(y, X, missing = 'drop', method = 'bfgs', distr = 'logit')
 
         result = model.fit(disp = 0)
 

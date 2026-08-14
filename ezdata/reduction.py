@@ -29,7 +29,7 @@ def reduce_pca(
         print_summary (bool, optional): If true, prints the eigenvalue summary after fit. Defaults to False.
 
     Returns:
-        pd.DataFrame: The DataFrame with additional columns of the form 'pca_component_{n}'.
+        pd.DataFrame: The DataFrame with `n_components` additional columns of the form 'pca_component_{n}'.
     """
 
     cols = Selector.resolve(df, cols)
@@ -38,8 +38,8 @@ def reduce_pca(
 
     if df[cols].isna().sum(axis = 0).sum() > 0:
         warnings.warn(
-            'NaNs present in data intended for PCA. '
-            'Offending DataFrame rows will be NaN for PCA components.'
+            'There are NaNs present in columns intended for PCA. '
+            'Offending rows will be NaN for PCA components.'
         )
 
         X = df[cols].dropna(axis = 0, how = 'any')

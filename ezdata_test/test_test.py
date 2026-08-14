@@ -633,7 +633,7 @@ def test_regression_logistic():
     
     pd.testing.assert_frame_equal(result, expected)
 
-def test_regression_logit():
+def test_regression_ordered_logistic():
 
     dp = DataProcessor()
 
@@ -664,7 +664,47 @@ def test_regression_logit():
         index = multi_index,
     )
 
-    result = dp.test_regression(test_df, 'logit', dv = ['dv1', 'dv2'], iv = ['iv1', 'iv2'])
+    result = dp.test_regression(test_df, 'ordered_logistic', dv = ['dv1', 'dv2'], iv = ['iv1', 'iv2'])
+
+    result['test_statistic'] = result['test_statistic'].round(4)
+    result['p_value'] = result['p_value'].round(4)
+    
+    pd.testing.assert_frame_equal(result, expected)
+
+def test_regression_linear_interactions():
+
+    dp = DataProcessor()
+
+    test_df = pd.DataFrame({
+        'iv1': [np.nan, 5.2, 10, 7.8, 32, 2, 3, 13.1, 15.4, 54, 17.0, 2, 13, 1.4, 3, 16, 23.1, 57.4, 32.0, 3.1, 7.5, 4.2, 8.9, 6.4, 9.1, 1.8],
+        'iv2': [0, 1, 0, 1, 1, 0, 0, 1, 1, 0, 1, 0, 1, 1, 0, 0, 1, 0, 1, 0, 0, 1, 1, 0, 1, 0],
+        'dv1': [14.2, 18.5, 12.1, 24.3, 21.0, 15.4, 19.8, 29.1, 33.5, 22.0, 31.4, 24.9, 52.1, 9.4, 44.5, 41.2, 36.8, 74.2, 48.0, 11.1, 16.5, 15.2, 22.9, 14.4, 21.1, 8.8],
+        'dv2': [1, 0, 1, 0, 0, 1, 1, 0, 0, 1, 0, 1, 0, 0, 1, 1, 0, 1, 0, 1, 1, 0, np.nan, 1, 0, 1], 
+    })
+
+    multi_index = pd.MultiIndex.from_tuples(
+        [
+            ('dv1', 'iv1'),
+            ('dv1', 'iv2'),
+            ('dv1', 'iv1:iv2'),
+            ('dv2', 'iv1'),
+            ('dv2', 'iv2'),
+            ('dv2', 'iv1:iv2'),
+        ],
+        names = ['dv', 'iv'],
+    )
+
+    expected = pd.DataFrame(
+        {
+            'test_statistic': [0.5781, 2.4313, 0.1374, 0.0000, -1.0000, 0.0000],
+            'p_value': [0.0093, 0.6549, 0.7586, 0.0005, 0.0000, 0.1509],
+            'stat_sig': [True, False, False, True, True, False],
+            'count': [25, 25, 25, 24, 24, 24],
+        },
+        index = multi_index,
+    )
+
+    result = dp.test_regression(test_df, 'linear', dv = ['dv1', 'dv2'], iv = ['iv1', 'iv2'], interactions = ['iv1', 'iv2'])
 
     result['test_statistic'] = result['test_statistic'].round(4)
     result['p_value'] = result['p_value'].round(4)
@@ -839,7 +879,8 @@ test_dependent_proportion_cochran()
 # Test regression
 test_regression_linear()
 test_regression_logistic()
-test_regression_logit()
+test_regression_ordered_logistic()
+test_regression_linear_interactions()
 
 # Test p-value correction methods
 test_p_correct()
