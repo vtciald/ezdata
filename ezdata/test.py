@@ -8,7 +8,7 @@ from itertools import combinations
 from statsmodels.stats.contingency_tables import mcnemar, cochrans_q
 from statsmodels.miscmodels.ordinal_model import OrderedModel
 from statsmodels.stats.multitest import multipletests
-from scikit_posthocs import posthoc_dunn
+from scikit_posthocs import posthoc_dunn, posthoc_tukey
 import statsmodels.api as sm
 
 def test_one_sample(
@@ -215,8 +215,8 @@ def test_independent(
     elif method == 'kruskal_wallis':
         result = _independent_kruskal_wallis_h(df, iv, dv, alpha)
 
-    # elif method == 'tukey':
-    #     result = _independent_tukey(df, iv, dv, alpha)
+    elif method == 'tukey':
+        result = _independent_tukey(df, iv, dv, alpha)
 
     elif method == 'dunn':
         result = _independent_dunn(df, iv, dv, alpha)
@@ -786,7 +786,7 @@ def _independent_dunn(
    dv: list[str],
    alpha: float 
 ) -> pd.DataFrame:
-    """Run a Dunn's test.
+    """Run a Dunn's post hoc-test.
 
     Args:
         df (pd.DataFrame): The DataFrame.
@@ -814,6 +814,57 @@ def _independent_dunn(
     for dv_col in dv:
         filter_df = df.loc[(df[iv].notna()) & (df[dv_col].notna())]
         result = posthoc_dunn(filter_df, val_col = dv_col, group_col = iv)
+
+        for group0, group1 in pairs:
+            index_tuples.append((dv_col, group0, group1))
+            counts.append(np.nan)
+            test_statistics.append(np.nan)
+            p_values.append(result.loc[group0, group1])
+
+    return _create_test_frame(
+        index_tuples,
+        np.array(test_statistics),
+        np.array(p_values),
+        np.array(counts),
+        alpha,
+        ['dv', 'group_0', 'group_1'],
+        count_int = False,
+    )
+
+def _independent_tukey(
+   df: pd.DataFrame,
+   iv: str,
+   dv: list[str],
+   alpha: float 
+) -> pd.DataFrame:
+    """Run a Tukey's post-hoc test.
+
+    Args:
+        df (pd.DataFrame): The DataFrame.
+        iv (str): The grouping column label.
+        dv (list[str]): The labels of columns to test independence with `iv`.
+        alpha (float): The desired alpha level.
+
+    Returns:
+        pd.DataFrame: A DataFrame with indices matching the labels in `dv`.
+            Columns include:
+            - 'test_statistic': All NaN.
+            - 'p_value': The calculated p value.
+            - 'stat_sig': A boolean flag indicating statistical significance.
+            - 'count': All NaN.
+    """
+
+    index_tuples = []
+    test_statistics = []
+    p_values = []
+    counts = []
+
+    unique_groups = [group for group in df[iv].unique() if pd.notna(group)]
+    pairs = list(combinations(unique_groups, 2))
+
+    for dv_col in dv:
+        filter_df = df.loc[(df[iv].notna()) & (df[dv_col].notna())]
+        result = posthoc_tukey(filter_df, val_col = dv_col, group_col = iv)
 
         for group0, group1 in pairs:
             index_tuples.append((dv_col, group0, group1))
@@ -1322,5 +1373,3 @@ def _create_test_frame(
     )
 
     return result
-
-# TODO: Add tukey post hoc
