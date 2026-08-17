@@ -8,6 +8,7 @@ from itertools import combinations
 from statsmodels.stats.contingency_tables import mcnemar, cochrans_q
 from statsmodels.miscmodels.ordinal_model import OrderedModel
 from statsmodels.stats.multitest import multipletests
+from scikit_posthocs import posthoc_dunn
 import statsmodels.api as sm
 
 def test_one_sample(
@@ -168,7 +169,7 @@ def test_independent(
 
     Args:
         df (pd.DataFrame): The DataFrame.
-        method (str): The test method. Supported choices: 't', 'mann_whitney', 'anova', 'kruskal_wallis'.
+        method (str): The test method. Supported choices: 't', 'mann_whitney', 'anova', 'kruskal_wallis', 'tukey', 'dunn'.
         iv (Sequence[str] | str | ColumnSelector): Column(s) to use as the grouping variable. If one-hot encoded, will be converted to mutually exclusive categories.
         dv (Sequence[str] | str | ColumnSelector | None, optional): Column(s) to evaluate for differences on the basis of `iv`. If None, includes all columns. Defaults to None.
         alpha (float, optional): The desired alpha. Defaults to 0.05.
@@ -178,6 +179,8 @@ def test_independent(
         * 'mann_whitney': Mann-Whitney U test (non-parametric). Difference between 2 groups.
         * 'anova': One-way ANOVA (parametric). Difference among 2+ groups.
         * 'kruskal_wallis': Kruskal-Wallis H test (non-parametric). Difference among 2+ groups.
+        * 'tukey': Tukey's HSD (parametric). Pairwise follow-up to ANOVA.
+        * 'dunn': Dunn's test (non-parametric). Pairwise follow-up to Kruskal-Wallis.
     
     Raises:
         ValueError: If string argument for `method` isn't recognized.
@@ -193,6 +196,7 @@ def test_independent(
             - 'p_value': The calculated p value.
             - 'stat_sig': A boolean flag indicating statistical significance.
             - 'count': The number of valid non-nan observations.
+            For follow-up tests, only the 'p_value' and 'stat_sig' column will be non-NaN. No p-value correction method will be applied.
     """
 
     df, iv = prep.dummy_to_categorical(df, cols = iv)
@@ -210,6 +214,12 @@ def test_independent(
 
     elif method == 'kruskal_wallis':
         result = _independent_kruskal_wallis_h(df, iv, dv, alpha)
+
+    # elif method == 'tukey':
+    #     result = _independent_tukey(df, iv, dv, alpha)
+
+    elif method == 'dunn':
+        result = _independent_dunn(df, iv, dv, alpha)
 
     else:
         raise ValueError(f'Independent test method \'{method}\' is not recognized.')
@@ -770,6 +780,57 @@ def _independent_kruskal_wallis_h(
         alpha,
     )
 
+def _independent_dunn(
+   df: pd.DataFrame,
+   iv: str,
+   dv: list[str],
+   alpha: float 
+) -> pd.DataFrame:
+    """Run a Dunn's test.
+
+    Args:
+        df (pd.DataFrame): The DataFrame.
+        iv (str): The grouping column label.
+        dv (list[str]): The labels of columns to test independence with `iv`.
+        alpha (float): The desired alpha level.
+
+    Returns:
+        pd.DataFrame: A DataFrame with indices matching the labels in `dv`.
+            Columns include:
+            - 'test_statistic': All NaN.
+            - 'p_value': The calculated p value.
+            - 'stat_sig': A boolean flag indicating statistical significance.
+            - 'count': All NaN.
+    """
+
+    index_tuples = []
+    test_statistics = []
+    p_values = []
+    counts = []
+
+    unique_groups = [group for group in df[iv].unique() if pd.notna(group)]
+    pairs = list(combinations(unique_groups, 2))
+
+    for dv_col in dv:
+        filter_df = df.loc[(df[iv].notna()) & (df[dv_col].notna())]
+        result = posthoc_dunn(filter_df, val_col = dv_col, group_col = iv)
+
+        for group0, group1 in pairs:
+            index_tuples.append((dv_col, group0, group1))
+            counts.append(np.nan)
+            test_statistics.append(np.nan)
+            p_values.append(result.loc[group0, group1])
+
+    return _create_test_frame(
+        index_tuples,
+        np.array(test_statistics),
+        np.array(p_values),
+        np.array(counts),
+        alpha,
+        ['dv', 'group_0', 'group_1'],
+        count_int = False,
+    )
+
 def _independent_mann_whitney_u(
    df: pd.DataFrame,
    iv: str,
@@ -1220,6 +1281,7 @@ def _create_test_frame(
     counts: np.ndarray,
     alpha: float,
     multi_labels: list[str] | None = None,
+    count_int: bool = True,
 ) -> pd.DataFrame:
     """Package test results into a DataFrame.
 
@@ -1229,7 +1291,8 @@ def _create_test_frame(
         p_values (np.ndarray): The array of p values.
         counts (np.ndarray): The array of column non-nan counts.
         alpha (float): The desired alpha level.
-        multi_labels (list[str] | None, optional): The labels for the index levels (for a multi-index DataFrame). Must match the length of interior elements of indices. Defaults to None
+        multi_labels (list[str] | None, optional): The labels for the index levels (for a multi-index DataFrame). Must match the length of interior elements of indices. Defaults to None.
+        count_int (bool, optional): If true, ensures count is an int dtype. Otherwise, does not modify the dtype. Defaults to True.
 
     Returns:
         pd.DataFrame: A DataFrame with indices matching `indices` and columns `statistic_name`, 'p_value', 'stat_sig', 'count'.
@@ -1239,7 +1302,7 @@ def _create_test_frame(
         'test_statistic': test_statistics.astype(float),
         'p_value': p_values.astype(float),
         'stat_sig': (p_values < alpha).astype(bool),
-        'count': counts.astype(int),
+        'count': counts.astype(int) if count_int else counts,
     }
 
     if isinstance(indices[0], tuple):          
@@ -1259,3 +1322,5 @@ def _create_test_frame(
     )
 
     return result
+
+# TODO: Add tukey post hoc
