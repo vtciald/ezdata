@@ -126,7 +126,7 @@ def test_independent_proportion(
 
     Notes:
         * 'fisher_exact': Fisher's exact test (non-parametric). Difference between 2 groups (recommended when sample size < 20 and/or any expected cell count < 5).
-        * 'chi_square': Chi-square test of independence (non-parametric). Difference among 2+ groups (recommended when sample size >= 20 and all expected cell counts > 5).
+        * 'chi_square': Chi-square test (non-parametric). Difference among 2+ groups.
     
     Raises:
         ValueError: If string argument for `method` isn't recognized.
@@ -1040,7 +1040,7 @@ def _independent_chi_sq(
     dv: list[str],
     alpha: float
 ) -> pd.DataFrame:
-    """Run a Chi-squared test of independence.
+    """Run a Chi-squared test.
 
     Runs a separate test between each pair of `iv` and one of the `dv`.
 
