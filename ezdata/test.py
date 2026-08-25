@@ -6,10 +6,12 @@ from .selector import Selector, ColumnSelector, PairSelector, GroupSelector
 from collections.abc import Sequence
 from itertools import combinations
 from statsmodels.stats.contingency_tables import mcnemar, cochrans_q
-from statsmodels.miscmodels.ordinal_model import OrderedModel
 from statsmodels.stats.multitest import multipletests
 from scikit_posthocs import posthoc_dunn, posthoc_tukey
 import statsmodels.api as sm
+from statsmodels.regression.linear_model import OLS, RegressionResultsWrapper
+from statsmodels.discrete.discrete_model import Logit, BinaryResultsWrapper
+from statsmodels.miscmodels.ordinal_model import OrderedModel, OrderedResultsWrapper
 
 def test_one_sample(
     df: pd.DataFrame,
@@ -335,8 +337,8 @@ def test_regression(
     dv: Sequence[str] | str | ColumnSelector | None = None,
     alpha: float = 0.05,
     interactions: Sequence[str] | Sequence[Sequence[str]] | ColumnSelector | PairSelector | None = None,
-    print_summary: bool = False,
-    
+    compare_pairwise: Sequence[str] | Sequence[Sequence[str]] | ColumnSelector | PairSelector | None = None,
+    print_summary: bool = False,    
 ) -> pd.DataFrame:
     """Run a regression.
 
@@ -348,7 +350,8 @@ def test_regression(
         iv (Sequence[str] | str | ColumnSelector): Column(s) to use as the independent variable(s). It is assumed that a constant is not yet added.
         dv (Sequence[str] | str | ColumnSelector | None, optional): Column(s) to use as the dependent variable(s). If None, includes all columns. Defaults to None.
         alpha (float, optional): The desired alpha. Defaults to 0.05.
-        interactions (Sequence[str] | Sequence[Sequence[str]] | ColumnSelector | PairSelector | None): Interaction terms to compute. If given, mean-centers `iv` columns. Defaults to None.
+        interactions (Sequence[str] | Sequence[Sequence[str]] | ColumnSelector | PairSelector | None, optional): Interaction terms to compute. If given, mean-centers `iv` columns. Defaults to None.
+        compare_pairwise (Sequence[str] | Sequence[Sequence[str]] | ColumnSelector | PairSelector | None, optional): Pairs of independent variables to compare using Wald tests. Defaults to None.
         print_summary (bool, optional): If true, prints the model summary after fit. Defaults to False.
 
     Notes:
@@ -365,6 +368,7 @@ def test_regression(
             - 'test_statistic': A statistic based on the `method` used.
                 * Beta for predictors and F statistic for overall model when `method = 'linear'`.
                 * Log odds ratio for predictors and likelihood ratio for overall model when when `method = 'logistic'` or `method = 'ordered_logistic'`.
+                * Wald test statistic for any pairwise comparisons.
             - 'p_value': The calculated p value.
             - 'stat_sig': A boolean flag indicating statistical significance.
             - 'count': The number of valid non-nan observations.
@@ -376,11 +380,14 @@ def test_regression(
     if interactions is not None:
         interactions = Selector.resolve_pair(df, interactions)
 
+    if compare_pairwise is not None:
+        compare_pairwise = Selector.resolve_pair(df, compare_pairwise)
+
     iv_set = set(iv)
     dv = [col for col in dv if col not in iv_set]
 
     if method in {'linear', 'logistic', 'ordered_logistic'}:
-        result = _regression(df, method, iv, dv, alpha, interactions, print_summary)
+        result = _regression(df, method, iv, dv, alpha, interactions, compare_pairwise, print_summary)
 
     else:
         raise ValueError(f'Regression method \'{method}\' is not recognized.')
@@ -404,7 +411,7 @@ def p_correct(
         * 'bonferroni': One-step Bonferroni correction for family-wise error rate (FWER).
         * 'holm_bonferroni': Step-down method with Bonferroni adjustments for FWER. More powerful than 'bonferroni'.
         * 'benjamini_hochberg': Correction for false-discovery rate (FDR). For tests that are independent or positively correlated.
-        * 'benjamini_yekutieli': Correction for false-discovery rate (FDR). For tests that are negatively correlated.
+        * 'benjamini_yekutieli': Correction for FDR. For tests that are negatively correlated.
 
     Raises:
         ValueError: If string argument for `method` isn't recognized.
@@ -458,6 +465,7 @@ def _regression(
     dv: list[str],
     alpha: float,
     interactions: list[list[str]] | None,
+    compare_pairwise: list[list[str]] | None,
     print_summary: bool,
 ) -> pd.DataFrame:
     """Run a regression.
@@ -467,10 +475,11 @@ def _regression(
     Args:
         df (pd.DataFrame): The DataFrame.
         method (str): The test method. Supported choices: 'linear', 'logistic', 'ordered_logistic'.
-        iv (Sequence[str]): Column(s) to use as the independent variable(s). It is assumed that a constant is not yet added.
-        dv (Sequence[str]): Column(s) to use as the dependent variable(s). If None, includes all columns.
+        iv (list[str]): Column(s) to use as the independent variable(s). It is assumed that a constant is not yet added.
+        dv (list[str]): Column(s) to use as the dependent variable(s). If None, includes all columns.
         alpha (float): The desired alpha.
-        interactions (Sequence[Sequence[str]] | None): Interaction terms to compute. If given, mean-centers `iv` columns.
+        interactions (list[list[str]] | None): Interaction terms to compute. If given, mean-centers `iv` columns.
+        compare_pairwise (list[list[str]] | None): Pairs of independent variables to compare using Wald tests.
         print_summary (bool): If true, prints the model summary after fit.
 
     Notes:
@@ -484,6 +493,7 @@ def _regression(
             - 'test_statistic': A statistic based on the `method` used.
                 * Beta for predictors and F statistic for overall model when `method = 'linear'`.
                 * Log odds ratio for predictors and likelihood ratio for overall model when when `method = 'logistic'` or `method = 'ordered_logistic'`.
+                * Wald test statistic for any pairwise comparisons.
             - 'p_value': The calculated p value.
             - 'stat_sig': A boolean flag indicating statistical significance.
             - 'count': The number of valid non-nan observations.
@@ -495,60 +505,35 @@ def _regression(
     p_values = []
 
     if interactions:
-        df = df.copy()
-        iv = iv.copy()
-
-        for col in iv:
-            if df[col].dropna().nunique() > 2:
-                df[col] = df[col] - df[col].mean()
-
-        for col0, col1 in interactions:
-            interaction_col = f'{col0}:{col1}'
-            df[interaction_col] = df[col0] * df[col1]
-
-            iv.append(interaction_col)
+        df, iv = _add_interactions(df, iv, interactions)
 
     iv_set = set(iv)
 
     for dv_col in dv:
-        y = df[dv_col].astype(float)
-
-        if method == 'linear':
-            X = sm.add_constant(df[iv].astype(float))
-            model = sm.OLS(y, X, missing = 'drop')
-
-        elif method == 'logistic':
-            X = sm.add_constant(df[iv].astype(float))
-            model = sm.Logit(y, X, missing = 'drop')
-
-        elif method == 'ordered_logistic':
-            X = df[iv].astype(float)
-            model = OrderedModel(y, X, missing = 'drop', method = 'bfgs', distr = 'logit')
-
-        result = model.fit(disp = 0)
-
-        if method == 'linear':
-            overall_p = result.f_pvalue
-            overall_stat = result.fvalue
-
-        else:
-            overall_p = result.llr_pvalue
-            overall_stat = result.llr
-
+        result, overall_stat, overall_p = _regression_model(df, method, iv, dv_col)
+        
         index_tuples.append((dv_col, 'OVERALL'))
         test_statistics.append(overall_stat)
         p_values.append(overall_p)
-        counts.append(result.nobs)
+        counts.append(result.nobs) # type: ignore
 
         if print_summary:
-            print(result.summary())
+            print(result.summary()) # type: ignore
 
-        for iv_name in result.params.index:
+        for iv_name in result.params.index: # type: ignore
             if iv_name in iv_set:
                 index_tuples.append((dv_col, iv_name))
-                test_statistics.append(result.params[iv_name])
-                p_values.append(result.pvalues[iv_name])
-                counts.append(result.nobs)
+                test_statistics.append(result.params[iv_name]) # type: ignore
+                p_values.append(result.pvalues[iv_name]) # type: ignore
+                counts.append(result.nobs) # type: ignore
+
+        if compare_pairwise:
+            pair_indices, pair_stats, pair_ps, pair_counts = _pairwise_wald(df, result, dv_col, compare_pairwise)
+
+            index_tuples.extend(pair_indices)
+            test_statistics.extend(pair_stats)
+            p_values.extend(pair_ps)
+            counts.extend(pair_counts)
 
     return _create_test_frame(
         index_tuples,
@@ -558,6 +543,133 @@ def _regression(
         alpha,
         ['dv', 'iv'],
     )
+
+def _pairwise_wald(
+    df: pd.DataFrame,
+    result: RegressionResultsWrapper | BinaryResultsWrapper | OrderedResultsWrapper,
+    dv_col: str,
+    pairs: list[list[str]],
+) -> tuple[list[str], list[float], list[float], list[int]]:
+    """Run a pairwise Wald test.
+
+    Checks to ensure the varaibles are commensurable (i.e., both standardized or both dummy-coded) before executing.
+
+    Args:
+        df (pd.DataFrame): The DataFrame.
+        result (RegressionResultsWrapper | BinaryResultsWrapper | OrderedResultsWrapper): The fit model results.
+        dv_col (str): The column label for the dependent variable.
+        pairs (list[list[str]]): Pairs of independent variables to compare using Wald tests.
+
+    Raises:
+        ValueError: If the variables are incommensurable.
+
+    Returns:
+        tuple[list[str], list[float], list[float], list[int]]: A tuple of the index tuples, test statistics, p values, and counts.
+    """
+
+    index_tuples = []
+    test_statistics = []
+    p_values = []
+    counts = []
+
+    for col0, col1 in pairs:
+
+        if not _are_commensurable(df[col0], df[col1]):
+            raise ValueError(f'Columns \'{col0}\' and \'{col1}\' are incommensurable for the sake of pairwise predictor comparisons.')
+        
+        contrast = np.zeros(len(result.params))
+
+        index0 = result.params.index.get_loc(col0)
+        index1 = result.params.index.get_loc(col1)
+
+        contrast[index0] = -1
+        contrast[index1] = 1
+
+        wald_result = result.wald_test(contrast, scalar = True)
+
+        index_tuples.append((dv_col, f'{col0} vs {col1}'))
+        test_statistics.append(wald_result.statistic)
+        p_values.append(wald_result.pvalue)
+        counts.append(result.nobs)
+
+    return index_tuples, test_statistics, p_values, counts
+
+def _add_interactions(
+    df: pd.DataFrame,
+    iv: list[str],
+    interactions: list[list[str]],
+) -> tuple[pd.DataFrame, list[str]]:
+    """Add interaction terms to DataFrame and IV column label list.
+
+    Mean-centers IVs.
+
+    Args:
+        df (pd.DataFrame): The DataFrame.
+        iv (list[str]): Column(s) to use as the independent variable(s).
+        interactions (list[list[str]]): Interaction terms to compute.
+
+    Returns:
+        tuple[pd.DataFrame, list[str]]: The updated DataFrame and IV column label list.
+    """
+    
+    df = df.copy()
+    iv = iv.copy()
+
+    for col in iv:
+        if df[col].dropna().nunique() > 2:
+            df[col] = df[col] - df[col].mean()
+
+    for col0, col1 in interactions:
+        interaction_col = f'{col0}:{col1}'
+        df[interaction_col] = df[col0] * df[col1]
+
+        iv.append(interaction_col)
+
+    return df, iv
+
+def _regression_model(
+    df: pd.DataFrame,
+    method: str,
+    iv: list[str],
+    dv_col: str,    
+) -> tuple[RegressionResultsWrapper | BinaryResultsWrapper | OrderedResultsWrapper, float, float]:
+    """Get model and fit model results.
+
+    Args:
+        df (pd.DataFrame): The DataFrame.
+        method (str): The test method. Supported choices: 'linear', 'logistic', 'ordered_logistic'.
+        iv (list[str]): Column(s) to use as the independent variable(s).
+        dv_col (str): The column label for the dependent variable.
+
+    Returns:
+        tuple[RegressionResultsWrapper | BinaryResultsWrapper | OrderedResultsWrapper, float, float]: A tuple of the fit model, overall statistic, and overall p value.
+    """
+    
+    y = df[dv_col].astype(float)
+
+    if method == 'linear':
+        X = sm.add_constant(df[iv].astype(float))
+        model = OLS(y, X, missing = 'drop')
+
+    elif method == 'logistic':
+        X = sm.add_constant(df[iv].astype(float))
+        model = Logit(y, X, missing = 'drop')
+
+    elif method == 'ordered_logistic':
+        X = df[iv].astype(float)
+        model = OrderedModel(y, X, missing = 'drop', method = 'bfgs', distr = 'logit')
+
+    result = model.fit(disp = 0)
+
+    if method == 'linear':
+        overall_p = result.f_pvalue
+        overall_stat = result.fvalue
+
+    else:
+        overall_p = result.llr_pvalue
+        overall_stat = result.llr
+
+    return result, overall_stat, overall_p
 
 def _dependent_cochran(
    df: pd.DataFrame,
@@ -1384,3 +1496,67 @@ def _create_test_frame(
     )
 
     return result
+
+def _is_dummy(
+    series: pd.Series,
+) -> bool:
+    """Check if a Series is dummy-coded/binary.
+
+    Args:
+        series (pd.Series): The Series.
+
+    Returns:
+        bool: True if dummy-coded.
+    """
+
+    unique_vals = series.unique()
+
+    return len(unique_vals) <= 2 and set(unique_vals).issubset({0, 1, 0.0, 1.0})
+
+def _is_standardized(
+    series: pd.Series,
+    mean_tolerance: float = 0.05,
+    stdev_tolerance: float = 0.05,
+) -> bool:
+    """Check if a Series is Z-score standardized.
+
+    Z-score standardization would yield a mean of 0 and standard deviation of 1.
+
+    Args:
+        series (pd.Series): The Series.
+        mean_tolerance (float): Tolerance threshold around the expected mean. Defaults to 0.05.
+        stdev_tolerance (float): Tolerance threshold around the expected standard deviation. Defaults to 0.05.
+
+    Returns:
+        bool: True if standardized.
+    """
+
+    unique_vals = series.unique()
+
+    if len(unique_vals) <= 2:
+        return False
+
+    return bool(np.isclose(series.mean(), 0, atol = mean_tolerance) and np.isclose(series.std(), 1, atol = stdev_tolerance))
+
+def _are_commensurable(
+    series0: pd.Series,
+    series1: pd.Series,
+) -> bool:
+    """Check if two Series are comparable.
+
+    Args:
+        series0 (pd.Series): The first Series.
+        series1 (pd.Series): The second Series
+
+    Returns:
+        bool: True if comparable.
+    """
+
+    if _is_dummy(series0) and _is_dummy(series1):
+        return True
+
+    elif _is_standardized(series0) and _is_standardized(series1):
+        return True
+
+    else:
+        return False

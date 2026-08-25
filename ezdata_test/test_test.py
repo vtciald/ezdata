@@ -3,6 +3,7 @@ import numpy as np
 from ezdata.processor import DataProcessor
 from ezdata import test
 import pytest
+from sklearn.preprocessing import StandardScaler
 
 def test_one_sample_t():
 
@@ -795,6 +796,69 @@ def test_regression_linear_interactions():
     
     pd.testing.assert_frame_equal(result, expected)
 
+def test_regression_linear_pairwise():
+
+    dp = DataProcessor()
+
+    test_df = pd.DataFrame({
+        'iv1': [np.nan, 5.2, 10.0, 7.8, 32.0, 2.0, 3.0, 13.1, 15.4, 54.0, 17.0, 2.0, 13.0, 1.4, 3.0, 16.0, 23.1, 57.4, 32.0, 3.1, 7.5, 4.2, 8.9, 6.4, 9.1, 1.8],
+        'iv2': [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0],
+        'iv3': [0, 0, 0, 1, 1, 0, 0, 1, 1, 0, 0, 1, 1, 1, 0, 0, 1, 0, 1, 0, 0, 0, 0, 0, 0, 1],
+        'dv1': [15.1, 10.2, 12.5, 42.1, 48.3, 8.9, 11.0, 44.2, 46.8, 22.1, 20.3, 38.5, 55.4, 41.2, 11.4, 14.8, 49.1, 24.5, 53.0, 9.8, 11.2, 16.1, 12.4, 10.9, 17.8, 36.9],
+    })
+
+    multi_index = pd.MultiIndex.from_tuples(
+        [
+            ('dv1', 'OVERALL'),
+            ('dv1', 'iv1'),
+            ('dv1', 'iv2'),
+            ('dv1', 'iv3'),
+            ('dv1', 'iv2 vs iv3'),
+        ],
+        names = ['dv', 'iv'],
+    )
+
+    expected = pd.DataFrame(
+        {
+            'test_statistic': [424.8017, 0.2762, 5.8538, 30.6015, 278.1754],
+            'p_value': [0.0, 0.0, 0.0, 0.0, 0.0],
+            'stat_sig': [True, True, True, True, True],
+            'count': [25, 25, 25, 25, 25],
+        },
+        index = multi_index,
+    )
+
+    result = dp.test_regression(test_df, 'linear', dv = 'dv1', iv = ['iv1', 'iv2', 'iv3'], compare_pairwise = [['iv2', 'iv3']])
+
+    result['test_statistic'] = result['test_statistic'].round(4)
+    result['p_value'] = result['p_value'].round(4)
+    
+    pd.testing.assert_frame_equal(result, expected)
+
+def test_regression_linear_pairwise_error():
+
+    dp = DataProcessor()
+
+    test_df = pd.DataFrame({
+        'iv1': [np.nan, 5.2, 10.0, 7.8, 32.0, 2.0, 3.0, 13.1, 15.4, 54.0, 17.0, 2.0, 13.0, 1.4, 3.0, 16.0, 23.1, 57.4, 32.0, 3.1, 7.5, 4.2, 8.9, 6.4, 9.1, 1.8],
+        'iv2': [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0],
+        'iv3': [0, 0, 0, 1, 1, 0, 0, 1, 1, 0, 0, 1, 1, 1, 0, 0, 1, 0, 1, 0, 0, 0, 0, 0, 0, 1],
+        'iv4': [1.15, -0.42, -0.18, -0.85, 0.92, -1.10, -0.65, 0.35, -0.22, 1.48, 0.88, -0.95, 0.45, -1.30, -0.50, 0.12, 1.05, 1.82, 0.60, -0.75, -0.38, -0.82, -0.10, -0.55, 0.25, -1.20],
+        'dv1': [15.1, 10.2, 12.5, 42.1, 48.3, 8.9, 11.0, 44.2, 46.8, 22.1, 20.3, 38.5, 55.4, 41.2, 11.4, 14.8, 49.1, 24.5, 53.0, 9.8, 11.2, 16.1, 12.4, 10.9, 17.8, 36.9],
+    })
+
+    scaler = StandardScaler()
+    scaled = scaler.fit_transform(test_df[['iv1', 'iv4']])
+    test_df[['z_iv1', 'z_iv4']] = scaled
+
+    with pytest.raises(ValueError):
+        result = dp.test_regression(test_df, 'linear', dv = 'dv1', iv = ['iv1', 'iv2', 'iv3', 'iv4'], compare_pairwise = [['iv1', 'iv2']])
+
+    with pytest.raises(ValueError):
+        result = dp.test_regression(test_df, 'linear', dv = 'dv1', iv = ['iv1', 'iv2', 'iv3', 'iv4'], compare_pairwise = [['iv1', 'iv4']])
+
+    result = dp.test_regression(test_df, 'linear', dv = 'dv1', iv = ['z_iv1', 'iv2', 'iv3', 'z_iv4'], compare_pairwise = [['z_iv1', 'z_iv4']])
+
 def test_p_correct():
 
     dp = DataProcessor()
@@ -969,6 +1033,8 @@ test_regression_linear()
 test_regression_logistic()
 test_regression_ordered_logistic()
 test_regression_linear_interactions()
+test_regression_linear_pairwise()
+test_regression_linear_pairwise_error()
 
 # Test p-value correction methods
 test_p_correct()
