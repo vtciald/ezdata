@@ -646,8 +646,10 @@ def test_regression_linear():
 
     multi_index = pd.MultiIndex.from_tuples(
         [
+            ('dv1', 'OVERALL'),
             ('dv1', 'iv1'),
             ('dv1', 'iv2'),
+            ('dv2', 'OVERALL'),
             ('dv2', 'iv1'),
             ('dv2', 'iv2'),
         ],
@@ -656,10 +658,10 @@ def test_regression_linear():
 
     expected = pd.DataFrame(
         {
-            'test_statistic': [0.6068, 2.4375, 0.0000, -1.0000],
-            'p_value': [0.0023, 0.6470, 0.0020, 0.0000],
-            'stat_sig': [True, False, True, True],
-            'count': [25, 25, 24, 24],
+            'test_statistic': [6.0735, 0.6068, 2.4375, 2.2516e31, 0.0000, -1.0000],
+            'p_value': [0.0079, 0.0023, 0.6470, 0.0000, 0.0020, 0.0000],
+            'stat_sig': [True, True, False, True, True, True],
+            'count': [25, 25, 25, 24, 24, 24],
         },
         index = multi_index,
     )
@@ -684,8 +686,10 @@ def test_regression_logistic():
 
     multi_index = pd.MultiIndex.from_tuples(
         [
+            ('dv1', 'OVERALL'),
             ('dv1', 'iv1'),
             ('dv1', 'iv2'),
+            ('dv2', 'OVERALL'),
             ('dv2', 'iv1'),
             ('dv2', 'iv2'),
         ],
@@ -694,10 +698,10 @@ def test_regression_logistic():
 
     expected = pd.DataFrame(
         {
-            'test_statistic': [0.2854, -1.6272, 0.0753, -0.4724],
-            'p_value': [0.0384, 0.2377, 0.1549, 0.6127],
-            'stat_sig': [True, False, False, False],
-            'count': [24, 24, 25, 25],
+            'test_statistic': [11.6150, 0.2854, -1.6272, 3.7066, 0.0753, -0.4724],
+            'p_value': [0.0030, 0.0384, 0.2377, 0.1567, 0.1549, 0.6127],
+            'stat_sig': [True, True, False, False, False, False],
+            'count': [24, 24, 24, 25, 25, 25],
         },
         index = multi_index,
     )
@@ -722,8 +726,10 @@ def test_regression_ordered_logistic():
 
     multi_index = pd.MultiIndex.from_tuples(
         [
+            ('dv1', 'OVERALL'),
             ('dv1', 'iv1'),
             ('dv1', 'iv2'),
+            ('dv2', 'OVERALL'),
             ('dv2', 'iv1'),
             ('dv2', 'iv2'),
         ],
@@ -732,10 +738,10 @@ def test_regression_ordered_logistic():
 
     expected = pd.DataFrame(
         {
-            'test_statistic': [0.3304, -1.5496, 0.1284, -0.5436],
-            'p_value': [0.0064, 0.2099, 0.0515, 0.5423],
-            'stat_sig': [True, False, False, False],
-            'count': [24, 24, 25, 25],
+            'test_statistic': [20.8459, 0.3304, -1.5496, 8.7898, 0.1284, -0.5436],
+            'p_value': [0.0000, 0.0064, 0.2099, 0.0123, 0.0515, 0.5423],
+            'stat_sig': [True, True, False, True, False, False],
+            'count': [24, 24, 24, 25, 25, 25],
         },
         index = multi_index,
     )
@@ -760,9 +766,11 @@ def test_regression_linear_interactions():
 
     multi_index = pd.MultiIndex.from_tuples(
         [
+            ('dv1', 'OVERALL'),
             ('dv1', 'iv1'),
             ('dv1', 'iv2'),
             ('dv1', 'iv1:iv2'),
+            ('dv2', 'OVERALL'),
             ('dv2', 'iv1'),
             ('dv2', 'iv2'),
             ('dv2', 'iv1:iv2'),
@@ -772,10 +780,10 @@ def test_regression_linear_interactions():
 
     expected = pd.DataFrame(
         {
-            'test_statistic': [0.5781, 2.4313, 0.1374, 0.0000, -1.0000, 0.0000],
-            'p_value': [0.0093, 0.6549, 0.7586, 0.0005, 0.0000, 0.1509],
-            'stat_sig': [True, False, False, True, True, False],
-            'count': [25, 25, 25, 24, 24, 24],
+            'test_statistic': [3.9151, 0.5781, 2.4313, 0.1374, 1.340208e30, 0.0000, -1.0000, 0.0000],
+            'p_value': [0.0229, 0.0093, 0.6549, 0.7586, 0.0000, 0.0005, 0.0000, 0.1509],
+            'stat_sig': [True, True, False, False, True, True, True, False],
+            'count': [25, 25, 25, 25, 24, 24, 24, 24],
         },
         index = multi_index,
     )
@@ -838,8 +846,10 @@ def test_regression_dv_collision():
 
     multi_index = pd.MultiIndex.from_tuples(
         [
+            ('dv1', 'OVERALL'),
             ('dv1', 'iv1'),
             ('dv1', 'iv2'),
+            ('dv2', 'OVERALL'),
             ('dv2', 'iv1'),
             ('dv2', 'iv2'),
         ],
@@ -848,10 +858,10 @@ def test_regression_dv_collision():
 
     expected = pd.DataFrame(
         {
-            'test_statistic': [0.6068, 2.4375, 0.0000, -1.0000],
-            'p_value': [0.0023, 0.6470, 0.0020, 0.0000],
-            'stat_sig': [True, False, True, True],
-            'count': [25, 25, 24, 24],
+            'test_statistic': [6.0735, 0.6068, 2.4375, 2.251616e31, 0.0000, -1.0000],
+            'p_value': [0.0079, 0.0023, 0.6470, 0.0000, 0.0020, 0.0000],
+            'stat_sig': [True, True, False, True, True, True],
+            'count': [25, 25, 25, 24, 24, 24],
         },
         index = multi_index,
     )

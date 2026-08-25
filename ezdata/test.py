@@ -363,9 +363,8 @@ def test_regression(
         pd.DataFrame: A DataFrame with multi-index indices, ('dv', 'iv').
             Columns include:
             - 'test_statistic': A statistic based on the `method` used.
-                * Beta when `method = 'linear'`.
-                * Log odds ratio when when `method = 'logistic'`.
-                * Log odds ratio when `method = 'ordered_logistic'`.
+                * Beta for predictors and F statistic for overall model when `method = 'linear'`.
+                * Log odds ratio for predictors and likelihood ratio for overall model when when `method = 'logistic'` or `method = 'ordered_logistic'`.
             - 'p_value': The calculated p value.
             - 'stat_sig': A boolean flag indicating statistical significance.
             - 'count': The number of valid non-nan observations.
@@ -483,9 +482,8 @@ def _regression(
         pd.DataFrame: A DataFrame with multi-index indices, ('dv', 'iv').
             Columns include:
             - 'test_statistic': A statistic based on the `method` used.
-                * Beta when `method = 'linear'`.
-                * Log odds ratio when when `method = 'logistic'`.
-                * Log odds ratio when `method = 'ordered_logistic'`.
+                * Beta for predictors and F statistic for overall model when `method = 'linear'`.
+                * Log odds ratio for predictors and likelihood ratio for overall model when when `method = 'logistic'` or `method = 'ordered_logistic'`.
             - 'p_value': The calculated p value.
             - 'stat_sig': A boolean flag indicating statistical significance.
             - 'count': The number of valid non-nan observations.
@@ -528,6 +526,19 @@ def _regression(
             model = OrderedModel(y, X, missing = 'drop', method = 'bfgs', distr = 'logit')
 
         result = model.fit(disp = 0)
+
+        if method == 'linear':
+            overall_p = result.f_pvalue
+            overall_stat = result.fvalue
+
+        else:
+            overall_p = result.llr_pvalue
+            overall_stat = result.llr
+
+        index_tuples.append((dv_col, 'OVERALL'))
+        test_statistics.append(overall_stat)
+        p_values.append(overall_p)
+        counts.append(result.nobs)
 
         if print_summary:
             print(result.summary())
