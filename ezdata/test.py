@@ -372,6 +372,7 @@ def test_regression(
             - 'p_value': The calculated p value.
             - 'stat_sig': A boolean flag indicating statistical significance.
             - 'count': The number of valid non-nan observations.
+            - 'type': Indicating 'model', 'const', 'predictor', 'interaction', or 'contrast'.
     """
 
     iv = Selector.resolve(df, iv)
@@ -497,35 +498,52 @@ def _regression(
             - 'p_value': The calculated p value.
             - 'stat_sig': A boolean flag indicating statistical significance.
             - 'count': The number of valid non-nan observations.
+            - 'type': Indicating 'model', 'const', 'predictor', 'interaction', or 'contrast'.
     """
 
     counts = []
     index_tuples = []
     test_statistics = []
     p_values = []
-
-    if interactions:
-        df, iv = _add_interactions(df, iv, interactions)
-
+    types = []
+    interaction_set = set()
     iv_set = set(iv)
+    all_ivs = iv
+
+    if interactions is not None:
+        df, interaction_labels = _add_interactions(df, iv, interactions)
+        interaction_set = set(interaction_labels)
+        all_ivs += interaction_labels
 
     for dv_col in dv:
-        result, overall_stat, overall_p = _regression_model(df, method, iv, dv_col)
-        
-        index_tuples.append((dv_col, 'OVERALL'))
-        test_statistics.append(overall_stat)
-        p_values.append(overall_p)
-        counts.append(result.nobs) # type: ignore
+        result, model_stat, model_p = _regression_model(df, method, all_ivs, dv_col)
 
         if print_summary:
             print(result.summary()) # type: ignore
+        
+        index_tuples.append((dv_col, 'model'))
+        test_statistics.append(model_stat)
+        p_values.append(model_p)
+        counts.append(result.nobs) # type: ignore
+        types.append('model')
 
         for iv_name in result.params.index: # type: ignore
-            if iv_name in iv_set:
-                index_tuples.append((dv_col, iv_name))
-                test_statistics.append(result.params[iv_name]) # type: ignore
-                p_values.append(result.pvalues[iv_name]) # type: ignore
-                counts.append(result.nobs) # type: ignore
+            if iv_name in interaction_set:
+                types.append('interaction')
+
+            elif iv_name in iv_set:
+                types.append('predictor')
+
+            elif iv_name == 'const':
+                types.append('const')
+
+            else:
+                continue
+
+            index_tuples.append((dv_col, iv_name))
+            test_statistics.append(result.params[iv_name]) # type: ignore
+            p_values.append(result.pvalues[iv_name]) # type: ignore
+            counts.append(result.nobs) # type: ignore
 
         if compare_pairwise:
             pair_indices, pair_stats, pair_ps, pair_counts = _pairwise_wald(df, result, dv_col, compare_pairwise)
@@ -534,6 +552,7 @@ def _regression(
             test_statistics.extend(pair_stats)
             p_values.extend(pair_ps)
             counts.extend(pair_counts)
+            types.extend(['contrast'] * len(pair_counts))
 
     return _create_test_frame(
         index_tuples,
@@ -542,6 +561,7 @@ def _regression(
         np.array(counts),
         alpha,
         ['dv', 'iv'],
+        types = np.array(types),
     )
 
 def _pairwise_wald(
@@ -609,11 +629,11 @@ def _add_interactions(
         interactions (list[list[str]]): Interaction terms to compute.
 
     Returns:
-        tuple[pd.DataFrame, list[str]]: The updated DataFrame and IV column label list.
+        tuple[pd.DataFrame, list[str]]: The updated DataFram and list of the new interaction column labels.
     """
     
     df = df.copy()
-    iv = iv.copy()
+    interaction_col_labels = []
 
     for col in iv:
         if df[col].dropna().nunique() > 2:
@@ -623,9 +643,9 @@ def _add_interactions(
         interaction_col = f'{col0}:{col1}'
         df[interaction_col] = df[col0] * df[col1]
 
-        iv.append(interaction_col)
+        interaction_col_labels.append(interaction_col)
 
-    return df, iv
+    return df, interaction_col_labels
 
 def _regression_model(
     df: pd.DataFrame,
@@ -642,7 +662,7 @@ def _regression_model(
         dv_col (str): The column label for the dependent variable.
 
     Returns:
-        tuple[RegressionResultsWrapper | BinaryResultsWrapper | OrderedResultsWrapper, float, float]: A tuple of the fit model, overall statistic, and overall p value.
+        tuple[RegressionResultsWrapper | BinaryResultsWrapper | OrderedResultsWrapper, float, float]: A tuple of the fit model, model statistic, and model p value.
     """
     
     y = df[dv_col].astype(float)
@@ -662,14 +682,14 @@ def _regression_model(
     result = model.fit(disp = 0)
 
     if method == 'linear':
-        overall_p = result.f_pvalue
-        overall_stat = result.fvalue
+        model_p = result.f_pvalue
+        model_stat = result.fvalue
 
     else:
-        overall_p = result.llr_pvalue
-        overall_stat = result.llr
+        model_p = result.llr_pvalue
+        model_stat = result.llr
 
-    return result, overall_stat, overall_p
+    return result, model_stat, model_p
 
 def _dependent_cochran(
    df: pd.DataFrame,
@@ -1456,6 +1476,7 @@ def _create_test_frame(
     alpha: float,
     multi_labels: list[str] | None = None,
     count_int: bool = True,
+    types: np.ndarray | None = None,
 ) -> pd.DataFrame:
     """Package test results into a DataFrame.
 
@@ -1467,6 +1488,7 @@ def _create_test_frame(
         alpha (float): The desired alpha level.
         multi_labels (list[str] | None, optional): The labels for the index levels (for a multi-index DataFrame). Must match the length of interior elements of indices. Defaults to None.
         count_int (bool, optional): If true, ensures count is an int dtype. Otherwise, does not modify the dtype. Defaults to True.
+        types (np.ndarray, optional): If given, adds a 'type' column containing these values. Defaults to None.
 
     Returns:
         pd.DataFrame: A DataFrame with indices matching `indices` and columns `statistic_name`, 'p_value', 'stat_sig', 'count'.
@@ -1478,6 +1500,9 @@ def _create_test_frame(
         'stat_sig': (p_values < alpha).astype(bool),
         'count': counts.astype(int) if count_int else counts,
     }
+
+    if types is not None:
+        data_dict['type'] = types.astype(str)
 
     if isinstance(indices[0], tuple):          
         multi_index = pd.MultiIndex.from_tuples(
@@ -1560,3 +1585,14 @@ def _are_commensurable(
 
     else:
         return False
+
+# TODO: consider only doing contrasts if overall model is sig
+# TODO: consider implementing contrasts for other tests as we have for regression
+# TODO: consider how to simplify p-correcting for all 'model' type or contrasts that have the same dv?... just add parameter to run the correction before returning the results?
+# TODO: categorical iv to dummy in regression
+# TODO: pairwise chi_square option
+# TODO: pairise fisher_exact option
+# TODO: z-standardize variables (prep?)
+# TODO: auto-compute z-standardized vars for regression pairwise comparisons? (if numeric but not dummy)
+# TODO: multinomial logistic regression
+# TODO: custom results objects...?
