@@ -51,14 +51,15 @@ def test_one_sample(
     """
 
     dv = Selector.resolve(df, dv)
+    clean_method = _standardize_method(method)
 
-    if method == 't':
+    if clean_method == 't':
         result = _one_sample_t(df, dv, null, alpha)
 
-    elif method == 'wilcoxon':
+    elif clean_method == 'wilcoxon':
         result = _one_sample_wilcoxon(df, dv, null, alpha)
     
-    elif method == 'sign':
+    elif clean_method == 'sign':
         result = _one_sample_sign(df, dv, null, alpha)
 
     else:
@@ -100,8 +101,9 @@ def test_one_sample_proportion(
     """
 
     dv = Selector.resolve(df, dv)
+    clean_method = _standardize_method(method)
 
-    if method == 'exact':
+    if clean_method == 'exact':
         result = _one_sample_binomial(df, dv, null, alpha)
 
     else:
@@ -121,7 +123,7 @@ def test_independent_proportion(
 
     Args:
         df (pd.DataFrame): The DataFrame.
-        method (str): The test method. Supported choices: 'fisher_exact', 'chi_square'.
+        method (str): The test method. Supported choices: 'fisher-exact', 'chi-square'.
         iv (Sequence[str] | str | ColumnSelector): Column(s) to use as the grouping variable. If one-hot encoded, will be converted to mutually exclusive categories.
         dv (Sequence[str] | str | ColumnSelector | None, optional): Column(s) to evaluate for differences on the basis of `iv`. If None, includes all columns. Defaults to None.
         alpha (float, optional): The desired alpha. Defaults to 0.05.
@@ -137,8 +139,8 @@ def test_independent_proportion(
         pd.DataFrame: A DataFrame with indices matching the labels in `dv`.
             Columns include:
             - 'test_statistic': A statistic based on the `method` used.
-                * The Chi-squared test statistic when `method = 'chi_squared'`.
-                * The prior odds ratio when `method = 'fisher_exact'`.
+                * The Chi-squared test statistic when `method = 'chi-square'`.
+                * The prior odds ratio when `method = 'fisher-exact'`.
             - 'p_value': The calculated p value.
             - 'stat_sig': A boolean flag indicating statistical significance.
             - 'count': The number of valid non-nan observations.
@@ -147,11 +149,12 @@ def test_independent_proportion(
     df, iv = prep.dummy_to_categorical(df, cols = iv)
     dv = Selector.resolve(df, dv)
     dv = [col for col in dv if col != iv]
+    clean_method = _standardize_method(method)
 
-    if method == 'chi_square':
+    if clean_method == 'chi-square':
         result = _independent_chi_sq(df, iv, dv, alpha)
     
-    elif method == 'fisher_exact':
+    elif clean_method == 'fisher-exact':
         result = _independent_fisher_exact(df, iv, dv, alpha)
 
     else:
@@ -171,7 +174,7 @@ def test_independent(
 
     Args:
         df (pd.DataFrame): The DataFrame.
-        method (str): The test method. Supported choices: 't', 'mann_whitney', 'anova', 'kruskal_wallis', 'tukey', 'dunn'.
+        method (str): The test method. Supported choices: 't', 'mann-whitney', 'anova', 'kruskal-wallis', 'tukey', 'dunn'.
         iv (Sequence[str] | str | ColumnSelector): Column(s) to use as the grouping variable. If one-hot encoded, will be converted to mutually exclusive categories.
         dv (Sequence[str] | str | ColumnSelector | None, optional): Column(s) to evaluate for differences on the basis of `iv`. If None, includes all columns. Defaults to None.
         alpha (float, optional): The desired alpha. Defaults to 0.05.
@@ -192,9 +195,9 @@ def test_independent(
             Columns include:
             - 'test_statistic': A statistic based on the `method` used.
                 * T statistic when `method = 't'`.
-                * U statistic when `method = 'mann_whitney'`.
+                * U statistic when `method = 'mann-whitney'`.
                 * F statistic when `method = 'anova'`.
-                * H statistic when `method = 'kruskal_wallis'`.
+                * H statistic when `method = 'kruskal-wallis'`.
             - 'p_value': The calculated p value.
             - 'stat_sig': A boolean flag indicating statistical significance.
             - 'count': The number of valid non-nan observations.
@@ -204,23 +207,24 @@ def test_independent(
     df, iv = prep.dummy_to_categorical(df, cols = iv)
     dv = Selector.resolve(df, dv)
     dv = [col for col in dv if col != iv]
+    clean_method = _standardize_method(method)
 
-    if method == 't':
+    if clean_method == 't':
         result = _independent_t(df, iv, dv, alpha)
     
-    elif method == 'mann_whitney':
+    elif clean_method == 'mann-whitney':
         result = _independent_mann_whitney_u(df, iv, dv, alpha)
 
-    elif method == 'anova':
+    elif clean_method == 'anova':
         result = _independent_one_way_anova(df, iv, dv, alpha)
 
-    elif method == 'kruskal_wallis':
+    elif clean_method == 'kruskal-wallis':
         result = _independent_kruskal_wallis_h(df, iv, dv, alpha)
 
-    elif method == 'tukey':
+    elif clean_method == 'tukey':
         result = _independent_tukey(df, iv, dv, alpha)
 
-    elif method == 'dunn':
+    elif clean_method == 'dunn':
         result = _independent_dunn(df, iv, dv, alpha)
 
     else:
@@ -263,11 +267,12 @@ def test_dependent(
     """
 
     dv = Selector.resolve_pair(df, dv)
+    clean_method = _standardize_method(method)
 
-    if method == 't':
+    if clean_method == 't':
         result = _dependent_t(df, dv, alpha)
     
-    elif method == 'wilcoxon':
+    elif clean_method == 'wilcoxon':
         result = _dependent_wilcoxon(df, dv, alpha)
 
     else:
@@ -286,7 +291,7 @@ def test_dependent_proportion(
 
     Args:
         df (pd.DataFrame): The DataFrame.
-        method (str): The test method. Supported choices: 'mcnemar_exact', 'mcnemar_asymptotic', 'cochran'.
+        method (str): The test method. Supported choices: 'mcnemar-exact', 'mcnemar-asymptotic', 'cochran'.
         dv (Sequence[str] | Sequence[Sequence[str]] | ColumnSelector | PairSelector | None, optional): Column(s) to evaluate for differences on the basis of `iv`. If None, includes all columns. Defaults to None.
         alpha (float, optional): The desired alpha. Defaults to 0.05.
 
@@ -303,15 +308,18 @@ def test_dependent_proportion(
         pd.DataFrame: A DataFrame with multi-index indices. The structure of these indices varies based on the `method`.
             Columns include:
             - 'test_statistic': A statistic based on the `method` used.
-                * T statistic when `method = 't'`.
-                * The sum of the ranks of the differences above or below zero, whichever is smaller when `method = 'wilcoxon'`.
+                * The count of discordant pairs when `method = 'mcnemar-exact'`.
+                * Chi-Square statistic when `method = 'mcnemar-asymptotic'`.
+                * Cochran's Q statistic when `method = 'cochran'`.
             - 'p_value': The calculated p value.
             - 'stat_sig': A boolean flag indicating statistical significance.
             - 'count': The number of valid non-nan observations.
     """
 
-    if method in {'mcnemar_exact', 'mcnemar_asymptotic'}:
-        exact = method == 'mcnemar_exact'
+    clean_method = _standardize_method(method)
+
+    if clean_method in {'mcnemar-exact', 'mcnemar-asymptotic'}:
+        exact = clean_method == 'mcnemar-exact'
 
         if isinstance(dv, GroupSelector):
             raise TypeError(f'Mcnemar\'s test requires pairs of columns but a GroupSelector was given.')
@@ -320,7 +328,7 @@ def test_dependent_proportion(
             dv = Selector.resolve_pair(df, dv)
             result = _dependent_mcnemar(df, dv, alpha, exact = exact)
     
-    elif method == 'cochran':
+    elif clean_method == 'cochran':
         dv = Selector.resolve_group(df, dv)
         result = _dependent_cochran(df, dv, alpha)
 
@@ -346,7 +354,7 @@ def test_regression(
 
     Args:
         df (pd.DataFrame): The DataFrame.
-        method (str): The test method. Supported choices: 'linear', 'logistic', 'ordered_logistic'.
+        method (str): The test method. Supported choices: 'linear', 'logistic', 'ordered-logistic'.
         iv (Sequence[str] | str | ColumnSelector): Column(s) to use as the independent variable(s). It is assumed that a constant is not yet added.
         dv (Sequence[str] | str | ColumnSelector | None, optional): Column(s) to use as the dependent variable(s). If None, includes all columns. Defaults to None.
         alpha (float, optional): The desired alpha. Defaults to 0.05.
@@ -367,7 +375,7 @@ def test_regression(
             Columns include:
             - 'test_statistic': A statistic based on the `method` used.
                 * Beta for predictors and F statistic for overall model when `method = 'linear'`.
-                * Log odds ratio for predictors and likelihood ratio for overall model when when `method = 'logistic'` or `method = 'ordered_logistic'`.
+                * Log odds ratio for predictors and likelihood ratio for overall model when when `method = 'logistic'` or `method = 'ordered-logistic'`.
                 * Wald test statistic for any pairwise comparisons.
             - 'p_value': The calculated p value.
             - 'stat_sig': A boolean flag indicating statistical significance.
@@ -377,6 +385,7 @@ def test_regression(
 
     iv = Selector.resolve(df, iv)
     dv = Selector.resolve(df, dv)
+    clean_method = _standardize_method(method)
 
     if interaction is not None:
         interaction = Selector.resolve_pair(df, interaction)
@@ -387,8 +396,8 @@ def test_regression(
     iv_set = set(iv)
     dv = [col for col in dv if col not in iv_set]
 
-    if method in {'linear', 'logistic', 'ordered_logistic'}:
-        result = _regression(df, method, iv, dv, alpha, interaction, contrast, print_summary)
+    if clean_method in {'linear', 'logistic', 'ordered-logistic'}:
+        result = _regression(df, clean_method, iv, dv, alpha, interaction, contrast, print_summary)
 
     else:
         raise ValueError(f'Regression method \'{method}\' is not recognized.')
@@ -405,7 +414,7 @@ def p_correct(
 
     Args:
         df (pd.DataFrame): A DataFrame containing a column 'p_value'.
-        method (str): The p-value correction method. Can be one of 'bonferroni' (or 'bf'), 'holm_bonferroni' (or 'hb'), 'benjamini_hochberg' (or 'bh'), 'benjamini_yekutieli' (or 'by').
+        method (str): The p-value correction method. Can be one of 'bonferroni' (or 'bf'), 'holm-bonferroni' (or 'hb'), 'benjamini-hochberg' (or 'bh'), 'benjamini-yekutieli' (or 'by').
         alpha (float, optional): The desired alpha. Defaults to 0.05.
 
     Notes:
@@ -421,41 +430,44 @@ def p_correct(
     Returns:
         pd.DataFrame: A copy of `df` with columns added:
             - 'p_value_bf' and 'stat_sig_bf' when `method = 'bonferroni'`.
-            - 'p_value_hb' and 'stat_sig_hb' when `method = 'holm_bonferroni'`.
-            - 'p_value_bh' and 'stat_sig_bh' when `method = 'benjamini_hochberg'`.
-            - 'p_value_by' and 'stat_sig_by' when `method = 'benjamini_yekutieli'`.
+            - 'p_value_hb' and 'stat_sig_hb' when `method = 'holm-bonferroni'`.
+            - 'p_value_bh' and 'stat_sig_bh' when `method = 'benjamini-hochberg'`.
+            - 'p_value_by' and 'stat_sig_by' when `method = 'benjamini-yekutieli'`.
     """
+
+    clean_method = _standardize_method(method)
 
     method_map = {
         'bonferroni': ('bonferroni', '_bf'),
         'bf': ('bonferroni', '_bf'),
-        'holm_bonferroni' : ('holm', '_hb'),
+        'holm-bonferroni' : ('holm', '_hb'),
         'hb' : ('holm', '_hb'),
-        'benjamini_hochberg' : ('fdr_bh', '_bh'),
+        'benjamini-hochberg' : ('fdr_bh', '_bh'),
         'bh' : ('fdr_bh', '_bh'),
-        'benjamini_yekutieli' : ('fdr_by', '_by'),
+        'benjamini-yekutieli' : ('fdr_by', '_by'),
         'by' : ('fdr_by', '_by'),
     }
-    if method not in method_map:
+
+    if clean_method not in method_map:
         raise ValueError(f'P-value correction method \'{method}\' is not recognized.')
 
     elif 'p_value' not in df.columns:
         raise ValueError(f'Column \'p_value\' not found in DataFrame.')
     
-    method, method_suffix = method_map[method.lower()]
+    mapped_method, mapped_suffix = method_map[clean_method]
 
     df = df.copy()
 
     stat_sig_corrected, p_value_corrected, _, _ = multipletests(
         df['p_value'],
         alpha = alpha,
-        method = method,
+        method = mapped_method,
         is_sorted = False,
         returnsorted = False
     )
 
-    df['p_value' + method_suffix] = p_value_corrected
-    df['stat_sig' + method_suffix] = stat_sig_corrected
+    df['p_value' + mapped_suffix] = p_value_corrected
+    df['stat_sig' + mapped_suffix] = stat_sig_corrected
 
     return df
 
@@ -475,7 +487,7 @@ def _regression(
 
     Args:
         df (pd.DataFrame): The DataFrame.
-        method (str): The test method. Supported choices: 'linear', 'logistic', 'ordered_logistic'.
+        method (str): The test method. Supported choices: 'linear', 'logistic', 'ordered-logistic'.
         iv (list[str]): Column(s) to use as the independent variable(s). It is assumed that a constant is not yet added.
         dv (list[str]): Column(s) to use as the dependent variable(s). If None, includes all columns.
         alpha (float): The desired alpha.
@@ -486,14 +498,14 @@ def _regression(
     Notes:
         * 'linear': Ordinary Least Squares (OLS) regression. Predict an interval- or ratio-scale column.
         * 'logistic': Logistic regression. Predict a binary column.
-        * 'ordered_logistic': Ordered logistic regression. Predict an ordinal column.
+        * 'ordered-logistic': Ordered logistic regression. Predict an ordinal column.
 
     Returns:
         pd.DataFrame: A DataFrame with multi-index indices, ('dv', 'iv').
             Columns include:
             - 'test_statistic': A statistic based on the `method` used.
                 * Beta for predictors and F statistic for overall model when `method = 'linear'`.
-                * Log odds ratio for predictors and likelihood ratio for overall model when when `method = 'logistic'` or `method = 'ordered_logistic'`.
+                * Log odds ratio for predictors and likelihood ratio for overall model when when `method = 'logistic'` or `method = 'ordered-logistic'`.
                 * Wald test statistic for any pairwise comparisons.
             - 'p_value': The calculated p value.
             - 'stat_sig': A boolean flag indicating statistical significance.
@@ -657,7 +669,7 @@ def _regression_model(
 
     Args:
         df (pd.DataFrame): The DataFrame.
-        method (str): The test method. Supported choices: 'linear', 'logistic', 'ordered_logistic'.
+        method (str): The test method. Supported choices: 'linear', 'logistic', 'ordered-logistic'.
         iv (list[str]): Column(s) to use as the independent variable(s).
         dv_col (str): The column label for the dependent variable.
 
@@ -675,7 +687,7 @@ def _regression_model(
         X = sm.add_constant(df[iv].astype(float))
         model = Logit(y, X, missing = 'drop')
 
-    elif method == 'ordered_logistic':
+    elif method == 'ordered-logistic':
         X = df[iv].astype(float)
         model = OrderedModel(y, X, missing = 'drop', method = 'bfgs', distr = 'logit')
 
@@ -1491,7 +1503,7 @@ def _create_test_frame(
         types (np.ndarray, optional): If given, adds a 'type' column containing these values. Defaults to None.
 
     Returns:
-        pd.DataFrame: A DataFrame with indices matching `indices` and columns `statistic_name`, 'p_value', 'stat_sig', 'count'.
+        pd.DataFrame: A DataFrame with indices matching `indices` and columns `test_statistic`, 'p_value', 'stat_sig', 'count'.
     """
     
     data_dict = {
@@ -1586,9 +1598,29 @@ def _are_commensurable(
     else:
         return False
 
-# TODO: consider only doing contrasts if overall model is sig
-# TODO: consider implementing contrasts for other tests as we have for regression
+def _standardize_method(
+    method: str,
+) -> str:
+    """Standardize method string.
+
+    Replaces alternate substring-separating characters with a hyphen and converts to lowercase.
+
+    Args:
+        method (str): The method string.
+
+    Returns:
+        str: The standardized method string.
+    """
+
+    method = method.replace('_', '-').replace(' ', '-')
+
+    method = method.lower()
+
+    return method
+
 # TODO: consider how to simplify p-correcting for all 'model' type or contrasts that have the same dv?... just add parameter to run the correction before returning the results?
+# --- TODO: consider only doing contrasts if overall model is sig
+# TODO: consider implementing contrasts for other tests as we have for regression
 # TODO: categorical iv to dummy in regression
 # TODO: pairwise chi_square option
 # TODO: pairise fisher_exact option
