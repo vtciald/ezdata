@@ -761,7 +761,7 @@ def test_regression_ordered_logistic():
     
     pd.testing.assert_frame_equal(result, expected)
 
-def test_regression_linear_interactions():
+def test_regression_linear_interaction():
 
     dp = DataProcessor()
 
@@ -799,14 +799,14 @@ def test_regression_linear_interactions():
         index = multi_index,
     )
 
-    result = dp.test_regression(test_df, 'linear', dv = ['dv1', 'dv2'], iv = ['iv1', 'iv2'], interactions = ['iv1', 'iv2'])
+    result = dp.test_regression(test_df, 'linear', dv = ['dv1', 'dv2'], iv = ['iv1', 'iv2'], interaction = ['iv1', 'iv2'])
 
     result['test_statistic'] = result['test_statistic'].round(4)
     result['p_value'] = result['p_value'].round(4)
     
     pd.testing.assert_frame_equal(result, expected)
 
-def test_regression_linear_pairwise():
+def test_regression_linear_contrast():
 
     dp = DataProcessor()
 
@@ -840,14 +840,14 @@ def test_regression_linear_pairwise():
         index = multi_index,
     )
 
-    result = dp.test_regression(test_df, 'linear', dv = 'dv1', iv = ['iv1', 'iv2', 'iv3'], compare_pairwise = [['iv2', 'iv3']])
+    result = dp.test_regression(test_df, 'linear', dv = 'dv1', iv = ['iv1', 'iv2', 'iv3'], contrast = [['iv2', 'iv3']])
 
     result['test_statistic'] = result['test_statistic'].round(4)
     result['p_value'] = result['p_value'].round(4)
     
     pd.testing.assert_frame_equal(result, expected)
 
-def test_regression_linear_pairwise_error():
+def test_regression_linear_contrast_error():
 
     dp = DataProcessor()
 
@@ -864,12 +864,12 @@ def test_regression_linear_pairwise_error():
     test_df[['z_iv1', 'z_iv4']] = scaled
 
     with pytest.raises(ValueError):
-        result = dp.test_regression(test_df, 'linear', dv = 'dv1', iv = ['iv1', 'iv2', 'iv3', 'iv4'], compare_pairwise = [['iv1', 'iv2']])
+        result = dp.test_regression(test_df, 'linear', dv = 'dv1', iv = ['iv1', 'iv2', 'iv3', 'iv4'], contrast = [['iv1', 'iv2']])
 
     with pytest.raises(ValueError):
-        result = dp.test_regression(test_df, 'linear', dv = 'dv1', iv = ['iv1', 'iv2', 'iv3', 'iv4'], compare_pairwise = [['iv1', 'iv4']])
+        result = dp.test_regression(test_df, 'linear', dv = 'dv1', iv = ['iv1', 'iv2', 'iv3', 'iv4'], contrast = [['iv1', 'iv4']])
 
-    result = dp.test_regression(test_df, 'linear', dv = 'dv1', iv = ['z_iv1', 'iv2', 'iv3', 'z_iv4'], compare_pairwise = [['z_iv1', 'z_iv4']])
+    result = dp.test_regression(test_df, 'linear', dv = 'dv1', iv = ['z_iv1', 'iv2', 'iv3', 'z_iv4'], contrast = [['z_iv1', 'z_iv4']])
 
 def test_p_correct():
 
@@ -1047,9 +1047,9 @@ test_dependent_proportion_cochran()
 test_regression_linear()
 test_regression_logistic()
 test_regression_ordered_logistic()
-test_regression_linear_interactions()
-test_regression_linear_pairwise()
-test_regression_linear_pairwise_error()
+test_regression_linear_interaction()
+test_regression_linear_contrast()
+test_regression_linear_contrast_error()
 
 # Test p-value correction methods
 test_p_correct()
