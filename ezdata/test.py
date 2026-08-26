@@ -336,8 +336,8 @@ def test_regression(
     iv: Sequence[str] | str | ColumnSelector,
     dv: Sequence[str] | str | ColumnSelector | None = None,
     alpha: float = 0.05,
-    interactions: Sequence[str] | Sequence[Sequence[str]] | ColumnSelector | PairSelector | None = None,
-    compare_pairwise: Sequence[str] | Sequence[Sequence[str]] | ColumnSelector | PairSelector | None = None,
+    interaction: Sequence[str] | Sequence[Sequence[str]] | ColumnSelector | PairSelector | None = None,
+    contrast: Sequence[str] | Sequence[Sequence[str]] | ColumnSelector | PairSelector | None = None,
     print_summary: bool = False,    
 ) -> pd.DataFrame:
     """Run a regression.
@@ -350,8 +350,8 @@ def test_regression(
         iv (Sequence[str] | str | ColumnSelector): Column(s) to use as the independent variable(s). It is assumed that a constant is not yet added.
         dv (Sequence[str] | str | ColumnSelector | None, optional): Column(s) to use as the dependent variable(s). If None, includes all columns. Defaults to None.
         alpha (float, optional): The desired alpha. Defaults to 0.05.
-        interactions (Sequence[str] | Sequence[Sequence[str]] | ColumnSelector | PairSelector | None, optional): Interaction terms to compute. If given, mean-centers `iv` columns. Defaults to None.
-        compare_pairwise (Sequence[str] | Sequence[Sequence[str]] | ColumnSelector | PairSelector | None, optional): Pairs of independent variables to compare using Wald tests. Defaults to None.
+        interaction (Sequence[str] | Sequence[Sequence[str]] | ColumnSelector | PairSelector | None, optional): Interaction terms to compute. If given, mean-centers `iv` columns. Defaults to None.
+        contrast (Sequence[str] | Sequence[Sequence[str]] | ColumnSelector | PairSelector | None, optional): Pairs of independent variables to compare using Wald tests. Defaults to None.
         print_summary (bool, optional): If true, prints the model summary after fit. Defaults to False.
 
     Notes:
@@ -378,17 +378,17 @@ def test_regression(
     iv = Selector.resolve(df, iv)
     dv = Selector.resolve(df, dv)
 
-    if interactions is not None:
-        interactions = Selector.resolve_pair(df, interactions)
+    if interaction is not None:
+        interaction = Selector.resolve_pair(df, interaction)
 
-    if compare_pairwise is not None:
-        compare_pairwise = Selector.resolve_pair(df, compare_pairwise)
+    if contrast is not None:
+        contrast = Selector.resolve_pair(df, contrast)
 
     iv_set = set(iv)
     dv = [col for col in dv if col not in iv_set]
 
     if method in {'linear', 'logistic', 'ordered_logistic'}:
-        result = _regression(df, method, iv, dv, alpha, interactions, compare_pairwise, print_summary)
+        result = _regression(df, method, iv, dv, alpha, interaction, contrast, print_summary)
 
     else:
         raise ValueError(f'Regression method \'{method}\' is not recognized.')
@@ -465,8 +465,8 @@ def _regression(
     iv: list[str],
     dv: list[str],
     alpha: float,
-    interactions: list[list[str]] | None,
-    compare_pairwise: list[list[str]] | None,
+    interaction: list[list[str]] | None,
+    contrast: list[list[str]] | None,
     print_summary: bool,
 ) -> pd.DataFrame:
     """Run a regression.
@@ -479,8 +479,8 @@ def _regression(
         iv (list[str]): Column(s) to use as the independent variable(s). It is assumed that a constant is not yet added.
         dv (list[str]): Column(s) to use as the dependent variable(s). If None, includes all columns.
         alpha (float): The desired alpha.
-        interactions (list[list[str]] | None): Interaction terms to compute. If given, mean-centers `iv` columns.
-        compare_pairwise (list[list[str]] | None): Pairs of independent variables to compare using Wald tests.
+        interaction (list[list[str]] | None): Interaction terms to compute. If given, mean-centers `iv` columns.
+        contrast (list[list[str]] | None): Pairs of independent variables to compare using Wald tests.
         print_summary (bool): If true, prints the model summary after fit.
 
     Notes:
@@ -510,8 +510,8 @@ def _regression(
     iv_set = set(iv)
     all_ivs = iv
 
-    if interactions is not None:
-        df, interaction_labels = _add_interactions(df, iv, interactions)
+    if interaction is not None:
+        df, interaction_labels = _add_interaction(df, iv, interaction)
         interaction_set = set(interaction_labels)
         all_ivs += interaction_labels
 
@@ -545,8 +545,8 @@ def _regression(
             p_values.append(result.pvalues[iv_name]) # type: ignore
             counts.append(result.nobs) # type: ignore
 
-        if compare_pairwise:
-            pair_indices, pair_stats, pair_ps, pair_counts = _pairwise_wald(df, result, dv_col, compare_pairwise)
+        if contrast:
+            pair_indices, pair_stats, pair_ps, pair_counts = _pairwise_wald(df, result, dv_col, contrast)
 
             index_tuples.extend(pair_indices)
             test_statistics.extend(pair_stats)
@@ -614,10 +614,10 @@ def _pairwise_wald(
 
     return index_tuples, test_statistics, p_values, counts
 
-def _add_interactions(
+def _add_interaction(
     df: pd.DataFrame,
     iv: list[str],
-    interactions: list[list[str]],
+    interaction: list[list[str]],
 ) -> tuple[pd.DataFrame, list[str]]:
     """Add interaction terms to DataFrame and IV column label list.
 
@@ -626,7 +626,7 @@ def _add_interactions(
     Args:
         df (pd.DataFrame): The DataFrame.
         iv (list[str]): Column(s) to use as the independent variable(s).
-        interactions (list[list[str]]): Interaction terms to compute.
+        interaction (list[list[str]]): Interaction terms to compute.
 
     Returns:
         tuple[pd.DataFrame, list[str]]: The updated DataFram and list of the new interaction column labels.
@@ -639,7 +639,7 @@ def _add_interactions(
         if df[col].dropna().nunique() > 2:
             df[col] = df[col] - df[col].mean()
 
-    for col0, col1 in interactions:
+    for col0, col1 in interaction:
         interaction_col = f'{col0}:{col1}'
         df[interaction_col] = df[col0] * df[col1]
 
