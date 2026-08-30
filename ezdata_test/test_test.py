@@ -907,17 +907,17 @@ def test_p_correct():
                 'p_value': exp_p,
                 'stat_sig': exp_sig,
                 'p_value_raw': [0.0331, 0.7318, 0.0497, 0.0012, 0.0153],
-                'stat_sig_raw': [True, False, True, True, True],
             },
             index = ['Col1', 'Col2', 'Col3', 'Col4', 'Col5'],
         )
 
-        result = dp.p_correct(test_df, method=method)
+        result = dp.p_correct(test_df, method = method)
         result['p_value'] = result['p_value'].round(4)
         
         pd.testing.assert_frame_equal(result, expected)
 
 def test_p_correct_on():
+
     dp = DataProcessor()
 
     test_df = pd.DataFrame(
@@ -935,7 +935,6 @@ def test_p_correct_on():
             'type': ['model', 'model', 'contrast', 'contrast', 'contrast'],
             'stat_sig': [False, False, True, True, True],
             'p_value_raw': [0.0331, 0.7318, np.nan, np.nan, np.nan],
-            'stat_sig_raw': [True, False, np.nan, np.nan, np.nan],
         },
         index = ['Col1', 'Col2', 'Col3', 'Col4', 'Col5'],
     )
@@ -952,7 +951,6 @@ def test_p_correct_on():
             'type': ['model', 'model', 'contrast', 'contrast', 'contrast'],
             'stat_sig': [False, False, True, True, True],
             'p_value_raw': [0.0331, 0.7318, 0.0497, 0.0012, 0.0153],
-            'stat_sig_raw': [True, False, True, True, True],
         },
         index = ['Col1', 'Col2', 'Col3', 'Col4', 'Col5'],
     )
@@ -962,6 +960,37 @@ def test_p_correct_on():
     result_multi['p_value'] = result_multi['p_value'].round(4)
 
     pd.testing.assert_frame_equal(result_multi, expected_multi_pass)
+
+def test_p_correct_familywise():
+
+    dp = DataProcessor()
+
+    test_df = pd.DataFrame({
+        'dv': ['dv1', 'dv2', 'dv1', 'dv1', 'dv2', 'dv2', 'dv2'],
+        'type': ['model', 'model', 'contrast', 'contrast', 'contrast', 'contrast', 'contrast'],
+        'p_value': [0.03, 0.04, 0.02, 0.04, 0.01, 0.02, 0.03],
+    })
+
+    model_mask = (test_df['type'] == 'model')
+    dv1_mask = (test_df['dv'] == 'dv1') & (test_df['type'] == 'contrast')
+    dv2_mask = (test_df['dv'] == 'dv2') & (test_df['type'] == 'contrast')
+
+    result = dp.p_correct(test_df, method = 'bonferroni', familywise = True )
+
+    np.testing.assert_allclose(
+        result.loc[model_mask, 'p_value'], 
+        [0.06, 0.08]
+    )
+
+    np.testing.assert_allclose(
+        result.loc[dv1_mask, 'p_value'], 
+        [0.04, 0.08]
+    )
+
+    np.testing.assert_allclose(
+        result.loc[dv2_mask, 'p_value'], 
+        [0.03, 0.06, 0.09]
+    )
 
 def test_regression_dv_collision():
 
@@ -1108,6 +1137,7 @@ test_regression_linear_contrast_error()
 # Test p-value correction methods
 test_p_correct()
 test_p_correct_on()
+test_p_correct_familywise()
 
 # Test iv-dv collision
 test_regression_dv_collision()

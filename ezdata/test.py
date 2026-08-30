@@ -361,12 +361,13 @@ def test_regression(
         alpha (float, optional): The desired alpha. Defaults to 0.05.
         interaction (Sequence[str] | Sequence[Sequence[str]] | ColumnSelector | PairSelector | None, optional): Interaction terms to compute. If given, mean-centers `iv` columns. Defaults to None.
         contrast (Sequence[str] | Sequence[Sequence[str]] | ColumnSelector | PairSelector | None, optional): Pairs of independent variables to compare using Wald tests. Defaults to None.
+        p_correct (str | dict[str, str] | None, optional): P-value correction method to use on the results. 
         print_summary (bool, optional): If true, prints the model summary after fit. Defaults to False.
 
     Notes:
         * 'linear': Ordinary Least Squares (OLS) regression. Predict an interval- or ratio-scale column.
         * 'logistic': Logistic regression. Predict a binary column.
-        * 'ordered_logistic': Ordered logistic regression. Predict an ordinal column.
+        * 'ordered-logistic': Ordered logistic regression. Predict an ordinal column.
     
     Raises:
         ValueError: If string argument for `method` isn't recognized.
@@ -382,6 +383,7 @@ def test_regression(
             - 'stat_sig': A boolean flag indicating statistical significance.
             - 'count': The number of valid non-nan observations.
             - 'type': Indicating 'model', 'const', 'predictor', 'interaction', or 'contrast'.
+            - 'p_value_raw': The original p value (if a p-value correction method was applied to this result).
     """
 
     iv = Selector.resolve(df, iv)
@@ -393,6 +395,9 @@ def test_regression(
 
     if contrast is not None:
         contrast = Selector.resolve_pair(df, contrast)
+
+    if p_correct is not None:
+        p_correct = _arg_p_correct(p_correct)
 
     iv_set = set(iv)
     dv = [col for col in dv if col not in iv_set]
@@ -411,6 +416,7 @@ def p_correct(
     *,
     alpha: float = 0.05, 
     on: str | None = None,
+    familywise: bool = False,
 ) -> pd.DataFrame:
     """Correct p values.
 
@@ -419,6 +425,7 @@ def p_correct(
         method (str): The p-value correction method. Can be one of 'bonferroni' (or 'bf'), 'holm-bonferroni' (or 'hb'), 'benjamini-hochberg' (or 'bh'), 'benjamini-yekutieli' (or 'by').
         alpha (float, optional): The desired alpha. Defaults to 0.05.
         on (str | None, optional): The type of result (found in the 'type' column') on which to apply p-value correction. Defaults to None.
+        familywise (bool, optional): If true, applies p-value correction within families that share in their 'dv' value. For 'model' type, applies it within all 'model' type results. Defaults to False.
 
     Notes:
         * 'bonferroni': One-step Bonferroni correction for family-wise error rate (FWER).
@@ -426,26 +433,12 @@ def p_correct(
         * 'benjamini_hochberg': Correction for false-discovery rate (FDR). For tests that are independent or positively correlated.
         * 'benjamini_yekutieli': Correction for FDR. For tests that are negatively correlated.
 
-    Raises:
-        ValueError: If 'p_value' column is not found in `df`.
-        ValueError: If 'type' column is not found in `df` when `on` is not None.
-        ValueError: If `on` is not found in `df['type']` when `on` is not None.
-
     Returns:
-        pd.DataFrame: A copy of `df` with columns added for the old, raw p values: 'p_value_raw' and 'stat_sig_raw'.
+        pd.DataFrame: A copy of `df` with a column added for the old, raw p values: 'p_value_raw'.
     """
 
-    mapped_method = _p_method_map(method)
-
-    if 'p_value' not in df.columns:
-        raise ValueError(f'Column \'p_value\' not found in DataFrame.')
-
-    if on is not None: 
-        if 'type' not in df.columns:
-            raise ValueError(f'Column \'type\' not found in DataFrame.')
-
-        if not (df['type'] == on).any():
-            raise ValueError(f'No result found where \'type\' == \'{on}\'.')
+    method = _p_method_map(method)
+    _validate_p_correct_args(df, on, familywise)
 
     df = df.copy()
 
@@ -454,14 +447,56 @@ def p_correct(
         df['stat_sig'] = df['p_value'] < alpha
 
     # get targeted subset
-    target_mask = df['type'] == on if on is not None else pd.Series(True, index = df.index)
-    p_vals = df.loc[target_mask, 'p_value']
+    on_mask = df['type'] == on if on is not None else pd.Series(True, index = df.index)
+
+    if familywise:
+        if 'dv' not in df.columns:
+            raise ValueError(f'Column \'dv\' not found in DataFrame.')
+
+        model_target_mask = on_mask & (df['type'] == 'model')
+        p_vals = df.loc[model_target_mask, 'p_value']
+
+        if len(p_vals) > 0:
+            df = _apply_p_correct(df, p_vals, alpha, method)
+        
+        for dv in df['dv'].unique():
+            dv_target_mask = on_mask & (df['dv'] == dv) & (df['type'] != 'model')
+            p_vals = df.loc[dv_target_mask, 'p_value']
+            assert(isinstance(p_vals, pd.Series))
+
+            if len(p_vals) > 0:
+                df = _apply_p_correct(df, p_vals, alpha, method)
+
+    else:
+        p_vals = df.loc[on_mask, 'p_value']
+        if len(p_vals) > 0:
+            df = _apply_p_correct(df, p_vals, alpha, method)
+
+    return df
+
+def _apply_p_correct(
+    df: pd.DataFrame,
+    p_vals: pd.Series,
+    alpha: float,
+    method: str,
+) -> pd.DataFrame:
+    """Apply p-value correction to the given p values.
+
+    Args:
+        df (pd.DataFrame): The DataFrame.
+        p_vals (pd.Series): The relevant p-values series.
+        alpha (float): The desired alpha.
+        method (str): The p-value correction method.
+
+    Returns:
+        pd.DataFrame: The updated DataFrame.
+    """
 
     # get the corrected values
     stat_sig_corrected, p_value_corrected, _, _ = multipletests(
         p_vals,
         alpha = alpha,
-        method = mapped_method,
+        method = method,
         is_sorted = False,
         returnsorted = False
     )
@@ -470,23 +505,87 @@ def p_correct(
     if 'p_value_raw' not in df.columns:
         df['p_value_raw'] = pd.Series(index = df.index, dtype = 'float64')
 
-    if 'stat_sig_raw' not in df.columns:
-        df['stat_sig_raw'] = pd.Series(index = df.index, dtype = 'object')
-
-    # save old in '_raw' columns
-    raw_target_mask = target_mask & df['p_value_raw'].isna() # don't want to overwrite an existing _raw value
-    df.loc[raw_target_mask, 'p_value_raw'] = df.loc[raw_target_mask, 'p_value']
-    df.loc[raw_target_mask, 'stat_sig_raw'] = df.loc[raw_target_mask, 'stat_sig']
+    # save old p value in '_raw' column
+    to_save = p_vals.index[df.loc[p_vals.index, 'p_value_raw'].isna()] # don't want to overwrite an existing _raw value
+    if len(to_save) > 0:
+        df.loc[to_save, 'p_value_raw'] = df.loc[to_save, 'p_value']
 
     # assign new, corrected p values
-    df.loc[target_mask, 'p_value'] = p_value_corrected
-    df.loc[target_mask, 'stat_sig'] = stat_sig_corrected
+    df.loc[p_vals.index, 'p_value'] = p_value_corrected
+    df.loc[p_vals.index, 'stat_sig'] = stat_sig_corrected
 
-    # convert stat_sig_raw to bool if appropriate
-    if not df['stat_sig_raw'].isna().any():
-        df['stat_sig_raw'] = df['stat_sig_raw'].astype(bool)
+    return df 
 
-    return df
+def _validate_p_correct_args(
+    df: pd.DataFrame,
+    on: str | None,
+    familywise: bool,
+) -> None:
+    """Validate the arguments given to the p_correct function.
+
+    Args:
+        df (pd.DataFrame): The DataFrame.
+        on (str | None, optional): The type of result (found in the 'type' column') on which to apply p-value correction. Defaults to None.
+        familywise (bool, optional): If true, applies p-value correction within families that share in their 'dv' value. For 'model' type, applies it within all 'model' type results. Defaults to False.
+
+    Raises:
+        ValueError: If 'p_value' column is not found in `df`.
+        ValueError: If 'type' column is not found in `df` when `on` is not None.
+        ValueError: If `on` is not found in `df['type']` when `on` is not None.
+        ValueError: If 'dv' column is not found in `df` when `familywise == True`.
+
+    Returns:
+        None: None.
+    """
+    
+    if 'p_value' not in df.columns:
+        raise ValueError(f'Column \'p_value\' not found in DataFrame.')
+
+    if on is not None or familywise == True: 
+        if 'type' not in df.columns:
+            raise ValueError(f'Column \'type\' not found in DataFrame.')
+
+        if familywise == True:
+            if 'dv' not in df.columns:
+                raise ValueError(f'Column \'dv\' not found in DataFrame.')
+
+        if on is not None:
+            if not (df['type'] == on).any():
+                raise ValueError(f'No result found where \'type\' == \'{on}\'.')
+
+    return None
+
+def _arg_p_correct(
+    arg: str | dict[str, str],
+) -> dict[str, str]:
+    """Validate and standardize `p_correct` argument.
+
+    Args:
+        arg (str | dict[str, str]): The `p_correct` argument.
+        df (pd.DataFrame): The DataFrame on which p-value correction will be done.
+
+    Returns:
+        dict[str, str]: The dict mapping result types to p-correction methods.
+    """
+
+    valid_types = {'model', 'const', 'predictor', 'interaction', 'contrast'}
+
+    if arg is None:
+        return {}
+
+    if isinstance(arg, str):
+        method = _p_method_map(arg)
+        arg = {key: method for key in valid_types}
+
+    elif isinstance(arg, dict):
+        for key in arg.keys():
+            if key not in valid_types:
+                raise ValueError(
+                    f'Type \'{key}\' in the keys of p_correct not not valid. '
+                    f'Expecting one of: {valid_types}.'
+                )
+
+    return arg
 
 def _p_method_map(
     method: str,
@@ -1669,7 +1768,7 @@ def _standardize_method(
     return method
 
 # TODO: consider how to simplify p-correcting for all 'model' type or contrasts that have the same dv?... just add parameter to run the correction before returning the results?
-# TODO: consider only doing contrasts if overall model is sig
+# TODO: consider param to only do contrasts if overall model is sig? 'limit_contrasts'?
 # TODO: consider adding 'type' and implementing contrasts for other tests as we have for regression
 # TODO: categorical iv to dummy in regression
 # TODO: pairwise chi_square option
