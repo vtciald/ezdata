@@ -882,32 +882,86 @@ def test_p_correct():
         index = ['Col1', 'Col2', 'Col3', 'Col4', 'Col5'],
     )
 
-    expected = pd.DataFrame(
+    expected_cases = {
+        'bf': (
+            [0.1655, 1.0000, 0.2485, 0.0060, 0.0765],
+            [False, False, False, True, False],
+        ),
+        'hb': (
+            [0.0993, 0.7318, 0.0994, 0.0060, 0.0612],
+            [False, False, False, True, False],
+        ),
+        'bh': (
+            [0.0552, 0.7318, 0.0621, 0.0060, 0.0382],
+            [False, False, False, True, True],
+        ),
+        'by': (
+            [0.1260, 1.0000, 0.1419, 0.0137, 0.0873],
+            [False, False, False, True, False],
+        ),
+    }
+
+    for method, (exp_p, exp_sig) in expected_cases.items():
+        expected = pd.DataFrame(
+            {
+                'p_value': exp_p,
+                'stat_sig': exp_sig,
+                'p_value_raw': [0.0331, 0.7318, 0.0497, 0.0012, 0.0153],
+                'stat_sig_raw': [True, False, True, True, True],
+            },
+            index = ['Col1', 'Col2', 'Col3', 'Col4', 'Col5'],
+        )
+
+        result = dp.p_correct(test_df, method=method)
+        result['p_value'] = result['p_value'].round(4)
+        
+        pd.testing.assert_frame_equal(result, expected)
+
+def test_p_correct_on():
+    dp = DataProcessor()
+
+    test_df = pd.DataFrame(
         {
             'p_value': [0.0331, 0.7318, 0.0497, 0.0012, 0.0153],
-            'p_value_bf': [0.1655, 1.0000, 0.2485, 0.0060, 0.0765],
-            'stat_sig_bf': [False, False, False, True, False],
-            'p_value_hb': [0.0993, 0.7318, 0.0994, 0.0060, 0.0612],
-            'stat_sig_hb': [False, False, False, True, False],
-            'p_value_bh': [0.0552, 0.7318, 0.0621, 0.0060, 0.0382],
-            'stat_sig_bh': [False, False, False, True, True],
-            'p_value_by': [0.1260, 1.0000, 0.1419, 0.0137, 0.0873],
-            'stat_sig_by': [False, False, False, True, False],
+            'type': ['model', 'model', 'contrast', 'contrast', 'contrast'],
         },
         index = ['Col1', 'Col2', 'Col3', 'Col4', 'Col5'],
     )
 
-    result = dp.p_correct(test_df, method = 'bf')
-    result = dp.p_correct(result, method = 'hb')
-    result = dp.p_correct(result, method = 'bh')
-    result = dp.p_correct(result, method = 'by')
+    # 'model' only
+    expected_model_only = pd.DataFrame(
+        {
+            'p_value': [0.0662, 1.0000, 0.0497, 0.0012, 0.0153],
+            'type': ['model', 'model', 'contrast', 'contrast', 'contrast'],
+            'stat_sig': [False, False, True, True, True],
+            'p_value_raw': [0.0331, 0.7318, np.nan, np.nan, np.nan],
+            'stat_sig_raw': [True, False, np.nan, np.nan, np.nan],
+        },
+        index = ['Col1', 'Col2', 'Col3', 'Col4', 'Col5'],
+    )
 
-    result['p_value_bf'] = result['p_value_bf'].round(4)
-    result['p_value_hb'] = result['p_value_hb'].round(4)
-    result['p_value_bh'] = result['p_value_bh'].round(4)
-    result['p_value_by'] = result['p_value_by'].round(4)
-    
-    pd.testing.assert_frame_equal(result, expected)
+    result_model = dp.p_correct(test_df, method = 'bf', on = 'model')
+    result_model['p_value'] = result_model['p_value'].round(4)
+
+    pd.testing.assert_frame_equal(result_model, expected_model_only)
+
+    # 'model' then 'contrast' to verify raw values are not overwritten on subsequent passes
+    expected_multi_pass = pd.DataFrame(
+        {
+            'p_value': [0.0662, 1.0000, 0.0497, 0.0036, 0.0230],
+            'type': ['model', 'model', 'contrast', 'contrast', 'contrast'],
+            'stat_sig': [False, False, True, True, True],
+            'p_value_raw': [0.0331, 0.7318, 0.0497, 0.0012, 0.0153],
+            'stat_sig_raw': [True, False, True, True, True],
+        },
+        index = ['Col1', 'Col2', 'Col3', 'Col4', 'Col5'],
+    )
+
+    result_multi = dp.p_correct(test_df, method = 'bf', on = 'model')
+    result_multi = dp.p_correct(result_multi, method = 'bh', on = 'contrast')
+    result_multi['p_value'] = result_multi['p_value'].round(4)
+
+    pd.testing.assert_frame_equal(result_multi, expected_multi_pass)
 
 def test_regression_dv_collision():
 
@@ -1053,6 +1107,7 @@ test_regression_linear_contrast_error()
 
 # Test p-value correction methods
 test_p_correct()
+test_p_correct_on()
 
 # Test iv-dv collision
 test_regression_dv_collision()

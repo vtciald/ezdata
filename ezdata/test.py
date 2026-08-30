@@ -346,6 +346,7 @@ def test_regression(
     alpha: float = 0.05,
     interaction: Sequence[str] | Sequence[Sequence[str]] | ColumnSelector | PairSelector | None = None,
     contrast: Sequence[str] | Sequence[Sequence[str]] | ColumnSelector | PairSelector | None = None,
+    p_correct: str | dict[str, str] | None = None,
     print_summary: bool = False,    
 ) -> pd.DataFrame:
     """Run a regression.
@@ -409,6 +410,7 @@ def p_correct(
     method: str,
     *,
     alpha: float = 0.05, 
+    on: str | None = None,
 ) -> pd.DataFrame:
     """Correct p values.
 
@@ -416,6 +418,7 @@ def p_correct(
         df (pd.DataFrame): A DataFrame containing a column 'p_value'.
         method (str): The p-value correction method. Can be one of 'bonferroni' (or 'bf'), 'holm-bonferroni' (or 'hb'), 'benjamini-hochberg' (or 'bh'), 'benjamini-yekutieli' (or 'by').
         alpha (float, optional): The desired alpha. Defaults to 0.05.
+        on (str | None, optional): The type of result (found in the 'type' column') on which to apply p-value correction. Defaults to None.
 
     Notes:
         * 'bonferroni': One-step Bonferroni correction for family-wise error rate (FWER).
@@ -424,52 +427,99 @@ def p_correct(
         * 'benjamini_yekutieli': Correction for FDR. For tests that are negatively correlated.
 
     Raises:
-        ValueError: If string argument for `method` isn't recognized.
         ValueError: If 'p_value' column is not found in `df`.
+        ValueError: If 'type' column is not found in `df` when `on` is not None.
+        ValueError: If `on` is not found in `df['type']` when `on` is not None.
 
     Returns:
-        pd.DataFrame: A copy of `df` with columns added:
-            - 'p_value_bf' and 'stat_sig_bf' when `method = 'bonferroni'`.
-            - 'p_value_hb' and 'stat_sig_hb' when `method = 'holm-bonferroni'`.
-            - 'p_value_bh' and 'stat_sig_bh' when `method = 'benjamini-hochberg'`.
-            - 'p_value_by' and 'stat_sig_by' when `method = 'benjamini-yekutieli'`.
+        pd.DataFrame: A copy of `df` with columns added for the old, raw p values: 'p_value_raw' and 'stat_sig_raw'.
     """
 
-    clean_method = _standardize_method(method)
+    mapped_method = _p_method_map(method)
 
-    method_map = {
-        'bonferroni': ('bonferroni', '_bf'),
-        'bf': ('bonferroni', '_bf'),
-        'holm-bonferroni' : ('holm', '_hb'),
-        'hb' : ('holm', '_hb'),
-        'benjamini-hochberg' : ('fdr_bh', '_bh'),
-        'bh' : ('fdr_bh', '_bh'),
-        'benjamini-yekutieli' : ('fdr_by', '_by'),
-        'by' : ('fdr_by', '_by'),
-    }
-
-    if clean_method not in method_map:
-        raise ValueError(f'P-value correction method \'{method}\' is not recognized.')
-
-    elif 'p_value' not in df.columns:
+    if 'p_value' not in df.columns:
         raise ValueError(f'Column \'p_value\' not found in DataFrame.')
-    
-    mapped_method, mapped_suffix = method_map[clean_method]
+
+    if on is not None: 
+        if 'type' not in df.columns:
+            raise ValueError(f'Column \'type\' not found in DataFrame.')
+
+        if not (df['type'] == on).any():
+            raise ValueError(f'No result found where \'type\' == \'{on}\'.')
 
     df = df.copy()
 
+    # ensure a stat_sig column exists
+    if 'stat_sig' not in df.columns:
+        df['stat_sig'] = df['p_value'] < alpha
+
+    # get targeted subset
+    target_mask = df['type'] == on if on is not None else pd.Series(True, index = df.index)
+    p_vals = df.loc[target_mask, 'p_value']
+
+    # get the corrected values
     stat_sig_corrected, p_value_corrected, _, _ = multipletests(
-        df['p_value'],
+        p_vals,
         alpha = alpha,
         method = mapped_method,
         is_sorted = False,
         returnsorted = False
     )
 
-    df['p_value' + mapped_suffix] = p_value_corrected
-    df['stat_sig' + mapped_suffix] = stat_sig_corrected
+    # add raw columns
+    if 'p_value_raw' not in df.columns:
+        df['p_value_raw'] = pd.Series(index = df.index, dtype = 'float64')
+
+    if 'stat_sig_raw' not in df.columns:
+        df['stat_sig_raw'] = pd.Series(index = df.index, dtype = 'object')
+
+    # save old in '_raw' columns
+    raw_target_mask = target_mask & df['p_value_raw'].isna() # don't want to overwrite an existing _raw value
+    df.loc[raw_target_mask, 'p_value_raw'] = df.loc[raw_target_mask, 'p_value']
+    df.loc[raw_target_mask, 'stat_sig_raw'] = df.loc[raw_target_mask, 'stat_sig']
+
+    # assign new, corrected p values
+    df.loc[target_mask, 'p_value'] = p_value_corrected
+    df.loc[target_mask, 'stat_sig'] = stat_sig_corrected
+
+    # convert stat_sig_raw to bool if appropriate
+    if not df['stat_sig_raw'].isna().any():
+        df['stat_sig_raw'] = df['stat_sig_raw'].astype(bool)
 
     return df
+
+def _p_method_map(
+    method: str,
+) -> str:
+    """Map a given method string to the method.
+
+    Args:
+        method (str): The method.
+
+    Raises:
+        ValueError: If string argument for `method` isn't recognized.
+
+    Returns:
+        str: The mapped method string.
+    """
+
+    clean_method = _standardize_method(method)
+
+    method_map = {
+        'bonferroni': 'bonferroni',
+        'bf': 'bonferroni',
+        'holm-bonferroni' : 'holm',
+        'hb' : 'holm',
+        'benjamini-hochberg' : 'fdr_bh',
+        'bh' : 'fdr_bh',
+        'benjamini-yekutieli' : 'fdr_by',
+        'by' : 'fdr_by',
+    }
+
+    if clean_method not in method_map:
+        raise ValueError(f'P-value correction method \'{method}\' is not recognized.')
+
+    return method_map[clean_method]
 
 def _regression(
     df: pd.DataFrame,
@@ -1619,8 +1669,8 @@ def _standardize_method(
     return method
 
 # TODO: consider how to simplify p-correcting for all 'model' type or contrasts that have the same dv?... just add parameter to run the correction before returning the results?
-# --- TODO: consider only doing contrasts if overall model is sig
-# TODO: consider implementing contrasts for other tests as we have for regression
+# TODO: consider only doing contrasts if overall model is sig
+# TODO: consider adding 'type' and implementing contrasts for other tests as we have for regression
 # TODO: categorical iv to dummy in regression
 # TODO: pairwise chi_square option
 # TODO: pairise fisher_exact option
