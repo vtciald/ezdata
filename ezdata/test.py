@@ -346,7 +346,7 @@ def test_regression(
     alpha: float = 0.05,
     interaction: Sequence[str] | Sequence[Sequence[str]] | ColumnSelector | PairSelector | None = None,
     contrast: Sequence[str] | Sequence[Sequence[str]] | ColumnSelector | PairSelector | None = None,
-    p_correct: str | dict[str, str] | None = None,
+    correct_p: str | dict[str, str] | None = None,
     print_summary: bool = False,    
 ) -> pd.DataFrame:
     """Run a regression.
@@ -361,7 +361,7 @@ def test_regression(
         alpha (float, optional): The desired alpha. Defaults to 0.05.
         interaction (Sequence[str] | Sequence[Sequence[str]] | ColumnSelector | PairSelector | None, optional): Interaction terms to compute. If given, mean-centers `iv` columns. Defaults to None.
         contrast (Sequence[str] | Sequence[Sequence[str]] | ColumnSelector | PairSelector | None, optional): Pairs of independent variables to compare using Wald tests. Defaults to None.
-        p_correct (str | dict[str, str] | None, optional): P-value correction method to use on the results. 
+        correct_p (str | dict[str, str] | None, optional): The p-value correction method to use on the results. Can be a dict mapping result 'type' to method. Methods must be acceptable `method` values to `p_correct`. Defaults to None. 
         print_summary (bool, optional): If true, prints the model summary after fit. Defaults to False.
 
     Notes:
@@ -396,8 +396,8 @@ def test_regression(
     if contrast is not None:
         contrast = Selector.resolve_pair(df, contrast)
 
-    if p_correct is not None:
-        p_correct = _arg_p_correct(p_correct)
+    if correct_p is not None:
+        correct_p = _standardize_correct_p(correct_p)
 
     iv_set = set(iv)
     dv = [col for col in dv if col not in iv_set]
@@ -407,6 +407,10 @@ def test_regression(
 
     else:
         raise ValueError(f'Regression method \'{method}\' is not recognized.')
+
+    if correct_p:
+        for type_val, method_val in correct_p.items():
+            result = p_correct(result, method = method_val, alpha = alpha, on = type_val, familywise = True)
 
     return result
 
@@ -450,17 +454,14 @@ def p_correct(
     on_mask = df['type'] == on if on is not None else pd.Series(True, index = df.index)
 
     if familywise:
-        if 'dv' not in df.columns:
-            raise ValueError(f'Column \'dv\' not found in DataFrame.')
-
         model_target_mask = on_mask & (df['type'] == 'model')
         p_vals = df.loc[model_target_mask, 'p_value']
 
         if len(p_vals) > 0:
             df = _apply_p_correct(df, p_vals, alpha, method)
         
-        for dv in df['dv'].unique():
-            dv_target_mask = on_mask & (df['dv'] == dv) & (df['type'] != 'model')
+        for dv in df.index.get_level_values('dv').unique():
+            dv_target_mask = on_mask & (df.index.get_level_values('dv') == dv) & (df['type'] != 'model')
             p_vals = df.loc[dv_target_mask, 'p_value']
             assert(isinstance(p_vals, pd.Series))
 
@@ -532,7 +533,7 @@ def _validate_p_correct_args(
         ValueError: If 'p_value' column is not found in `df`.
         ValueError: If 'type' column is not found in `df` when `on` is not None.
         ValueError: If `on` is not found in `df['type']` when `on` is not None.
-        ValueError: If 'dv' column is not found in `df` when `familywise == True`.
+        ValueError: If 'dv' index is not found in `df` when `familywise == True`.
 
     Returns:
         None: None.
@@ -546,8 +547,8 @@ def _validate_p_correct_args(
             raise ValueError(f'Column \'type\' not found in DataFrame.')
 
         if familywise == True:
-            if 'dv' not in df.columns:
-                raise ValueError(f'Column \'dv\' not found in DataFrame.')
+            if 'dv' not in df.index.names:
+                raise ValueError(f'Index \'dv\' not found in DataFrame.')
 
         if on is not None:
             if not (df['type'] == on).any():
@@ -555,7 +556,7 @@ def _validate_p_correct_args(
 
     return None
 
-def _arg_p_correct(
+def _standardize_correct_p(
     arg: str | dict[str, str],
 ) -> dict[str, str]:
     """Validate and standardize `p_correct` argument.
@@ -1767,9 +1768,9 @@ def _standardize_method(
 
     return method
 
-# TODO: consider how to simplify p-correcting for all 'model' type or contrasts that have the same dv?... just add parameter to run the correction before returning the results?
+# TODO: second param to _standardize_method which accepts the valid_methods set? then can include the validation within there.
 # TODO: consider param to only do contrasts if overall model is sig? 'limit_contrasts'?
-# TODO: consider adding 'type' and implementing contrasts for other tests as we have for regression
+# TODO: consider adding 'type', adding contrasts, and correct_p for other tests as we have for regression
 # TODO: categorical iv to dummy in regression
 # TODO: pairwise chi_square option
 # TODO: pairise fisher_exact option

@@ -871,6 +871,58 @@ def test_regression_linear_contrast_error():
 
     result = dp.test_regression(test_df, 'linear', dv = 'dv1', iv = ['z_iv1', 'iv2', 'iv3', 'z_iv4'], contrast = [['z_iv1', 'z_iv4']])
 
+def test_regression_linear_correct_p():
+
+    dp = DataProcessor()
+
+    test_df = pd.DataFrame({
+        'iv1': [0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 1, 1, 0, 1, 1, 1, 1, 1, 0, 1, 0, 0, 0, 1, 1, 1],
+        'iv2': [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0],
+        'iv3': [0, 0, 0, 1, 1, 0, 0, 1, 1, 0, 0, 1, 1, 1, 0, 0, 1, 0, 1, 0, 0, 0, 0, 0, 0, 1],
+        'dv1': [15.1, 10.2, 12.5, 1, 48.3, 8.9, 11.0, 44.2, 2, 22.1, 20.3, 38.5, 3, 41.2, 11.4, 14.8, 49.1, 24.5, 0, 9.8, 11.2, 16.1, 12.4, 10.9, 17.8, 36.9],
+        'dv2': [15.1, 10.2, 12.5, 1, 48.3, 8.9, 11.0, 44.2, 2, 22.1, 20.3, 38.5, 3, 41.2, 11.4, 14.8, 49.1, 24.5, 0, 9.8, 11.2, 16.1, 12.4, 10.9, 17.8, 36.9],
+    })
+
+    multi_index = pd.MultiIndex.from_tuples(
+        [
+            ('dv1', 'model'),
+            ('dv1', 'const'),
+            ('dv1', 'iv1'),
+            ('dv1', 'iv2'),
+            ('dv1', 'iv3'),
+            ('dv1', 'iv1 vs iv2'),
+            ('dv1', 'iv2 vs iv3'),
+            ('dv2', 'model'),
+            ('dv2', 'const'),
+            ('dv2', 'iv1'),
+            ('dv2', 'iv2'),
+            ('dv2', 'iv3'),
+            ('dv2', 'iv1 vs iv2'),
+            ('dv2', 'iv2 vs iv3'),
+        ],
+        names = ['dv', 'iv'],
+    )
+
+    expected = pd.DataFrame(
+        {
+            'test_statistic': [2.7683, 9.0381, 9.2960, -2.1422, 12.4470, 2.4707, 3.0135] * 2,
+            'p_value': [0.1316, 0.1039, 0.1104, 0.7303, 0.0322, 0.1303, 0.1303] * 2,
+            'stat_sig': [False, False, False, False, True, False, False] * 2,
+            'count': [26, 26, 26, 26, 26, 26, 26] * 2,
+            'type': ['model', 'const', 'predictor', 'predictor', 'predictor', 'contrast', 'contrast'] * 2,
+            'p_value_raw': [0.0658, np.nan, np.nan, np.nan, np.nan, 0.1303, 0.0966] * 2,
+        },
+        index = multi_index,
+    )
+
+    result = dp.test_regression(test_df, 'linear', dv = ['dv1', 'dv2'], iv = ['iv1', 'iv2', 'iv3'], contrast = [['iv1', 'iv2'], ['iv2', 'iv3']], correct_p = {'model': 'bonferroni', 'contrast': 'benjamini-hochberg'})
+
+    result['test_statistic'] = result['test_statistic'].round(4)
+    result['p_value'] = result['p_value'].round(4)
+    result['p_value_raw'] = result['p_value_raw'].round(4)
+    
+    pd.testing.assert_frame_equal(result, expected)
+
 def test_p_correct():
 
     dp = DataProcessor()
@@ -967,13 +1019,16 @@ def test_p_correct_familywise():
 
     test_df = pd.DataFrame({
         'dv': ['dv1', 'dv2', 'dv1', 'dv1', 'dv2', 'dv2', 'dv2'],
+        'iv': ['model', 'model', 'c1', 'c2', 'c1', 'c2', 'c3'],
         'type': ['model', 'model', 'contrast', 'contrast', 'contrast', 'contrast', 'contrast'],
         'p_value': [0.03, 0.04, 0.02, 0.04, 0.01, 0.02, 0.03],
-    })
+    }).set_index(['dv', 'iv'])
+
+    dv_index = test_df.index.get_level_values('dv')
 
     model_mask = (test_df['type'] == 'model')
-    dv1_mask = (test_df['dv'] == 'dv1') & (test_df['type'] == 'contrast')
-    dv2_mask = (test_df['dv'] == 'dv2') & (test_df['type'] == 'contrast')
+    dv1_mask = (dv_index == 'dv1') & (test_df['type'] == 'contrast')
+    dv2_mask = (dv_index == 'dv2') & (test_df['type'] == 'contrast')
 
     result = dp.p_correct(test_df, method = 'bonferroni', familywise = True )
 
@@ -1133,6 +1188,7 @@ test_regression_ordered_logistic()
 test_regression_linear_interaction()
 test_regression_linear_contrast()
 test_regression_linear_contrast_error()
+test_regression_linear_correct_p()
 
 # Test p-value correction methods
 test_p_correct()
