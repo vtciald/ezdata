@@ -32,6 +32,19 @@ def test_one_sample_t():
 
     pd.testing.assert_frame_equal(result, expected)
 
+def test_one_sample_t_method_error():
+
+    dp = DataProcessor()
+
+    test_df = pd.DataFrame({
+        'Col1': [1, 1, 1, 1, 0, 0, 0, 0],
+        'Col2': [-1, 0, 1, 0, 1, 0, -2, 0],
+        'Col3': [10, -1, 2, 3, 4, 1, 2, 1]
+    })
+
+    with pytest.raises(ValueError):
+        result = dp.test_one_sample(test_df, 'lol')   
+
 def test_one_sample_wilcoxon():
 
     dp = DataProcessor()
@@ -1160,6 +1173,7 @@ test_one_sample_t()
 test_one_sample_wilcoxon()
 test_one_sample_sign()
 test_one_sample_exact_proportion()
+test_one_sample_t_method_error()
 
 # Test independent methods
 test_independent_proportion_chi_sq()

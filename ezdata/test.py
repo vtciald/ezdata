@@ -12,6 +12,7 @@ import statsmodels.api as sm
 from statsmodels.regression.linear_model import OLS, RegressionResultsWrapper
 from statsmodels.discrete.discrete_model import Logit, BinaryResultsWrapper
 from statsmodels.miscmodels.ordinal_model import OrderedModel, OrderedResultsWrapper
+import sys
 
 def test_one_sample(
     df: pd.DataFrame,
@@ -34,9 +35,6 @@ def test_one_sample(
         * 't': One-sample t-test (parametric). Difference between column and null.
         * 'wilcoxon': One-sample Wilcoxon signed-rank test (non-parametric). Difference between column and null.
         * 'sign': One-sample sign test (non-parametric). Difference (ignoring magnitude) between column and null.
-    
-    Raises:
-        ValueError: If string argument for `method` isn't recognized.
 
     Returns:
         pd.DataFrame: A DataFrame with indices matching the labels in `dv`.
@@ -51,7 +49,8 @@ def test_one_sample(
     """
 
     dv = Selector.resolve(df, dv)
-    clean_method = _standardize_method(method)
+    valid_methods = {'t', 'wilcoxon', 'sign'}
+    clean_method = _standardize_method(method, valid_methods)
 
     if clean_method == 't':
         result = _one_sample_t(df, dv, null, alpha)
@@ -61,9 +60,6 @@ def test_one_sample(
     
     elif clean_method == 'sign':
         result = _one_sample_sign(df, dv, null, alpha)
-
-    else:
-        raise ValueError(f'One-sample test method \'{method}\' is not recognized.')
 
     return result
 
@@ -86,9 +82,6 @@ def test_one_sample_proportion(
 
     Notes:
         * 'exact': One-sample exact binomial test (non-parametric). Difference between column and null.
-    
-    Raises:
-        ValueError: If string argument for `method` isn't recognized.
 
     Returns:
         pd.DataFrame: A DataFrame with indices matching the labels in `dv`.
@@ -101,13 +94,11 @@ def test_one_sample_proportion(
     """
 
     dv = Selector.resolve(df, dv)
-    clean_method = _standardize_method(method)
+    valid_methods = {'exact'}
+    clean_method = _standardize_method(method, valid_methods)
 
     if clean_method == 'exact':
         result = _one_sample_binomial(df, dv, null, alpha)
-
-    else:
-        raise ValueError(f'One-sample test method \'{method}\' is not recognized.')
 
     return result    
 
@@ -131,9 +122,6 @@ def test_independent_proportion(
     Notes:
         * 'fisher_exact': Fisher's exact test (non-parametric). Difference between 2 groups (recommended when sample size < 20 and/or any expected cell count < 5).
         * 'chi_square': Chi-square test (non-parametric). Difference among 2+ groups.
-    
-    Raises:
-        ValueError: If string argument for `method` isn't recognized.
 
     Returns:
         pd.DataFrame: A DataFrame with indices matching the labels in `dv`.
@@ -149,16 +137,15 @@ def test_independent_proportion(
     df, iv = prep.dummy_to_categorical(df, cols = iv)
     dv = Selector.resolve(df, dv)
     dv = [col for col in dv if col != iv]
-    clean_method = _standardize_method(method)
+
+    valid_methods = {'chi-square', 'fisher-exact'}
+    clean_method = _standardize_method(method, valid_methods)
 
     if clean_method == 'chi-square':
         result = _independent_chi_sq(df, iv, dv, alpha)
     
     elif clean_method == 'fisher-exact':
         result = _independent_fisher_exact(df, iv, dv, alpha)
-
-    else:
-        raise ValueError(f'Independent test method \'{method}\' is not recognized.')
 
     return result
 
@@ -186,9 +173,6 @@ def test_independent(
         * 'kruskal_wallis': Kruskal-Wallis H test (non-parametric). Difference among 2+ groups.
         * 'tukey': Tukey's HSD (parametric). Pairwise follow-up to ANOVA.
         * 'dunn': Dunn's test (non-parametric). Pairwise follow-up to Kruskal-Wallis.
-    
-    Raises:
-        ValueError: If string argument for `method` isn't recognized.
 
     Returns:
         pd.DataFrame: A DataFrame. The index structure varies based on the `method`.
@@ -207,7 +191,9 @@ def test_independent(
     df, iv = prep.dummy_to_categorical(df, cols = iv)
     dv = Selector.resolve(df, dv)
     dv = [col for col in dv if col != iv]
-    clean_method = _standardize_method(method)
+
+    valid_methods = {'t', 'mann-whitney', 'anova', 'kruskal-wallis', 'tukey', 'dunn'}
+    clean_method = _standardize_method(method, valid_methods)
 
     if clean_method == 't':
         result = _independent_t(df, iv, dv, alpha)
@@ -226,9 +212,6 @@ def test_independent(
 
     elif clean_method == 'dunn':
         result = _independent_dunn(df, iv, dv, alpha)
-
-    else:
-        raise ValueError(f'Independent test method \'{method}\' is not recognized.')
 
     return result
 
@@ -252,9 +235,6 @@ def test_dependent(
         * 'wilcoxon': Wilcoxon signed-rank test (non-parametric). Difference between 2 columns.
         * If `dv` is a sequence of strings (or ColumnSelector), all combinations of columns will be tested.
 
-    Raises:
-        ValueError: If string argument for `method` isn't recognized.
-
     Returns:
         pd.DataFrame: A DataFrame with multi-index indices, ('group_0', 'group_1')
             Columns include:
@@ -267,16 +247,14 @@ def test_dependent(
     """
 
     dv = Selector.resolve_pair(df, dv)
-    clean_method = _standardize_method(method)
+    valid_methods = {'t', 'wilcoxon'}
+    clean_method = _standardize_method(method, valid_methods)
 
     if clean_method == 't':
         result = _dependent_t(df, dv, alpha)
     
     elif clean_method == 'wilcoxon':
         result = _dependent_wilcoxon(df, dv, alpha)
-
-    else:
-        raise ValueError(f'Dependent test method \'{method}\' is not recognized.')
 
     return result
 
@@ -301,9 +279,6 @@ def test_dependent_proportion(
         * 'cochran': Cochran's Q test (non-parametric). Difference among 2+ columns.
         * If `dv` is a sequence of strings (or ColumnSelector), all combinations of columns will be tested.
 
-    Raises:
-        ValueError: If string argument for `method` isn't recognized.
-
     Returns:
         pd.DataFrame: A DataFrame with multi-index indices. The structure of these indices varies based on the `method`.
             Columns include:
@@ -316,7 +291,8 @@ def test_dependent_proportion(
             - 'count': The number of valid non-nan observations.
     """
 
-    clean_method = _standardize_method(method)
+    valid_methods = {'mcnemar-exact', 'mcnemar-asymptotic', 'cochran'}
+    clean_method = _standardize_method(method, valid_methods)
 
     if clean_method in {'mcnemar-exact', 'mcnemar-asymptotic'}:
         exact = clean_method == 'mcnemar-exact'
@@ -331,9 +307,6 @@ def test_dependent_proportion(
     elif clean_method == 'cochran':
         dv = Selector.resolve_group(df, dv)
         result = _dependent_cochran(df, dv, alpha)
-
-    else:
-        raise ValueError(f'Dependent test method \'{method}\' is not recognized.')
 
     return result
 
@@ -368,9 +341,6 @@ def test_regression(
         * 'linear': Ordinary Least Squares (OLS) regression. Predict an interval- or ratio-scale column.
         * 'logistic': Logistic regression. Predict a binary column.
         * 'ordered-logistic': Ordered logistic regression. Predict an ordinal column.
-    
-    Raises:
-        ValueError: If string argument for `method` isn't recognized.
 
     Returns:
         pd.DataFrame: A DataFrame with multi-index indices, ('dv', 'iv').
@@ -388,7 +358,9 @@ def test_regression(
 
     iv = Selector.resolve(df, iv)
     dv = Selector.resolve(df, dv)
-    clean_method = _standardize_method(method)
+
+    valid_methods = {'linear', 'logistic', 'ordered-logistic'}
+    clean_method = _standardize_method(method, valid_methods)
 
     if interaction is not None:
         interaction = Selector.resolve_pair(df, interaction)
@@ -402,11 +374,7 @@ def test_regression(
     iv_set = set(iv)
     dv = [col for col in dv if col not in iv_set]
 
-    if clean_method in {'linear', 'logistic', 'ordered-logistic'}:
-        result = _regression(df, clean_method, iv, dv, alpha, interaction, contrast, print_summary)
-
-    else:
-        raise ValueError(f'Regression method \'{method}\' is not recognized.')
+    result = _regression(df, clean_method, iv, dv, alpha, interaction, contrast, print_summary)
 
     if correct_p:
         for type_val, method_val in correct_p.items():
@@ -454,15 +422,15 @@ def p_correct(
     on_mask = df['type'] == on if on is not None else pd.Series(True, index = df.index)
 
     if familywise:
-        model_target_mask = on_mask & (df['type'] == 'model')
-        p_vals = df.loc[model_target_mask, 'p_value']
+        model_mask = on_mask & (df['type'] == 'model')
+        p_vals = df.loc[model_mask, 'p_value']
 
         if len(p_vals) > 0:
             df = _apply_p_correct(df, p_vals, alpha, method)
         
         for dv in df.index.get_level_values('dv').unique():
-            dv_target_mask = on_mask & (df.index.get_level_values('dv') == dv) & (df['type'] != 'model')
-            p_vals = df.loc[dv_target_mask, 'p_value']
+            dv_mask = on_mask & (df.index.get_level_values('dv') == dv) & (df['type'] != 'model')
+            p_vals = df.loc[dv_mask, 'p_value']
             assert(isinstance(p_vals, pd.Series))
 
             if len(p_vals) > 0:
@@ -603,8 +571,6 @@ def _p_method_map(
         str: The mapped method string.
     """
 
-    clean_method = _standardize_method(method)
-
     method_map = {
         'bonferroni': 'bonferroni',
         'bf': 'bonferroni',
@@ -615,9 +581,8 @@ def _p_method_map(
         'benjamini-yekutieli' : 'fdr_by',
         'by' : 'fdr_by',
     }
-
-    if clean_method not in method_map:
-        raise ValueError(f'P-value correction method \'{method}\' is not recognized.')
+    method_set = set(method_map.keys())
+    clean_method = _standardize_method(method, method_set)
 
     return method_map[clean_method]
 
@@ -1750,6 +1715,7 @@ def _are_commensurable(
 
 def _standardize_method(
     method: str,
+    valid_methods: set[str],
 ) -> str:
     """Standardize method string.
 
@@ -1757,18 +1723,27 @@ def _standardize_method(
 
     Args:
         method (str): The method string.
+        valid_methods (set[str]): A set of valid methods.
+
+    Raises:
+        ValueError: If the standardized method string is not found in `valid_methods`.
 
     Returns:
         str: The standardized method string.
     """
 
-    method = method.replace('_', '-').replace(' ', '-')
+    method = method.replace('_', '-').replace(' ', '-').lower()
 
-    method = method.lower()
+    if method not in valid_methods:
+        caller_name = sys._getframe(1).f_code.co_name
+
+        raise ValueError(
+            f'Method \'{method}\' to {caller_name} not recognized. '
+            f'Expected one of: {valid_methods}.'
+        )
 
     return method
 
-# TODO: second param to _standardize_method which accepts the valid_methods set? then can include the validation within there.
 # TODO: consider param to only do contrasts if overall model is sig? 'limit_contrasts'?
 # TODO: consider adding 'type', adding contrasts, and correct_p for other tests as we have for regression
 # TODO: categorical iv to dummy in regression
