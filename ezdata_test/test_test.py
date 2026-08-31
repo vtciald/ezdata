@@ -860,6 +860,100 @@ def test_regression_linear_contrast():
     
     pd.testing.assert_frame_equal(result, expected)
 
+def test_regression_linear_limit_contrasts():
+
+    dp = DataProcessor()
+
+    test_df = pd.DataFrame({
+        'iv1': [0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 1, 1, 0, 1, 1, 1, 1, 1, 0, 1, 0, 0, 0, 1, 1, 1],
+        'iv2': [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0],
+        'iv3': [0, 0, 0, 1, 1, 0, 0, 1, 1, 0, 0, 1, 1, 1, 0, 0, 1, 0, 1, 0, 0, 0, 0, 0, 0, 1],
+        'dv1': [15.1, 10.2, 12.5, 1, 48.3, 8.9, 11.0, 44.2, 2, 22.1, 20.3, 38.5, 3, 41.2, 11.4, 14.8, 49.1, 24.5, 0, 9.8, 11.2, 16.1, 12.4, 10.9, 17.8, 36.9],
+        'dv2': [15.1, 10.2, 12.5, 1, 48.3, 8.9, 11.0, 44.2, 2, 22.1, 20.3, 38.5, 3, 41.2, 11.4, 14.8, 49.1, 24.5, 0, 9.8, 11.2, 16.1, 12.4, 10.9, 17.8, 36.9],
+    })
+
+    multi_index = pd.MultiIndex.from_tuples(
+        [
+            ('dv1', 'model'),
+            ('dv1', 'const'),
+            ('dv1', 'iv1'),
+            ('dv1', 'iv2'),
+            ('dv1', 'iv3'),
+            ('dv2', 'model'),
+            ('dv2', 'const'),
+            ('dv2', 'iv1'),
+            ('dv2', 'iv2'),
+            ('dv2', 'iv3'),
+        ],
+        names = ['dv', 'iv'],
+    )
+
+    expected = pd.DataFrame(
+        {
+            'test_statistic': [2.7683, 9.0381, 9.2960, -2.1422, 12.4470] * 2,
+            'p_value': [0.0658, 0.1039, 0.1104, 0.7303, 0.0322] * 2,
+            'stat_sig': [False, False, False, False, True] * 2,
+            'count': [26, 26, 26, 26, 26] * 2,
+            'type': ['model', 'const', 'predictor', 'predictor', 'predictor'] * 2,
+        },
+        index = multi_index,
+    )
+
+    result = dp.test_regression(test_df, 'linear', dv = ['dv1', 'dv2'], iv = ['iv1', 'iv2', 'iv3'], contrast = [['iv1', 'iv2'], ['iv2', 'iv3']], limit_contrasts = True)
+
+    result['test_statistic'] = result['test_statistic'].round(4)
+    result['p_value'] = result['p_value'].round(4)
+    
+    pd.testing.assert_frame_equal(result, expected)
+
+def test_regression_linear_limit_contrasts_correct():
+
+    dp = DataProcessor()
+
+    test_df = pd.DataFrame({
+        'iv1': [0, 1, 0, 1, 0, 1, 0, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 0, 1, 0, 0, 0, 1, 1, 1],
+        'iv2': [1, 0, 0, 0, 0, 0, 1, 0, 1, 0, 1, 0, 1, 1, 1, 0, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0],
+        'iv3': [0, 0, 0, 1, 1, 0, 1, 1, 0, 0, 0, 1, 0, 1, 0, 0, 1, 0, 1, 1, 0, 0, 0, 0, 0, 1],
+        'dv1': [15.1, 10.2, 12.5, 1, 48.3, 8.9, 11.0, 44.2, 2, 22.1, 20.3, 38.5, 3, 41.2, 11.4, 14.8, 49.1, 24.5, 0, 9.8, 11.2, 16.1, 12.4, 10.9, 17.8, 36.9],
+        'dv2': [15.1, 10.2, 12.5, 1, 48.3, 8.9, 11.0, 44.2, 2, 22.1, 20.3, 38.5, 3, 41.2, 11.4, 14.8, 49.1, 24.5, 0, 9.8, 11.2, 16.1, 12.4, 10.9, 17.8, 36.9],
+    })
+
+    multi_index = pd.MultiIndex.from_tuples(
+        [
+            ('dv1', 'model'),
+            ('dv1', 'const'),
+            ('dv1', 'iv1'),
+            ('dv1', 'iv2'),
+            ('dv1', 'iv3'),
+            ('dv2', 'model'),
+            ('dv2', 'const'),
+            ('dv2', 'iv1'),
+            ('dv2', 'iv2'),
+            ('dv2', 'iv3'),
+        ],
+        names = ['dv', 'iv'],
+    )
+
+    expected = pd.DataFrame(
+        {
+            'test_statistic': [2.9572, 16.1323, 0.0571, -6.5065, 13.7854] * 2,
+            'p_value': [0.1094, 0.0159, 0.9922, 0.2616, 0.0197] * 2,
+            'stat_sig': [False, True, False, False, True] * 2,
+            'count': [26, 26, 26, 26, 26] * 2,
+            'type': ['model', 'const', 'predictor', 'predictor', 'predictor'] * 2,
+            'p_value_raw': [0.0547, np.nan, np.nan, np.nan, np.nan] * 2,
+        },
+        index = multi_index,
+    )
+
+    result = dp.test_regression(test_df, 'linear', dv = ['dv1', 'dv2'], iv = ['iv1', 'iv2', 'iv3'], contrast = [['iv1', 'iv2'], ['iv2', 'iv3']], limit_contrasts = True, correct_p = {'model': 'bonferroni'}, alpha = 0.06)
+
+    result['test_statistic'] = result['test_statistic'].round(4)
+    result['p_value'] = result['p_value'].round(4)
+    result['p_value_raw'] = result['p_value_raw'].round(4)
+    
+    pd.testing.assert_frame_equal(result, expected)
+
 def test_regression_linear_contrast_error():
 
     dp = DataProcessor()
@@ -1203,6 +1297,8 @@ test_regression_linear_interaction()
 test_regression_linear_contrast()
 test_regression_linear_contrast_error()
 test_regression_linear_correct_p()
+test_regression_linear_limit_contrasts()
+test_regression_linear_limit_contrasts_correct()
 
 # Test p-value correction methods
 test_p_correct()

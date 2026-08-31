@@ -50,15 +50,15 @@ def test_one_sample(
 
     dv = Selector.resolve(df, dv)
     valid_methods = {'t', 'wilcoxon', 'sign'}
-    clean_method = _standardize_method(method, valid_methods)
+    method = _standardize_method(method, valid_methods)
 
-    if clean_method == 't':
+    if method == 't':
         result = _one_sample_t(df, dv, null, alpha)
 
-    elif clean_method == 'wilcoxon':
+    elif method == 'wilcoxon':
         result = _one_sample_wilcoxon(df, dv, null, alpha)
     
-    elif clean_method == 'sign':
+    elif method == 'sign':
         result = _one_sample_sign(df, dv, null, alpha)
 
     return result
@@ -95,9 +95,9 @@ def test_one_sample_proportion(
 
     dv = Selector.resolve(df, dv)
     valid_methods = {'exact'}
-    clean_method = _standardize_method(method, valid_methods)
+    method = _standardize_method(method, valid_methods)
 
-    if clean_method == 'exact':
+    if method == 'exact':
         result = _one_sample_binomial(df, dv, null, alpha)
 
     return result    
@@ -139,12 +139,12 @@ def test_independent_proportion(
     dv = [col for col in dv if col != iv]
 
     valid_methods = {'chi-square', 'fisher-exact'}
-    clean_method = _standardize_method(method, valid_methods)
+    method = _standardize_method(method, valid_methods)
 
-    if clean_method == 'chi-square':
+    if method == 'chi-square':
         result = _independent_chi_sq(df, iv, dv, alpha)
     
-    elif clean_method == 'fisher-exact':
+    elif method == 'fisher-exact':
         result = _independent_fisher_exact(df, iv, dv, alpha)
 
     return result
@@ -193,24 +193,24 @@ def test_independent(
     dv = [col for col in dv if col != iv]
 
     valid_methods = {'t', 'mann-whitney', 'anova', 'kruskal-wallis', 'tukey', 'dunn'}
-    clean_method = _standardize_method(method, valid_methods)
+    method = _standardize_method(method, valid_methods)
 
-    if clean_method == 't':
+    if method == 't':
         result = _independent_t(df, iv, dv, alpha)
     
-    elif clean_method == 'mann-whitney':
+    elif method == 'mann-whitney':
         result = _independent_mann_whitney_u(df, iv, dv, alpha)
 
-    elif clean_method == 'anova':
+    elif method == 'anova':
         result = _independent_one_way_anova(df, iv, dv, alpha)
 
-    elif clean_method == 'kruskal-wallis':
+    elif method == 'kruskal-wallis':
         result = _independent_kruskal_wallis_h(df, iv, dv, alpha)
 
-    elif clean_method == 'tukey':
+    elif method == 'tukey':
         result = _independent_tukey(df, iv, dv, alpha)
 
-    elif clean_method == 'dunn':
+    elif method == 'dunn':
         result = _independent_dunn(df, iv, dv, alpha)
 
     return result
@@ -248,12 +248,12 @@ def test_dependent(
 
     dv = Selector.resolve_pair(df, dv)
     valid_methods = {'t', 'wilcoxon'}
-    clean_method = _standardize_method(method, valid_methods)
+    method = _standardize_method(method, valid_methods)
 
-    if clean_method == 't':
+    if method == 't':
         result = _dependent_t(df, dv, alpha)
     
-    elif clean_method == 'wilcoxon':
+    elif method == 'wilcoxon':
         result = _dependent_wilcoxon(df, dv, alpha)
 
     return result
@@ -292,10 +292,10 @@ def test_dependent_proportion(
     """
 
     valid_methods = {'mcnemar-exact', 'mcnemar-asymptotic', 'cochran'}
-    clean_method = _standardize_method(method, valid_methods)
+    method = _standardize_method(method, valid_methods)
 
-    if clean_method in {'mcnemar-exact', 'mcnemar-asymptotic'}:
-        exact = clean_method == 'mcnemar-exact'
+    if method in {'mcnemar-exact', 'mcnemar-asymptotic'}:
+        exact = method == 'mcnemar-exact'
 
         if isinstance(dv, GroupSelector):
             raise TypeError(f'Mcnemar\'s test requires pairs of columns but a GroupSelector was given.')
@@ -304,7 +304,7 @@ def test_dependent_proportion(
             dv = Selector.resolve_pair(df, dv)
             result = _dependent_mcnemar(df, dv, alpha, exact = exact)
     
-    elif clean_method == 'cochran':
+    elif method == 'cochran':
         dv = Selector.resolve_group(df, dv)
         result = _dependent_cochran(df, dv, alpha)
 
@@ -320,6 +320,7 @@ def test_regression(
     interaction: Sequence[str] | Sequence[Sequence[str]] | ColumnSelector | PairSelector | None = None,
     contrast: Sequence[str] | Sequence[Sequence[str]] | ColumnSelector | PairSelector | None = None,
     correct_p: str | dict[str, str] | None = None,
+    limit_contrasts: bool = False,
     print_summary: bool = False,    
 ) -> pd.DataFrame:
     """Run a regression.
@@ -335,6 +336,7 @@ def test_regression(
         interaction (Sequence[str] | Sequence[Sequence[str]] | ColumnSelector | PairSelector | None, optional): Interaction terms to compute. If given, mean-centers `iv` columns. Defaults to None.
         contrast (Sequence[str] | Sequence[Sequence[str]] | ColumnSelector | PairSelector | None, optional): Pairs of independent variables to compare using Wald tests. Defaults to None.
         correct_p (str | dict[str, str] | None, optional): The p-value correction method to use on the results. Can be a dict mapping result 'type' to method. Methods must be acceptable `method` values to `p_correct`. Defaults to None. 
+        limit_contrasts (bool): If true, only runs contrasts where the overall model is statistically significant. Defaults to False.
         print_summary (bool, optional): If true, prints the model summary after fit. Defaults to False.
 
     Notes:
@@ -360,7 +362,7 @@ def test_regression(
     dv = Selector.resolve(df, dv)
 
     valid_methods = {'linear', 'logistic', 'ordered-logistic'}
-    clean_method = _standardize_method(method, valid_methods)
+    method = _standardize_method(method, valid_methods)
 
     if interaction is not None:
         interaction = Selector.resolve_pair(df, interaction)
@@ -374,11 +376,17 @@ def test_regression(
     iv_set = set(iv)
     dv = [col for col in dv if col not in iv_set]
 
-    result = _regression(df, clean_method, iv, dv, alpha, interaction, contrast, print_summary)
+    result = _regression(df, method, iv, dv, alpha, interaction, contrast, limit_contrasts, print_summary)
 
     if correct_p:
         for type_val, method_val in correct_p.items():
             result = p_correct(result, method = method_val, alpha = alpha, on = type_val, familywise = True)
+
+    if limit_contrasts:
+        sig_models = result[(result['stat_sig']) & (result['type'] == 'model')].index.get_level_values('dv')
+        retain_mask = (~(result['type'] == 'contrast')) | (result.index.get_level_values('dv').isin(sig_models))
+
+        result = result[retain_mask]
 
     return result
 
@@ -582,9 +590,9 @@ def _p_method_map(
         'by' : 'fdr_by',
     }
     method_set = set(method_map.keys())
-    clean_method = _standardize_method(method, method_set)
+    method = _standardize_method(method, method_set)
 
-    return method_map[clean_method]
+    return method_map[method]
 
 def _regression(
     df: pd.DataFrame,
@@ -594,6 +602,7 @@ def _regression(
     alpha: float,
     interaction: list[list[str]] | None,
     contrast: list[list[str]] | None,
+    limit_contrasts: bool,
     print_summary: bool,
 ) -> pd.DataFrame:
     """Run a regression.
@@ -608,6 +617,7 @@ def _regression(
         alpha (float): The desired alpha.
         interaction (list[list[str]] | None): Interaction terms to compute. If given, mean-centers `iv` columns.
         contrast (list[list[str]] | None): Pairs of independent variables to compare using Wald tests.
+        limit_contrasts (bool): If true, only runs contrasts where the overall model is statistically significant.
         print_summary (bool): If true, prints the model summary after fit.
 
     Notes:
@@ -672,7 +682,7 @@ def _regression(
             p_values.append(result.pvalues[iv_name]) # type: ignore
             counts.append(result.nobs) # type: ignore
 
-        if contrast:
+        if contrast and (not limit_contrasts or model_p < alpha):
             pair_indices, pair_stats, pair_ps, pair_counts = _pairwise_wald(df, result, dv_col, contrast)
 
             index_tuples.extend(pair_indices)
