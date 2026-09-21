@@ -1030,6 +1030,132 @@ def test_regression_linear_correct_p():
     
     pd.testing.assert_frame_equal(result, expected)
 
+def test_mixed_linear_interaction():
+
+    dp = DataProcessor()
+
+    test_df = pd.DataFrame({
+        'iv1': [np.nan, 5.2, 10, 7.8, 32, 2, 3, 13.1, 15.4, 54, 17.0, 2, 13, 1.4, 3, 16, 23.1, 57.4, 32.0, 3.1, 7.5, 4.2, 8.9, 6.4, 9.1, 1.8],
+        'iv2': [0, 1, 0, 1, 1, 0, 0, 1, 1, 0, 1, 0, 1, 1, 0, 0, 1, 0, 1, 0, 0, 1, 1, 0, 1, 0],
+        'dv_before': [14.2, 18.5, 12.1, 24.3, 21.0, 15.4, 19.8, 29.1, 33.5, 22.0, 31.4, 24.9, 52.1, 9.4, 44.5, 41.2, 36.8, 74.2, 48.0, 11.1, 16.5, 15.2, 22.9, 14.4, 21.1, 8.8],
+        'dv_after': [12, 0, 14, 2, 3, 11, 17, 0, 0, 11, 0, 13, 1, 6, 17, 12, 6, 18, 0, 10, 12, 8, np.nan, 19, 3, 10], 
+    })
+
+    multi_index = pd.MultiIndex.from_tuples(
+        [
+            ("['dv_before', 'dv_after']", 'Intercept'),
+            ("['dv_before', 'dv_after']", 'Q("iv1")'),
+            ("['dv_before', 'dv_after']", 'Q("iv1"):Q("within_factor__")[T.dv_before]'),
+            ("['dv_before', 'dv_after']", 'Q("iv2")'),
+            ("['dv_before', 'dv_after']", 'Q("iv2"):Q("within_factor__")[T.dv_before]'),
+            ("['dv_before', 'dv_after']", 'Q("iv1"):Q("iv2")'),
+        ],
+        names = ['dv', 'iv'],
+    )
+
+    expected = pd.DataFrame(
+        {
+            'test_statistic': [13.6941, -0.0020, 0.6044, -11.5665, 13.7092, 0.0211],
+            'p_value': [0.0001, 0.9887, 0.0006, 0.0272, 0.0103, 0.9294],
+            'stat_sig': [True, False, True, True, True, False],
+            'count': [49, 49, 49, 49, 49, 49],
+            'type': ['const', 'predictor', 'interaction', 'predictor', 'interaction', 'interaction']
+        },
+        index = multi_index,
+    )
+
+    result = dp.test_mixed(test_df, 'linear', dv = ['dv_before', 'dv_after'], iv = ['iv1', 'iv2'], interaction = ['iv1', 'iv2', 'dv_before', 'dv_after'])
+
+    result['test_statistic'] = result['test_statistic'].round(4)
+    result['p_value'] = result['p_value'].round(4)
+    
+    pd.testing.assert_frame_equal(result, expected)
+
+def test_mixed_logistic_interaction():
+    dp = DataProcessor()
+
+    test_df = pd.DataFrame({
+        'iv1': [np.nan, 5.2, 10, 7.8, 32, 44, 3, 64, 15.4, 54, 17.0, 2, 13, 1, 3, 16, 23.1, 57.4, 32.0, 3.1, 7.5, 4.2, 8.9, 6.4, 9.1, 1.8],
+        'iv2': [0, 1, 0, 0, 1, 0, 0, 0, 1, 0, 1, 0, 1, 1, 0, 0, 1, 0, 0, 0, 0, 1, 1, 0, 1, 0],
+        'dv_before': [0, 1, 0, 1, 1, 0, 1, 0, 1, 0, 1, 0, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 1, 0, 1, 0],
+        'dv_after': [1, 1, 1, 0, 1, 1, 1, 0, 0, 1, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0, np.nan, 1, 0, 0], 
+    })
+
+    multi_index = pd.MultiIndex.from_tuples(
+        [
+            ("['dv_before', 'dv_after']", 'Intercept'),
+            ("['dv_before', 'dv_after']", 'Q("iv1")'),
+            ("['dv_before', 'dv_after']", 'Q("iv1"):Q("within_factor__")[T.dv_before]'),
+            ("['dv_before', 'dv_after']", 'Q("iv2")'),
+            ("['dv_before', 'dv_after']", 'Q("iv2"):Q("within_factor__")[T.dv_before]'),
+            ("['dv_before', 'dv_after']", 'Q("iv1"):Q("iv2")'),
+        ],
+        names = ['dv', 'iv'],
+    )
+
+    expected = pd.DataFrame(
+        {
+            'test_statistic': [0.0241, 0.0053, -0.0135, -3.0389, 4.6836, 0.1049],
+            'p_value': [0.9730, 0.8219, 0.6049, 0.2155, 0.0086, 0.3046],
+            'stat_sig': [False, False, False, False, True, False],
+            'count': [49, 49, 49, 49, 49, 49],
+            'type': ['const', 'predictor', 'interaction', 'predictor', 'interaction', 'interaction']
+        },
+        index = multi_index,
+    )
+
+    result = dp.test_mixed(test_df, 'logistic', dv=['dv_before', 'dv_after'], iv=['iv1', 'iv2'], interaction=['iv1', 'iv2', 'dv_before', 'dv_after'])
+
+    result['test_statistic'] = result['test_statistic'].round(4)
+    result['p_value'] = result['p_value'].round(4)
+
+    pd.testing.assert_frame_equal(result, expected)
+
+def test_mixed_ordered_interaction():
+    dp = DataProcessor()
+
+    rng = np.random.default_rng(20260921)
+    iv1 = rng.normal(size=80)
+    iv2 = np.tile([0, 1], 40)
+    interaction = iv1 * iv2
+    before_latent = 0.7 * iv1 + 0.8 * iv2 + 0.5 * interaction + rng.normal(size=80)
+    after_latent = -0.4 * iv1 + 0.6 * iv2 - 0.7 * interaction + rng.normal(size=80)
+    test_df = pd.DataFrame({
+        'iv1': iv1,
+        'iv2': iv2,
+        'dv_before': np.digitize(before_latent, [-0.5, 0.5]),
+        'dv_after': np.digitize(after_latent, [-0.5, 0.5]),
+    })
+
+    multi_index = pd.MultiIndex.from_tuples(
+        [
+            ("['dv_before', 'dv_after']", 'Q("iv1")'),
+            ("['dv_before', 'dv_after']", 'Q("iv1"):Q("within_factor__")[T.dv_before]'),
+            ("['dv_before', 'dv_after']", 'Q("iv2")'),
+            ("['dv_before', 'dv_after']", 'Q("iv2"):Q("within_factor__")[T.dv_before]'),
+            ("['dv_before', 'dv_after']", 'Q("iv1"):Q("iv2")'),
+        ],
+        names = ['dv', 'iv'],
+    )
+
+    expected = pd.DataFrame(
+        {
+            'test_statistic': [-1.4571, 2.6384, -0.0445, 0.9543, -0.1954],
+            'p_value': [0.0003, 0.0000, 0.9239, 0.1833, 0.5642],
+            'stat_sig': [True, True, False, False, False],
+            'count': [320, 320, 320, 320, 320],
+            'type': ['predictor', 'interaction', 'predictor', 'interaction', 'interaction']
+        },
+        index = multi_index,
+    )
+
+    result = dp.test_mixed(test_df, 'ordered-logistic', dv=['dv_before', 'dv_after'], iv=['iv1', 'iv2'], interaction=['iv1', 'iv2', 'dv_before', 'dv_after'])
+
+    result['test_statistic'] = result['test_statistic'].round(4)
+    result['p_value'] = result['p_value'].round(4)
+    
+    pd.testing.assert_frame_equal(result, expected)
+
 def test_p_correct():
 
     dp = DataProcessor()
@@ -1309,3 +1435,8 @@ test_p_correct_familywise()
 test_regression_dv_collision()
 test_independent_proportion_dv_collision()
 test_independent_dv_collision()
+
+# Test mixed
+test_mixed_linear_interaction()
+test_mixed_logistic_interaction()
+test_mixed_ordered_interaction()

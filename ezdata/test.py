@@ -13,6 +13,8 @@ from statsmodels.regression.linear_model import OLS, RegressionResultsWrapper
 from statsmodels.discrete.discrete_model import Logit, BinaryResultsWrapper
 from statsmodels.miscmodels.ordinal_model import OrderedModel, OrderedResultsWrapper
 import sys
+import patsy
+import re
 
 def test_one_sample(
     df: pd.DataFrame,
@@ -65,7 +67,7 @@ def test_one_sample(
 
 def test_one_sample_proportion(
     df: pd.DataFrame,
-    method: str,
+    method: str = 'exact',
     *,
     null: float = 0.5,
     alpha: float = 0.05,
@@ -75,7 +77,7 @@ def test_one_sample_proportion(
 
     Args:
         df (pd.DataFrame): The DataFrame.
-        method (str): The test method. Supported choices: 'exact'.
+        method (str): The test method. Supported choices: 'exact'. Defaults to 'exact'.
         null (float, optional): The value representing the central tendency of the null hypothesis. Defaults to 0.5.
         alpha (float, optional): The desired alpha. Defaults to 0.05.
         dv (Sequence[str] | str | ColumnSelector | None, optional): Column(s) to include. If None, includes all columns. Defaults to None.
@@ -226,7 +228,7 @@ def test_dependent(
 
     Args:
         df (pd.DataFrame): The DataFrame.
-        method (str): The test method. Supported choices: 't', 'wilcoxon'
+        method (str): The test method. Supported choices: 't', 'wilcoxon'.
         dv (Sequence[str] | Sequence[Sequence[str]] | ColumnSelector | PairSelector | None, optional): Column(s) to evaluate for differences on the basis of `iv`. If None, includes all columns. Defaults to None.
         alpha (float, optional): The desired alpha. Defaults to 0.05.
 
@@ -247,9 +249,9 @@ def test_dependent(
     """
 
     dv = Selector.resolve_pair(df, dv)
-    valid_methods = {'t', 'wilcoxon'}
+    valid_methods = {'t', 'wilcoxon', 'anova'}
     method = _standardize_method(method, valid_methods)
-
+        
     if method == 't':
         result = _dependent_t(df, dv, alpha)
     
@@ -390,6 +392,57 @@ def test_regression(
 
     return result
 
+def test_mixed(
+    df: pd.DataFrame,
+    method: str,
+    *,
+    iv: Sequence[str] | str | ColumnSelector,
+    dv: Sequence[str] | Sequence[Sequence[str]] | ColumnSelector | PairSelector | GroupSelector,
+    alpha: float = 0.05,
+    interaction: Sequence[str] | Sequence[Sequence[str]] | ColumnSelector | PairSelector | None = None,
+) -> pd.DataFrame:
+    """Run a mixed model.
+
+    If `dv` is a sequence of strings or a ColumnSelector, will run a single model assuming these are separate columns for a within-subjects factor. A sequence of sequences, PairSelector, or GroupSelector will yield multiple separate models.
+
+    Args:
+        df (pd.DataFrame): The DataFrame.
+        method (str): The test method. Supported choices: 'linear', 'logistic', 'ordered-logistic'.
+        iv (Sequence[str] | str | ColumnSelector): Column(s) to use as the between-subjects independent variable(s).
+        dv (Sequence[str] | Sequence[Sequence[str]] | ColumnSelector | PairSelector | GroupSelector): Column(s) to use as the dependent variable(s), with each representing a separate within-subjects measurement for the within-subjects factor.
+        alpha (float, optional): The desired alpha. Defaults to 0.05.
+        interaction (Sequence[str] | Sequence[Sequence[str]] | ColumnSelector | PairSelector | None, optional): Interaction terms to compute. Defaults to None.
+
+    Notes:
+        * 'linear': Linear mixed effects model for interval- or ratio-scale repeated measurements.
+        * 'logistic': Generalized estimating equation for binary repeated measurements. Note: this models population-averaged rather than subject-specific effects.
+        * 'ordered logistic': Generalized estimating equation for ordinal repeated measurements. Note: this models population-averaged rather than subject-specific effects.
+        * For the purposes of defining an interaction between the within-subjects factor, any of the column labels in `dv` will suffice.
+
+    Returns:
+        pd.DataFrame: A DataFrame with multi-index indices, ('dv', 'iv').
+            Columns include:
+            - 'test_statistic': A statistic based on the `method` used.
+                * 
+                * 
+            - 'p_value': The calculated p value.
+            - 'stat_sig': A boolean flag indicating statistical significance.
+            - 'count': The number of valid non-nan observations.
+            - 'type': Indicating 'model', 'const', 'predictor', 'interaction', or 'contrast'.
+    """
+
+    iv = Selector.resolve(df, iv)
+    dv = Selector.resolve_group(df, dv)
+    if interaction is not None:
+        interaction = Selector.resolve_pair(df, interaction)
+
+    valid_methods = {'linear', 'logistic', 'ordered-logistic'}
+    method = _standardize_method(method, valid_methods)
+
+    result = _mixed(df, method, iv, dv, alpha, interaction)
+
+    return result
+
 def p_correct(
     df: pd.DataFrame,
     method: str,
@@ -451,6 +504,199 @@ def p_correct(
 
     return df
 
+def _mixed(
+    df: pd.DataFrame,
+    method: str,
+    iv: list[str],
+    dv: list[list[str]],
+    alpha: float,
+    interaction: list[list[str]] | None
+) -> pd.DataFrame:
+    """Run a mixed model.
+
+    Args:
+        df (pd.DataFrame): The DataFrame.
+        method (str): The test method.
+        iv (list[str]): Column(s) to use as the between-subjects independent variable(s).
+        dv (list[list[str]]): Column(s) to use as the dependent variable(s), with each representing a separate within-subjects measurement for the within-subjects factor.
+        alpha (float): The desired alpha.
+        interaction (list[list[str]] | None): Interaction terms to compute.
+
+    Returns:
+        pd.DataFrame: A DataFrame with multi-index indices, ('dv', 'iv').
+            Columns include:
+            - 'test_statistic': A statistic based on the `method` used.
+                * Raw beta coefficient for fixed effects when `method = 'linear'`.
+                * Log-odds ratios when when `method in {'logistic', 'ordered-logistic'}`.
+            - 'p_value': The calculated p value.
+            - 'stat_sig': A boolean flag indicating statistical significance.
+            - 'count': The number of valid non-nan observations.
+            - 'type': Indicating 'const', 'predictor', 'interaction'.
+    """
+
+    counts = []
+    index_tuples = []
+    test_statistics = []
+    p_values = []
+    types = []
+    iv_set = {f'Q("{label}")' for label in iv}
+    
+    if method == 'linear':
+        model_method = sm.MixedLM
+
+    elif method == 'logistic':
+        model_method = sm.GEE
+        family = sm.families.Binomial()
+        cov_struct = sm.cov_struct.Exchangeable()
+
+    elif method == 'ordered-logistic':
+        model_method = sm.OrdinalGEE
+        family = sm.families.Binomial()
+        cov_struct = sm.cov_struct.GlobalOddsRatio('ordinal')
+
+    for dv_group in dv:
+        tall_df, labels = _format_tall_within(df, iv, dv_group)
+
+        formula, interaction_set = _write_formula_mixed(method, labels, iv, dv_group, interaction)
+
+        y, X = patsy.dmatrices( # type: ignore
+            formula,
+            data = tall_df, 
+            return_type = 'dataframe',
+            NA_action = 'drop',
+        )
+
+        if method in {'logistic', 'ordered-logistic'}:
+            model = model_method(
+                endog = y,
+                exog = X,
+                groups = tall_df.loc[y.index, labels['subject_id']],
+                family = family,
+                cov_struct = cov_struct,   
+            )
+
+        else:
+            model = model_method(
+                endog = y,
+                exog = X,
+                groups = tall_df.loc[y.index, labels['subject_id']],
+            )
+
+        result = model.fit()
+
+        re_pattern = r'\[[tT]\.[^\]]*\]'
+
+        for iv_name in result.params.index: # type: ignore
+
+            clean_name = re.sub(re_pattern, '', iv_name)
+
+            if clean_name in interaction_set:
+                types.append('interaction')
+
+            elif clean_name in iv_set:
+                types.append('predictor')
+
+            elif clean_name == 'Intercept':
+                types.append('const')
+
+            else:
+                continue
+
+            index_tuples.append((f'{dv_group}', iv_name))
+            test_statistics.append(result.params[iv_name]) # type: ignore
+            p_values.append(result.pvalues[iv_name]) # type: ignore
+            counts.append(result.nobs) # type: ignore
+
+    return _create_test_frame(
+        index_tuples,
+        np.array(test_statistics),
+        np.array(p_values),
+        np.array(counts),
+        alpha,
+        ['dv', 'iv'],
+        types = np.array(types),
+    )
+
+def _format_tall_within(
+    df: pd.DataFrame,
+    iv: list[str],
+    dv: list[str],
+) -> tuple[pd.DataFrame, dict[str, str]]:
+    """Convert a wide-format DataFrame to tall.
+
+    Args:
+        df (pd.DataFrame): The DataFrame.
+        iv (list[str]): The between-subject factor column labels.
+        dv (list[str]): The dependent-variable columns (for each within-subject factor level).
+
+    Returns:
+        tuple[pd.DataFrame, dict[str, str]]: A tuple containing the unpivoted DataFrame and a dictionary that specifies relevant new column labels.
+    """
+
+    df = df.copy()
+
+    labels = {
+        'subject_id': 'subject_id__',
+        'within_factor': 'within_factor__',
+        'dv': 'dv__',
+    }
+
+    df[labels['subject_id']] = df.index
+
+    tall_df = pd.melt(
+        df,
+        id_vars = iv + [labels['subject_id']],
+        value_vars = dv,
+        var_name = labels['within_factor'],
+        value_name = labels['dv']
+    )
+
+    return tall_df, labels
+
+def _write_formula_mixed(
+    method: str,
+    labels: dict[str, str],
+    iv: list[str],
+    dv: list[str],
+    interaction: list[list[str]] | None,
+) -> tuple[str, set]:
+    """Write a patsy formula for a mixed model.
+
+    Args:
+        method (str): The string method.
+        labels (dict[str, str]): The dictionary mapping 'within_factor', 'dv', and 'subject_id' to their column labels.
+        iv (list[str]): The list of column labels for between-subject factors.
+        dv (list[str]): The list of column labels for dependent variables.
+        interaction (list[list[str]] | None): The list of lists containing pairs of column labels for interaction effects.
+
+    Returns:
+        tuple[str, set]: A tuple of the string formula and the set of interaction terms.
+    """
+
+    iv_terms = ' + '.join([f'Q("{var}")' for var in iv])
+    interaction_set = set()
+    dv_set = set(dv)
+
+    if interaction is not None:
+        for col0, col1 in interaction:
+            if col0 in dv_set and col1 in dv_set:
+                continue
+
+            elif col0 in dv_set:
+                interaction_set.add(f'Q("{labels['within_factor']}"):Q("{col1}")')
+
+            elif col1 in dv_set:
+                interaction_set.add(f'Q("{col0}"):Q("{labels['within_factor']}")')
+
+            else:
+                interaction_set.add(f'Q("{col0}"):Q("{col1}")')
+
+    interaction_terms = ' + '.join(interaction_set)
+
+    formula = f'Q("{labels['dv']}") ~ {'0 + ' if method == 'ordered-logistic' else ''}Q("{labels['within_factor']}") + {iv_terms}{" + " + interaction_terms if len(interaction_set) > 0 else ""}'
+
+    return formula, interaction_set
+    
 def _apply_p_correct(
     df: pd.DataFrame,
     p_vals: pd.Series,
@@ -1748,18 +1994,16 @@ def _standardize_method(
         caller_name = sys._getframe(1).f_code.co_name
 
         raise ValueError(
-            f'Method \'{method}\' to {caller_name} not recognized. '
+            f'Method \'{method}\' to {caller_name} is not recognized. '
             f'Expected one of: {valid_methods}.'
         )
 
     return method
 
-# TODO: consider param to only do contrasts if overall model is sig? 'limit_contrasts'?
+# TODO: add test method for test_dependent like rm anova with solely a within-subject factor (need a 2+ column variant)
 # TODO: consider adding 'type', adding contrasts, and correct_p for other tests as we have for regression
 # TODO: categorical iv to dummy in regression
 # TODO: pairwise chi_square option
-# TODO: pairise fisher_exact option
-# TODO: z-standardize variables (prep?)
+# TODO: pairwise fisher_exact option
+# TODO: z-standardize variables (in prep?)
 # TODO: auto-compute z-standardized vars for regression pairwise comparisons? (if numeric but not dummy)
-# TODO: multinomial logistic regression
-# TODO: custom results objects...?

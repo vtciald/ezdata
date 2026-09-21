@@ -256,6 +256,7 @@ class DataProcessor:
     test_dependent_proportion = staticmethod(test.test_dependent_proportion)
     test_regression = staticmethod(test.test_regression)
     p_correct = staticmethod(test.p_correct)
+    test_mixed = staticmethod(test.test_mixed)
 
     # Functions from reduction.py
     reduce_pca = staticmethod(reduction.reduce_pca)
