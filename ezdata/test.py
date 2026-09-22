@@ -7,6 +7,7 @@ from collections.abc import Sequence
 from itertools import combinations
 from statsmodels.stats.contingency_tables import mcnemar, cochrans_q
 from statsmodels.stats.multitest import multipletests
+from statsmodels.stats.anova import AnovaRM
 from scikit_posthocs import posthoc_dunn, posthoc_tukey
 import statsmodels.api as sm
 from statsmodels.regression.linear_model import OLS, RegressionResultsWrapper
@@ -221,21 +222,25 @@ def test_dependent(
     df: pd.DataFrame,
     method: str,
     *,
-    dv: Sequence[str] | Sequence[Sequence[str]] | ColumnSelector | PairSelector | None = None,
+    dv: Sequence[str] | Sequence[Sequence[str]] | ColumnSelector | PairSelector | GroupSelector | None = None,
     alpha: float = 0.05,
 ) -> pd.DataFrame:
     """Run an dependent-samples test.
 
     Args:
         df (pd.DataFrame): The DataFrame.
-        method (str): The test method. Supported choices: 't', 'wilcoxon'.
-        dv (Sequence[str] | Sequence[Sequence[str]] | ColumnSelector | PairSelector | None, optional): Column(s) to evaluate for differences on the basis of `iv`. If None, includes all columns. Defaults to None.
+        method (str): The test method. Supported choices: 't', 'wilcoxon', 'rm-anova'.
+        dv (Sequence[str] | Sequence[Sequence[str]] | ColumnSelector | PairSelector | GroupSelector | None, optional): Column(s) to evaluate for differences on the basis of `iv`. If None, includes all columns. Defaults to None.
         alpha (float, optional): The desired alpha. Defaults to 0.05.
 
     Notes:
         * 't': Paired-samples t-test (parametric). Difference between 2 columns.
         * 'wilcoxon': Wilcoxon signed-rank test (non-parametric). Difference between 2 columns.
+        * 'rm-anova': Repeated measures ANOVA (parametric). Difference between 2+ columns.
         * If `dv` is a sequence of strings (or ColumnSelector), all combinations of columns will be tested.
+
+    Raises:
+        TypeError: If `dv` is a GroupSelector but `method` is not 'rm-anova'.
 
     Returns:
         pd.DataFrame: A DataFrame with multi-index indices, ('group_0', 'group_1')
@@ -243,20 +248,32 @@ def test_dependent(
             - 'test_statistic': A statistic based on the `method` used.
                 * T statistic when `method = 't'`.
                 * The sum of the ranks of the differences above or below zero, whichever is smaller when `method = 'wilcoxon'`.
+                * F statistic when `method = 'rm-anova'`.
             - 'p_value': The calculated p value.
             - 'stat_sig': A boolean flag indicating statistical significance.
             - 'count': The number of valid non-nan observations.
     """
 
-    dv = Selector.resolve_pair(df, dv)
-    valid_methods = {'t', 'wilcoxon', 'anova'}
+    valid_methods = {'t', 'wilcoxon', 'rm-anova'}
     method = _standardize_method(method, valid_methods)
+
+    if method == 'rm-anova':
+        dv = Selector.resolve_group(df, dv)
+
+    elif isinstance(dv, GroupSelector):
+        raise TypeError(f'GroupSelector is only valid for method = "rm-anova".')
+
+    else:
+        dv = Selector.resolve_pair(df, dv)
         
     if method == 't':
         result = _dependent_t(df, dv, alpha)
     
     elif method == 'wilcoxon':
         result = _dependent_wilcoxon(df, dv, alpha)
+
+    elif method == 'rm-anova':
+        result = _dependent_rm_anova(df, dv, alpha)
 
     return result
 
@@ -556,6 +573,7 @@ def _mixed(
 
     for dv_group in dv:
         tall_df, labels = _format_tall_within(df, iv, dv_group)
+        count = len(tall_df)
 
         formula, interaction_set = _write_formula_mixed(method, labels, iv, dv_group, interaction)
 
@@ -563,14 +581,13 @@ def _mixed(
             formula,
             data = tall_df, 
             return_type = 'dataframe',
-            NA_action = 'drop',
         )
 
         if method in {'logistic', 'ordered-logistic'}:
             model = model_method(
                 endog = y,
                 exog = X,
-                groups = tall_df.loc[y.index, labels['subject_id']],
+                groups = tall_df[labels['subject_id']],
                 family = family,
                 cov_struct = cov_struct,   
             )
@@ -579,7 +596,7 @@ def _mixed(
             model = model_method(
                 endog = y,
                 exog = X,
-                groups = tall_df.loc[y.index, labels['subject_id']],
+                groups = tall_df[labels['subject_id']],
             )
 
         result = model.fit()
@@ -605,7 +622,7 @@ def _mixed(
             index_tuples.append((f'{dv_group}', iv_name))
             test_statistics.append(result.params[iv_name]) # type: ignore
             p_values.append(result.pvalues[iv_name]) # type: ignore
-            counts.append(result.nobs) # type: ignore
+            counts.append(count)
 
     return _create_test_frame(
         index_tuples,
@@ -633,7 +650,8 @@ def _format_tall_within(
         tuple[pd.DataFrame, dict[str, str]]: A tuple containing the unpivoted DataFrame and a dictionary that specifies relevant new column labels.
     """
 
-    df = df.copy()
+    df = df[iv + dv].copy()
+    df = df.dropna()
 
     labels = {
         'subject_id': 'subject_id__',
@@ -1213,6 +1231,58 @@ def _dependent_t(
         np.array(counts), # type: ignore
         alpha,
         ['group_0', 'group_1'],
+    )
+
+def _dependent_rm_anova(
+   df: pd.DataFrame,
+   columns: list[list[str]],
+   alpha: float,
+) -> pd.DataFrame:
+    """Run a dependent-samples Repeated Measures ANOVA.
+
+
+    Args:
+        df (pd.DataFrame): The DataFrame.
+        columns (list[list[str]]): Lists of column labels to compare.
+        alpha (float): The desired alpha level.
+
+    Returns:
+        pd.DataFrame: A DataFrame with indices for each combination of columns.
+            Columns include:
+            - 'test_statistic': The F statistic.
+            - 'p_value': The calculated p value.
+            - 'stat_sig': A boolean flag indicating statistical significance.
+            - 'count': The number of valid non-nan observations.
+    """
+    
+    indices= []
+    counts = []
+    test_statistics = []
+    p_values = []
+
+    for cols in columns:
+        tall_df, labels = _format_tall_within(df, [], cols)
+        count = len(tall_df)
+
+        model = AnovaRM(
+            data = tall_df,
+            depvar = labels['dv'],
+            subject = labels['subject_id'],
+            within = [labels['within_factor']],
+        )
+        result = model.fit().anova_table
+
+        indices.append(f'{cols}')
+        counts.append(count)
+        test_statistics.append(result.loc[labels['within_factor'], 'F Value']) # type: ignore
+        p_values.append(result.loc[labels['within_factor'], 'Pr > F']) # type: ignore
+
+    return _create_test_frame(
+        indices,
+        np.array(test_statistics),
+        np.array(p_values),
+        np.array(counts), # type: ignore
+        alpha,
     )
 
 def _dependent_wilcoxon(
@@ -2000,7 +2070,7 @@ def _standardize_method(
 
     return method
 
-# TODO: add test method for test_dependent like rm anova with solely a within-subject factor (need a 2+ column variant)
+# TODO: add 2+ column variant of test_dependent nonparametric (friedman test?)
 # TODO: consider adding 'type', adding contrasts, and correct_p for other tests as we have for regression
 # TODO: categorical iv to dummy in regression
 # TODO: pairwise chi_square option
