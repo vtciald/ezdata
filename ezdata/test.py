@@ -1,6 +1,6 @@
 import numpy as np
 import pandas as pd
-from scipy.stats import ttest_rel, wilcoxon, kruskal, mannwhitneyu, f_oneway, ttest_ind, chi2_contingency, fisher_exact, ttest_1samp, binomtest
+from scipy.stats import ttest_rel, wilcoxon, kruskal, mannwhitneyu, f_oneway, ttest_ind, chi2_contingency, friedmanchisquare, fisher_exact, ttest_1samp, binomtest
 from . import prep
 from .selector import Selector, ColumnSelector, PairSelector, GroupSelector
 from collections.abc import Sequence
@@ -40,7 +40,7 @@ def test_one_sample(
         * 'sign': One-sample sign test (non-parametric). Difference (ignoring magnitude) between column and null.
 
     Returns:
-        pd.DataFrame: A DataFrame with indices matching the labels in `dv`.
+        pd.DataFrame: A DataFrame containing the results.
             Columns include:
             - 'test_statistic': A statistic based on the `method` used.
                 * T statistic when `method = 't'`.
@@ -87,7 +87,7 @@ def test_one_sample_proportion(
         * 'exact': One-sample exact binomial test (non-parametric). Difference between column and null.
 
     Returns:
-        pd.DataFrame: A DataFrame with indices matching the labels in `dv`.
+        pd.DataFrame: A DataFrame containing the results.
             Columns include:
             - 'test_statistic': A statistic based on the `method` used.
                 * The estimate of the proportion of successes when `method = 'exact'`.
@@ -127,7 +127,7 @@ def test_independent_proportion(
         * 'chi_square': Chi-square test (non-parametric). Difference among 2+ groups.
 
     Returns:
-        pd.DataFrame: A DataFrame with indices matching the labels in `dv`.
+        pd.DataFrame: A DataFrame containing the results.
             Columns include:
             - 'test_statistic': A statistic based on the `method` used.
                 * The Chi-squared test statistic when `method = 'chi-square'`.
@@ -178,7 +178,7 @@ def test_independent(
         * 'dunn': Dunn's test (non-parametric). Pairwise follow-up to Kruskal-Wallis.
 
     Returns:
-        pd.DataFrame: A DataFrame. The index structure varies based on the `method`.
+        pd.DataFrame: A DataFrame containing the results.
             Columns include:
             - 'test_statistic': A statistic based on the `method` used.
                 * T statistic when `method = 't'`.
@@ -188,7 +188,7 @@ def test_independent(
             - 'p_value': The calculated p value.
             - 'stat_sig': A boolean flag indicating statistical significance.
             - 'count': The number of valid non-nan observations.
-            For follow-up tests, only the 'p_value' and 'stat_sig' column will be non-NaN. No p-value correction method will be applied.
+            For follow-up tests, only the 'p_value' and 'stat_sig' column will be non-NaN. No p-value correction method will be automatically applied.
     """
 
     df, iv = prep.dummy_to_categorical(df, cols = iv)
@@ -229,7 +229,7 @@ def test_dependent(
 
     Args:
         df (pd.DataFrame): The DataFrame.
-        method (str): The test method. Supported choices: 't', 'wilcoxon', 'rm-anova'.
+        method (str): The test method. Supported choices: 't', 'wilcoxon', 'rm-anova', 'friedman'.
         dv (Sequence[str] | Sequence[Sequence[str]] | ColumnSelector | PairSelector | GroupSelector | None, optional): Column(s) to evaluate for differences on the basis of `iv`. If None, includes all columns. Defaults to None.
         alpha (float, optional): The desired alpha. Defaults to 0.05.
 
@@ -237,31 +237,33 @@ def test_dependent(
         * 't': Paired-samples t-test (parametric). Difference between 2 columns.
         * 'wilcoxon': Wilcoxon signed-rank test (non-parametric). Difference between 2 columns.
         * 'rm-anova': Repeated measures ANOVA (parametric). Difference between 2+ columns.
+        * 'friedman': Friedman test (non-parametric). Difference between 3+ columns.
         * If `dv` is a sequence of strings (or ColumnSelector), all combinations of columns will be tested.
 
     Raises:
-        TypeError: If `dv` is a GroupSelector but `method` is not 'rm-anova'.
+        TypeError: If `dv` is a GroupSelector but `method` is not 'rm-anova' or 'friedman'.
 
     Returns:
-        pd.DataFrame: A DataFrame with multi-index indices, ('group_0', 'group_1')
+        pd.DataFrame: A DataFrame containing the results.
             Columns include:
             - 'test_statistic': A statistic based on the `method` used.
                 * T statistic when `method = 't'`.
                 * The sum of the ranks of the differences above or below zero, whichever is smaller when `method = 'wilcoxon'`.
                 * F statistic when `method = 'rm-anova'`.
+                * Chi-square statistic when `method = 'friedman'`.
             - 'p_value': The calculated p value.
             - 'stat_sig': A boolean flag indicating statistical significance.
             - 'count': The number of valid non-nan observations.
     """
 
-    valid_methods = {'t', 'wilcoxon', 'rm-anova'}
+    valid_methods = {'t', 'wilcoxon', 'rm-anova', 'friedman'}
     method = _standardize_method(method, valid_methods)
 
-    if method == 'rm-anova':
+    if method in {'rm-anova', 'friedman'}:
         dv = Selector.resolve_group(df, dv)
 
     elif isinstance(dv, GroupSelector):
-        raise TypeError(f'GroupSelector is only valid for method = "rm-anova".')
+        raise TypeError(f'GroupSelector is only valid for methods \'rm-anova\' or \'friedman\'.')
 
     else:
         dv = Selector.resolve_pair(df, dv)
@@ -274,6 +276,9 @@ def test_dependent(
 
     elif method == 'rm-anova':
         result = _dependent_rm_anova(df, dv, alpha)
+
+    elif method == 'friedman':
+        result = _dependent_friedman(df, dv, alpha)
 
     return result
 
@@ -299,7 +304,7 @@ def test_dependent_proportion(
         * If `dv` is a sequence of strings (or ColumnSelector), all combinations of columns will be tested.
 
     Returns:
-        pd.DataFrame: A DataFrame with multi-index indices. The structure of these indices varies based on the `method`.
+        pd.DataFrame: A DataFrame containing the results.
             Columns include:
             - 'test_statistic': A statistic based on the `method` used.
                 * The count of discordant pairs when `method = 'mcnemar-exact'`.
@@ -364,7 +369,7 @@ def test_regression(
         * 'ordered-logistic': Ordered logistic regression. Predict an ordinal column.
 
     Returns:
-        pd.DataFrame: A DataFrame with multi-index indices, ('dv', 'iv').
+        pd.DataFrame: A DataFrame containing the results.
             Columns include:
             - 'test_statistic': A statistic based on the `method` used.
                 * Beta for predictors and F statistic for overall model when `method = 'linear'`.
@@ -437,11 +442,11 @@ def test_mixed(
         * For the purposes of defining an interaction between the within-subjects factor, any of the column labels in `dv` will suffice.
 
     Returns:
-        pd.DataFrame: A DataFrame with multi-index indices, ('dv', 'iv').
+        pd.DataFrame: A DataFrame containing the results.
             Columns include:
             - 'test_statistic': A statistic based on the `method` used.
-                * 
-                * 
+                * Raw beta coefficient for fixed effects when `method = 'linear'`.
+                * Log-odds ratios when when `method in {'logistic', 'ordered-logistic'}`.
             - 'p_value': The calculated p value.
             - 'stat_sig': A boolean flag indicating statistical significance.
             - 'count': The number of valid non-nan observations.
@@ -572,8 +577,7 @@ def _mixed(
         cov_struct = sm.cov_struct.GlobalOddsRatio('ordinal')
 
     for dv_group in dv:
-        tall_df, labels = _format_tall_within(df, iv, dv_group)
-        count = len(tall_df)
+        tall_df, labels, n_subjects = _format_tall_within(df, iv, dv_group)
 
         formula, interaction_set = _write_formula_mixed(method, labels, iv, dv_group, interaction)
 
@@ -622,7 +626,7 @@ def _mixed(
             index_tuples.append((f'{dv_group}', iv_name))
             test_statistics.append(result.params[iv_name]) # type: ignore
             p_values.append(result.pvalues[iv_name]) # type: ignore
-            counts.append(count)
+            counts.append(n_subjects)
 
     return _create_test_frame(
         index_tuples,
@@ -638,7 +642,7 @@ def _format_tall_within(
     df: pd.DataFrame,
     iv: list[str],
     dv: list[str],
-) -> tuple[pd.DataFrame, dict[str, str]]:
+) -> tuple[pd.DataFrame, dict[str, str], int]:
     """Convert a wide-format DataFrame to tall.
 
     Args:
@@ -647,11 +651,12 @@ def _format_tall_within(
         dv (list[str]): The dependent-variable columns (for each within-subject factor level).
 
     Returns:
-        tuple[pd.DataFrame, dict[str, str]]: A tuple containing the unpivoted DataFrame and a dictionary that specifies relevant new column labels.
+        tuple[pd.DataFrame, dict[str, str], int]: A tuple containing the unpivoted DataFrame, a dictionary that specifies relevant new column labels, and the number of subjects.
     """
 
     df = df[iv + dv].copy()
     df = df.dropna()
+    count = len(df)
 
     labels = {
         'subject_id': 'subject_id__',
@@ -669,7 +674,7 @@ def _format_tall_within(
         value_name = labels['dv']
     )
 
-    return tall_df, labels
+    return tall_df, labels, count
 
 def _write_formula_mixed(
     method: str,
@@ -1261,8 +1266,7 @@ def _dependent_rm_anova(
     p_values = []
 
     for cols in columns:
-        tall_df, labels = _format_tall_within(df, [], cols)
-        count = len(tall_df)
+        tall_df, labels, n_subjects = _format_tall_within(df, [], cols)
 
         model = AnovaRM(
             data = tall_df,
@@ -1273,9 +1277,59 @@ def _dependent_rm_anova(
         result = model.fit().anova_table
 
         indices.append(f'{cols}')
-        counts.append(count)
+        counts.append(n_subjects)
         test_statistics.append(result.loc[labels['within_factor'], 'F Value']) # type: ignore
         p_values.append(result.loc[labels['within_factor'], 'Pr > F']) # type: ignore
+
+    return _create_test_frame(
+        indices,
+        np.array(test_statistics),
+        np.array(p_values),
+        np.array(counts), # type: ignore
+        alpha,
+    )
+
+def _dependent_friedman(
+   df: pd.DataFrame,
+   columns: list[list[str]],
+   alpha: float,
+) -> pd.DataFrame:
+    """Run a dependent-samples Friedman test.
+
+    Args:
+        df (pd.DataFrame): The DataFrame.
+        columns (list[list[str]]): Lists of column labels to compare.
+        alpha (float): The desired alpha level.
+
+    Raises:
+        ValueError: If the number of columns in a group is less than 3.    
+
+    Returns:
+        pd.DataFrame: A DataFrame with indices for each combination of columns.
+            Columns include:
+            - 'test_statistic': The Chi-square statistic.
+            - 'p_value': The calculated p value.
+            - 'stat_sig': A boolean flag indicating statistical significance.
+            - 'count': The number of valid non-nan observations.
+    """
+    
+    indices= []
+    counts = []
+    test_statistics = []
+    p_values = []
+
+    for cols in columns:
+        if len(cols) < 3:
+            raise ValueError('Friedman test requires at least 3 observations per group.')
+        
+        temp_df = df[cols].dropna()
+
+        result = friedmanchisquare(*[temp_df[col].astype(float) for col in cols])
+        
+        indices.append(f'{cols}')
+        counts.append(len(temp_df))
+        test_statistics.append(result.statistic) # type: ignore
+        p_values.append(result.pvalue) # type: ignore
 
     return _create_test_frame(
         indices,
@@ -2070,7 +2124,6 @@ def _standardize_method(
 
     return method
 
-# TODO: add 2+ column variant of test_dependent nonparametric (friedman test?)
 # TODO: consider adding 'type', adding contrasts, and correct_p for other tests as we have for regression
 # TODO: categorical iv to dummy in regression
 # TODO: pairwise chi_square option

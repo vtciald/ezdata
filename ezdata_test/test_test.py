@@ -562,12 +562,45 @@ def test_dependent_rm_anova():
             'test_statistic': [2.6652],
             'p_value': [0.0813],
             'stat_sig': [False],
-            'count': [66],
+            'count': [22],
         },
         index = ["['Col_pre', 'Col_post', 'Col3']"],
     )
 
     result = dp.test_dependent(test_df, 'rm-anova', dv = ['Col_pre', 'Col_post', 'Col3'])
+
+    result['test_statistic'] = result['test_statistic'].round(4)
+    result['p_value'] = result['p_value'].round(4)
+    
+    pd.testing.assert_frame_equal(result, expected)
+
+def test_dependent_friedman():
+
+    dp = DataProcessor()
+
+    rng = np.random.default_rng(seed = 18)
+    X = rng.random((6, 10))
+
+    test_df = pd.DataFrame({
+        'Col1': X[0],
+        'Col2': X[1],
+        'Col3': X[2],
+        'Col4': X[3],
+        'Col5': X[4],
+        'Col6': X[5],
+    })
+
+    expected = pd.DataFrame(
+        {
+            'test_statistic': [11.4286],
+            'p_value': [0.0435],
+            'stat_sig': [True],
+            'count': [10],
+        },
+        index = ["['Col1', 'Col2', 'Col3', 'Col4', 'Col5', 'Col6']"],
+    )
+
+    result = dp.test_dependent(test_df, 'friedman', dv = dp.select(prefix = 'Col'))
 
     result['test_statistic'] = result['test_statistic'].round(4)
     result['p_value'] = result['p_value'].round(4)
@@ -1085,7 +1118,7 @@ def test_mixed_linear_interaction():
             'test_statistic': [13.6824, -0.0011, 0.6027, -11.4829, 13.8517, 0.0162],
             'p_value': [0.0001, 0.9936, 0.0008, 0.0308, 0.0109, 0.9468],
             'stat_sig': [True, False, True, True, True, False],
-            'count': [48, 48, 48, 48, 48, 48],
+            'count': [24, 24, 24, 24, 24, 24],
             'type': ['const', 'predictor', 'interaction', 'predictor', 'interaction', 'interaction']
         },
         index = multi_index,
@@ -1125,7 +1158,7 @@ def test_mixed_logistic_interaction():
             'test_statistic': [0.0235, 0.0053, -0.0135, -3.0626, 4.5557, 0.1056],
             'p_value': [0.9736, 0.8210, 0.6030, 0.2101, 0.0101, 0.2944],
             'stat_sig': [False, False, False, False, True, False],
-            'count': [48, 48, 48, 48, 48, 48],
+            'count': [24, 24, 24, 24, 24, 24],
             'type': ['const', 'predictor', 'interaction', 'predictor', 'interaction', 'interaction']
         },
         index = multi_index,
@@ -1170,7 +1203,7 @@ def test_mixed_ordered_interaction():
             'test_statistic': [-1.4571, 2.6384, -0.0445, 0.9543, -0.1954],
             'p_value': [0.0003, 0.0000, 0.9239, 0.1833, 0.5642],
             'stat_sig': [True, True, False, False, False],
-            'count': [160, 160, 160, 160, 160],
+            'count': [80, 80, 80, 80, 80],
             'type': ['predictor', 'interaction', 'predictor', 'interaction', 'interaction']
         },
         index = multi_index,
@@ -1442,6 +1475,7 @@ test_dependent_proportion_mcnemar_exact()
 test_dependent_proportion_mcnemar_asymptotic()
 test_dependent_proportion_cochran()
 test_dependent_rm_anova()
+test_dependent_friedman()
 
 # Test regression
 test_regression_linear()
